@@ -1,17 +1,23 @@
 package dev.gouthaman.regimen.ui.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen
 import dev.gouthaman.regimen.ui.active.WorkoutSummaryScreen
-import dev.gouthaman.regimen.ui.exercise.EditExerciseScreen
+import dev.gouthaman.regimen.ui.exercise.EditExerciseSheet
 import dev.gouthaman.regimen.ui.exercise.ExerciseDetailScreen
 import dev.gouthaman.regimen.ui.exercise.ExerciseLibraryScreen
 import dev.gouthaman.regimen.ui.history.HistoryScreen
@@ -71,6 +77,7 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *    [✓] Session-Detail Repeat/Edit → Active Workout (Phase 3c)  — #15 COMPLETE
  * ─────────────────────────────────────────────────────────────────────────
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun RegimenNavHost(
     navController: NavHostController,
@@ -79,116 +86,145 @@ fun RegimenNavHost(
     // Shared-axis-x transitions between all destinations (push slides in from the end + fades in,
     // popping reverses it) instead of the platform's abrupt default cross-fade.
     val transitionSpec = tween<Float>(220)
-    NavHost(
-        navController = navController,
-        startDestination = HomeRoute,
-        modifier = modifier,
-        enterTransition = {
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(220)) +
-                fadeIn(transitionSpec)
-        },
-        exitTransition = {
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(220)) +
-                fadeOut(transitionSpec)
-        },
-        popEnterTransition = {
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
-                fadeIn(transitionSpec)
-        },
-        popExitTransition = {
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
-                fadeOut(transitionSpec)
-        },
-    ) {
-        composable<HomeRoute> {
-            HomeScreen(
-                // The empty-state CTA switches to the Routines tab (where routine creation
-                // actually lives) rather than pushing the editor directly from Home.
-                onCreateRoutine = { navController.navigateToTab(RoutinesRoute) },
-                onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
-            )
-        }
-        composable<RoutinesRoute> {
-            RoutinesScreen(
-                onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },
-                onOpenRoutine = { navController.navigate(RoutineEditorRoute(it)) },
-            )
-        }
-        composable<HistoryRoute> {
-            HistoryScreen(
-                onOpenSession = { navController.navigate(SessionDetailRoute(it)) },
-            )
-        }
-        composable<SessionDetailRoute> {
-            SessionDetailScreen(
-                onBack = navController::popBackStack,
-                onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
-            )
-        }
-        composable<ActiveWorkoutRoute> {
-            ActiveWorkoutScreen(
-                onFinished = { workoutId ->
-                    navController.navigate(WorkoutSummaryRoute(workoutId)) {
-                        // Leave the finished session behind; back from the summary shouldn't reopen it.
-                        popUpTo(ActiveWorkoutRoute(workoutId)) { inclusive = true }
-                    }
-                },
-                onDiscarded = { navController.popBackStack() },
-                onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
-            )
-        }
-        composable<WorkoutSummaryRoute> {
-            WorkoutSummaryScreen(
-                onDone = { navController.popBackStack(HomeRoute, inclusive = false) },
-            )
-        }
-        composable<ProgressRoute> {
-            ProgressScreen(
-                onOpenMeasurements = { navController.navigate(MeasurementsRoute) },
-            )
-        }
-        composable<ProfileRoute> {
-            ProfileScreen(
-                onOpenExerciseLibrary = { navController.navigate(ExerciseLibraryRoute) },
-                onManageMeasurementTypes = { navController.navigate(MeasurementsRoute) },
-            )
-        }
 
-        composable<MeasurementsRoute> {
-            MeasurementsScreen(
-                onBack = navController::popBackStack,
-                onOpenType = { navController.navigate(MeasurementDetailRoute(it)) },
-            )
-        }
-        composable<MeasurementDetailRoute> {
-            MeasurementDetailScreen(onBack = navController::popBackStack)
-        }
+    // SharedTransitionLayout hosts the container-transform used by the Add/Edit Exercise screen:
+    // its root expands from the touch point (Library's FAB or Detail's Edit button) instead of
+    // sliding in like every other destination. See ExerciseEditTransitionKey.
+    SharedTransitionLayout {
+        val sharedTransitionScope = this
+        NavHost(
+            navController = navController,
+            startDestination = HomeRoute,
+            modifier = modifier,
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(220)
+                ) +
+                        fadeIn(transitionSpec)
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(220)
+                ) +
+                        fadeOut(transitionSpec)
+            },
+            popEnterTransition = {
+                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
+                        fadeIn(transitionSpec)
+            },
+            popExitTransition = {
+                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
+                        fadeOut(transitionSpec)
+            },
+        ) {
+            composable<HomeRoute> {
+                HomeScreen(
+                    // The empty-state CTA switches to the Routines tab (where routine creation
+                    // actually lives) rather than pushing the editor directly from Home.
+                    onCreateRoutine = { navController.navigateToTab(RoutinesRoute) },
+                    onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
+                )
+            }
+            composable<RoutinesRoute> {
+                RoutinesScreen(
+                    onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },
+                    onOpenRoutine = { navController.navigate(RoutineEditorRoute(it)) },
+                )
+            }
+            composable<HistoryRoute> {
+                HistoryScreen(
+                    onOpenSession = { navController.navigate(SessionDetailRoute(it)) },
+                )
+            }
+            composable<SessionDetailRoute> {
+                SessionDetailScreen(
+                    onBack = navController::popBackStack,
+                    onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
+                )
+            }
+            composable<ActiveWorkoutRoute> {
+                ActiveWorkoutScreen(
+                    onFinished = { workoutId ->
+                        navController.navigate(WorkoutSummaryRoute(workoutId)) {
+                            // Leave the finished session behind; back from the summary shouldn't reopen it.
+                            popUpTo(ActiveWorkoutRoute(workoutId)) { inclusive = true }
+                        }
+                    },
+                    onDiscarded = { navController.popBackStack() },
+                    onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
+                )
+            }
+            composable<WorkoutSummaryRoute> {
+                WorkoutSummaryScreen(
+                    onDone = { navController.popBackStack(HomeRoute, inclusive = false) },
+                )
+            }
+            composable<ProgressRoute> {
+                ProgressScreen(
+                    onOpenMeasurements = { navController.navigate(MeasurementsRoute) },
+                )
+            }
+            composable<ProfileRoute> {
+                ProfileScreen(
+                    onOpenExerciseLibrary = { navController.navigate(ExerciseLibraryRoute) },
+                    onManageMeasurementTypes = { navController.navigate(MeasurementsRoute) },
+                )
+            }
 
-        composable<ExerciseLibraryRoute> {
-            ExerciseLibraryScreen(
-                onBack = navController::popBackStack,
-                onExerciseClick = { navController.navigate(ExerciseDetailRoute(it)) },
-                onAddCustom = { navController.navigate(EditExerciseRoute()) },
-            )
-        }
-        composable<ExerciseDetailRoute> {
-            ExerciseDetailScreen(
-                onBack = navController::popBackStack,
-                onEdit = { navController.navigate(EditExerciseRoute(it)) },
-            )
-        }
-        composable<EditExerciseRoute> {
-            EditExerciseScreen(
-                onBack = navController::popBackStack,
-                onSaved = navController::popBackStack,
-            )
-        }
-        composable<RoutineEditorRoute> {
-            RoutineEditorScreen(
-                onBack = navController::popBackStack,
-                onSaved = navController::popBackStack,
-                onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
-            )
+            composable<MeasurementsRoute> {
+                MeasurementsScreen(
+                    onBack = navController::popBackStack,
+                    onOpenType = { navController.navigate(MeasurementDetailRoute(it)) },
+                )
+            }
+            composable<MeasurementDetailRoute> {
+                MeasurementDetailScreen(onBack = navController::popBackStack)
+            }
+
+            composable<ExerciseLibraryRoute> {
+                ExerciseLibraryScreen(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
+                    onBack = navController::popBackStack,
+                    onExerciseClick = { navController.navigate(ExerciseDetailRoute(it)) },
+                    onAddCustom = { navController.navigate(EditExerciseRoute()) },
+                )
+            }
+            composable<ExerciseDetailRoute>(
+                // Detail is the destination of the Library row's container transform, so its own
+                // entrance/exit-back-to-Library slide would fight that growth/shrink — suppress it.
+                enterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None },
+            ) {
+                ExerciseDetailScreen(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
+                    onBack = navController::popBackStack,
+                    onEdit = { navController.navigate(EditExerciseRoute(it)) },
+                )
+            }
+            dialog<EditExerciseRoute>(
+                // A real dialog destination: unlike composable<Route>, this does NOT replace or
+                // dispose whichever screen launched it (Library, Detail, Active Workout, Routine
+                // Editor) — that screen stays genuinely composed and visible underneath, exactly
+                // like it would with no navigation involved at all. The content itself is a plain
+                // ModalBottomSheet (same as StartWorkoutSheet/FilterSheet elsewhere).
+                dialogProperties = DialogProperties(usePlatformDefaultWidth = false),
+            ) {
+                EditExerciseSheet(
+                    onBack = navController::popBackStack,
+                    onSaved = navController::popBackStack,
+                )
+            }
+            composable<RoutineEditorRoute> {
+                RoutineEditorScreen(
+                    onBack = navController::popBackStack,
+                    onSaved = navController::popBackStack,
+                    onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
+                )
+            }
         }
     }
 }

@@ -1,13 +1,12 @@
 package dev.gouthaman.regimen.ui.exercise
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,18 +14,18 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,7 +34,7 @@ import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 
 @Composable
-fun EditExerciseScreen(
+fun EditExerciseSheet(
     onBack: () -> Unit,
     onSaved: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,7 +46,7 @@ fun EditExerciseScreen(
         if (uiState.saved) onSaved()
     }
 
-    EditExerciseScreen(
+    EditExerciseSheet(
         uiState = uiState,
         onBack = onBack,
         onNameChange = viewModel::setName,
@@ -60,7 +59,7 @@ fun EditExerciseScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditExerciseScreen(
+fun EditExerciseSheet(
     uiState: EditExerciseUiState,
     onBack: () -> Unit,
     onNameChange: (String) -> Unit,
@@ -69,31 +68,31 @@ fun EditExerciseScreen(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { Text(if (uiState.isEditing) "Edit exercise" else "New exercise") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    FilledIconButton(onClick = onSave, enabled = uiState.canSave) {
-                        Icon(Icons.Filled.Check, contentDescription = "Save")
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
+    ModalBottomSheet(onDismissRequest = onBack, modifier = modifier) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (uiState.isEditing) "Edit exercise" else "New exercise",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                FilledIconButton(onClick = onSave, enabled = uiState.canSave) {
+                    Icon(
+                        if (uiState.isEditing) Icons.Filled.Check else Icons.Filled.Add,
+                        contentDescription = "Save"
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
@@ -108,7 +107,6 @@ fun EditExerciseScreen(
                 selected = uiState.muscleGroup,
                 optionLabel = { it.label() },
                 onSelect = onMuscleGroupChange,
-                modifier = Modifier.padding(top = 16.dp),
             )
 
             EnumDropdown(
@@ -117,14 +115,12 @@ fun EditExerciseScreen(
                 selected = uiState.equipment,
                 optionLabel = { it.label() },
                 onSelect = onEquipmentChange,
-                modifier = Modifier.padding(top = 16.dp),
             )
 
             Text(
                 "Custom exercises are strength movements in this version.",
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

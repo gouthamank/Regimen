@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.ui.exercise
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -33,8 +36,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.gouthaman.regimen.data.local.entity.Exercise
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExerciseDetailScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -43,6 +49,8 @@ fun ExerciseDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ExerciseDetailScreen(
         uiState = uiState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onEdit = onEdit,
         onDelete = {
@@ -53,10 +61,12 @@ fun ExerciseDetailScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExerciseDetailScreen(
     uiState: ExerciseDetailUiState,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onDelete: () -> Unit,
@@ -65,8 +75,18 @@ fun ExerciseDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val exercise = uiState.exercise
 
+    // Expands from the tapped Library row (see ExerciseLibraryScreen's ExerciseRow) via the
+    // shared-bounds container transform keyed on this exercise's id.
+    val containerModifier = with(sharedTransitionScope) {
+        modifier
+            .fillMaxSize()
+            .sharedBounds(
+                rememberSharedContentState(key = exerciseRowTransitionKey(uiState.exerciseId)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+    }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = containerModifier,
         topBar = {
             TopAppBar(
                 title = { Text(exercise?.name ?: "Exercise") },

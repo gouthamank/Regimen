@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ExerciseDetailUiState(
+    val exerciseId: Long = 0L,
     val exercise: Exercise? = null,
     /** Heaviest weight lifted for this exercise, formatted in the user's units (null = none yet). */
     val prLabel: String? = null,
@@ -46,8 +47,12 @@ class ExerciseDetailViewModel @Inject constructor(
             val value = UnitConverter.kgToDisplay(pr.bestWeightKg, prefs.weightUnit)
             "${UnitConverter.formatValue(value)} ${UnitConverter.weightLabel(prefs.weightUnit)}"
         }
-        ExerciseDetailUiState(exercise = exercise, prLabel = prLabel, loaded = true)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailUiState())
+        ExerciseDetailUiState(exerciseId = exerciseId, exercise = exercise, prLabel = prLabel, loaded = true)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        ExerciseDetailUiState(exerciseId = exerciseId),
+    )
 
     fun deleteCurrent() {
         val exercise = uiState.value.exercise ?: return

@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.ui.exercise
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,8 +70,11 @@ import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExerciseLibraryScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onExerciseClick: (Long) -> Unit,
     onAddCustom: () -> Unit,
@@ -78,6 +84,8 @@ fun ExerciseLibraryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ExerciseLibraryScreen(
         uiState = uiState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onExerciseClick = onExerciseClick,
         onAddCustom = onAddCustom,
@@ -90,10 +98,12 @@ fun ExerciseLibraryScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExerciseLibraryScreen(
     uiState: ExerciseLibraryUiState,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onExerciseClick: (Long) -> Unit,
     onAddCustom: () -> Unit,
@@ -183,7 +193,12 @@ fun ExerciseLibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(uiState.exercises, key = { it.id }) { exercise ->
-                        ExerciseRow(exercise, onClick = { onExerciseClick(exercise.id) })
+                        ExerciseRow(
+                            exercise = exercise,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            onClick = { onExerciseClick(exercise.id) },
+                        )
                     }
                 }
             }
@@ -356,12 +371,26 @@ private fun <T> FilterSection(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
+private fun ExerciseRow(
+    exercise: Exercise,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onClick: () -> Unit,
+) {
+    val cardModifier = with(sharedTransitionScope) {
+        Modifier
+            .fillMaxWidth()
+            .sharedBounds(
+                rememberSharedContentState(key = exerciseRowTransitionKey(exercise.id)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+    }
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = cardModifier,
     ) {
         Row(
             modifier = Modifier
