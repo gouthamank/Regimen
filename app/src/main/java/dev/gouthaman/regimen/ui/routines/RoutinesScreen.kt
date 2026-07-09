@@ -113,12 +113,14 @@ private fun RoutineList(
     // we're not mid-drag (the VM's optimistic ordering keeps the source stable during a drag).
     val working = remember { mutableStateListOf<RoutineWithExercises>() }
     val listState = rememberLazyListState()
-    val dragState = rememberDragDropState(listState) { from, to ->
-        working.add(to, working.removeAt(from))
+    val dragState = rememberDragDropState(listState) { draggedKey, targetKey ->
+        val from = working.indexOfFirst { it.routine.id == draggedKey }
+        val to = working.indexOfFirst { it.routine.id == targetKey }
+        if (from != -1 && to != -1) working.add(to, working.removeAt(from))
     }
 
     LaunchedEffect(routines) {
-        if (dragState.draggingItemIndex == null) {
+        if (dragState.draggingItemKey == null) {
             working.clear()
             working.addAll(routines)
         }
@@ -131,7 +133,7 @@ private fun RoutineList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         itemsIndexed(working, key = { _, it -> it.routine.id }) { index, routine ->
-            val dragging = index == dragState.draggingItemIndex
+            val dragging = routine.routine.id == dragState.draggingItemKey
             val itemModifier = if (dragging) {
                 Modifier
                     .zIndex(1f)

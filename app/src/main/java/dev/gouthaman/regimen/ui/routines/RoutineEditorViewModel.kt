@@ -117,7 +117,7 @@ class RoutineEditorViewModel @Inject constructor(
                     name = ex.name,
                     subtitle = "${ex.muscleGroup.label()} · ${ex.equipment.label()}",
                     targetSets = 3,
-                    targetReps = 8,
+                    targetReps = 10,
                     targetRestSec = defaultRestSec,
                 )
             }
@@ -128,14 +128,15 @@ class RoutineEditorViewModel @Inject constructor(
         state.copy(exercises = state.exercises.toMutableList().also { it.removeAt(index) })
     }
 
-    fun moveUp(index: Int) = swap(index, index - 1)
-    fun moveDown(index: Int) = swap(index, index + 1)
-
-    private fun swap(a: Int, b: Int) = _uiState.update { state ->
-        if (a !in state.exercises.indices || b !in state.exercises.indices) return@update state
-        state.copy(exercises = state.exercises.toMutableList().also {
-            val tmp = it[a]; it[a] = it[b]; it[b] = tmp
-        })
+    /**
+     * Commits a drag-and-drop reorder's final order (by exercise id). Intermediate swaps during
+     * the drag are handled entirely in the screen's own local working copy — not routed through
+     * this StateFlow per-swap, which lagged a frame behind the LazyColumn's layout and made the
+     * drag look like it stalled as soon as an item swapped.
+     */
+    fun reorder(orderedExerciseIds: List<Long>) = _uiState.update { state ->
+        val byId = state.exercises.associateBy { it.exerciseId }
+        state.copy(exercises = orderedExerciseIds.mapNotNull { byId[it] })
     }
 
     fun setSets(index: Int, value: Int) =

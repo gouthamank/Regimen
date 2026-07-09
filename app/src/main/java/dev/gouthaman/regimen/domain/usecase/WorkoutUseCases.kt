@@ -227,7 +227,7 @@ class SaveWorkoutAsRoutineUseCase @Inject constructor(
                 ExerciseSpec(
                     exerciseId = we.exercise.id,
                     targetSets = maxOf(we.sets.size, 1),
-                    targetReps = loggedReps.mostCommonOrNull() ?: 8,
+                    targetReps = loggedReps.mostCommonOrNull() ?: 10,
                     targetRestSec = defaultRestSec,
                 )
             }

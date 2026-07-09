@@ -23,13 +23,29 @@ import kotlinx.coroutines.channels.Channel
  * Self-contained drag-to-reorder support for a [LazyListState]-backed list. No third-party
  * dependency: the caller owns a mutable working list, [onMove] applies each in-flight swap to it,
  * and [Modifier.dragHandle] wires a handle's drag gestures to this state. The item currently being
- * dragged is offset visually via [draggingItemIndex] / [draggingItemOffset].
+ * dragged is offset visually via [draggingItemKey] / [draggingItemOffset].
+ *
+ * The dragged item is tracked by its stable item **key** (not its list index), and [onMove] is
+ * handed the dragged/target *keys*, not indices, so the caller resolves them against its own
+ * always-current working list. This matters because [LazyListState.layoutInfo] can be a
+ * recomposition frame stale relative to a just-applied swap (state writes here don't relayout
+ * synchronously) — if the caller trusted this class's *indices* for the next swap instead of
+ * looking the keys up fresh, a burst of touch-move events arriving faster than layout catches up
+ * would compound stale swaps into wildly wrong positions (observed as the dragged item rocketing
+ * to the end of the list after the very first swap).
+ *
+ * [draggableIndices] bounds which *global* LazyColumn item indices are valid swap targets (and
+ * valid drag starts) — needed whenever the list has non-reorderable items (headers, trailing
+ * "add" buttons, etc.) alongside the reorderable ones, so a drag can't match one of those as a
+ * target. Defaults to unbounded (every visible item is a valid target), which is correct when the
+ * whole list is reorderable.
  */
 class DragDropState internal constructor(
     private val state: LazyListState,
-    private val onMove: (from: Int, to: Int) -> Unit,
+    private val draggableIndices: IntRange,
+    private val onMove: (draggedKey: Any, targetKey: Any) -> Unit,
 ) {
-    var draggingItemIndex by mutableStateOf<Int?>(null)
+    var draggingItemKey by mutableStateOf<Any?>(null)
         private set
 
     internal val scrollChannel = Channel<Float>()
@@ -43,17 +59,18 @@ class DragDropState internal constructor(
         } ?: 0f
 
     private val draggingItemLayoutInfo: LazyListItemInfo?
-        get() = state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == draggingItemIndex }
+        get() = state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == draggingItemKey }
 
     internal fun onDragStart(index: Int) {
+        if (index !in draggableIndices) return
         state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.also {
-            draggingItemIndex = index
+            draggingItemKey = it.key
             draggingItemInitialOffset = it.offset
         }
     }
 
     internal fun onDragInterrupted() {
-        draggingItemIndex = null
+        draggingItemKey = null
         draggingItemDraggedDelta = 0f
         draggingItemInitialOffset = 0
     }
@@ -68,13 +85,20 @@ class DragDropState internal constructor(
 
         val target = state.layoutInfo.visibleItemsInfo.find { item ->
             middleOffset.toInt() in item.offset..(item.offset + item.size) &&
-                    draggingItem.index != item.index
+                    draggingItem.key != item.key &&
+                    item.index in draggableIndices
         }
 
         if (target != null) {
-            onMove(draggingItem.index, target.index)
-            draggingItemIndex = target.index
-            draggingItemInitialOffset += target.offset - draggingItem.offset
+            // No offset recalibration here — draggingItemInitialOffset stays fixed at the value
+            // captured once in onDragStart. draggingItemOffset's formula (initial position + total
+            // raw finger delta - the item's current reported offset) already self-corrects as
+            // layout catches up, regardless of how many swaps land in between; recalibrating here
+            // on every match compounded incorrectly when several matches got processed against
+            // the same stale layout snapshot (touch-move events arriving faster than
+            // recomposition/relayout), which is what made the dragged item rocket far past where
+            // the finger actually was.
+            onMove(draggingItem.key, target.key)
         } else {
             // Near a viewport edge with nowhere to swap → autoscroll to reveal more.
             val startToTop = startOffset - state.layoutInfo.viewportStartOffset
@@ -92,11 +116,12 @@ class DragDropState internal constructor(
 @Composable
 fun rememberDragDropState(
     lazyListState: LazyListState,
-    onMove: (from: Int, to: Int) -> Unit,
+    draggableIndices: IntRange = 0..Int.MAX_VALUE,
+    onMove: (draggedKey: Any, targetKey: Any) -> Unit,
 ): DragDropState {
     val latestOnMove by rememberUpdatedState(onMove)
-    val state = remember(lazyListState) {
-        DragDropState(lazyListState) { from, to -> latestOnMove(from, to) }
+    val state = remember(lazyListState, draggableIndices) {
+        DragDropState(lazyListState, draggableIndices) { a, b -> latestOnMove(a, b) }
     }
     LaunchedEffect(state) {
         while (true) {

@@ -4,6 +4,6 @@ package dev.gouthaman.regimen.domain.model
 data class ExerciseSpec(
     val exerciseId: Long,
     val targetSets: Int = 3,
-    val targetReps: Int = 8,
+    val targetReps: Int = 10,
     val targetRestSec: Int = 90,
 )
