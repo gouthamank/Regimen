@@ -9,7 +9,7 @@ Your data stays on your device.
 - **Template-driven logging** — create routines ahead of time and start workouts from them
   with your last session's numbers pre-filled.
 - **Active workout** — a live session with a running timer, manual rest timer, per-set
-  reps/weight/RPE, skip/un-skip, and a persistent notification (pause / end) so it survives
+  reps/weight, skip/un-skip, and a persistent notification (pause / end) so it survives
   backgrounding.
 - **Cardio** — log cardio activities (treadmill, running, cycling…) with duration + distance
   into any session.

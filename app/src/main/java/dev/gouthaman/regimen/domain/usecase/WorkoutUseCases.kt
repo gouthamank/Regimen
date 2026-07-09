@@ -239,7 +239,7 @@ class SaveWorkoutAsRoutineUseCase @Inject constructor(
 // ── Active-workout editing (S13). Each write persists immediately so the session survives
 // process death / rotation without an explicit save step. ──────────────────────────────
 
-/** Inserts or updates a single logged set (weight/reps/complete/rpe). */
+/** Inserts or updates a single logged set (weight/reps/complete). */
 class UpsertSetUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {

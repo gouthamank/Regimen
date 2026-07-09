@@ -133,7 +133,6 @@ data class SetEntry(
     val weightKg: Double? = null,
     val reps: Int? = null,
     val isComplete: Boolean = false,
-    val rpe: Int? = null,
 )
 
 /** A logged cardio bout. Distance stored canonically in meters. */

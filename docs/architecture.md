@@ -103,7 +103,7 @@ navigates elsewhere, a persistent "workout in progress" banner returns them to i
 
 ### Cross-cutting / modal screens
 - **S13. Active Workout** (full screen) — the core loop. See [detailed spec](#s13-active-workout--detailed-spec).
-  - _Built:_ per-set logging (weight/reps/RPE/done), skip/include, add & remove exercises via the
+  - _Built:_ per-set logging (weight/reps/done), skip/include, add & remove exercises via the
     picker, cardio entry, session note, live session timer, discard/finish (Phase 1); rest timer
     (Phase 2); in-progress **Resume banner** + single-active resume + process-death resume +
     POST_NOTIFICATIONS request (Phase 3a); **foreground service + persistent Pause/End notification
@@ -141,7 +141,7 @@ The core loop, and the highest-risk screen. Users spend most of their time here.
   routine's per-exercise rest target and is adjustable.
 - **Per-set logging** — each exercise lists its sets with freely editable **reps + weight**.
   Sets can be added/removed on the fly. Each set has a **"done" checkoff** as a progress
-  indicator (not tied to rest, since rest is manual). Optional **RPE** (effort rating) per set.
+  indicator (not tied to rest, since rest is manual).
 - **Prefill** — each exercise's sets are prefilled from **the most recent session of the
   same routine**. For a freeform workout, or a newly added exercise with no routine history,
   fall back to blank.
@@ -176,7 +176,6 @@ The core loop, and the highest-risk screen. Users spend most of their time here.
 ### Workout mechanics
 - **Supersets:** deferred to v2. v1 does exercises one at a time. The data model is designed
   so supersets can be added later without a painful migration (see below).
-- **RPE:** in v1 — optional per-set effort rating.
 - **Per-set checkoff:** kept, as a progress indicator.
 - **Warm-up sets** and **plate calculator:** out of v1.
 
@@ -222,8 +221,8 @@ RoutineExercise(id, routineId, exerciseId, position, targetSets, targetReps, tar
 Workout(id, startTime, endTime, note, routineId?)
 WorkoutExercise(id, workoutId, exerciseId, position, isSkipped)
 
-SetEntry(id, workoutExerciseId, setNumber, weightKg, reps, isComplete, rpe?)
-    strength WorkoutExercises only; weight stored canonically in kg; rpe nullable
+SetEntry(id, workoutExerciseId, setNumber, weightKg, reps, isComplete)
+    strength WorkoutExercises only; weight stored canonically in kg
 
 CardioEntry(id, workoutExerciseId, durationSec, distanceMeters?)
     cardio WorkoutExercises only; distance stored canonically in meters

@@ -503,7 +503,6 @@ private fun SetRow(
         } ?: "")
     }
     var reps by remember(set.id) { mutableStateOf(set.reps?.toString() ?: "") }
-    var rpe by remember(set.id) { mutableStateOf(set.rpe?.toString() ?: "") }
     var complete by remember(set.id) { mutableStateOf(set.isComplete) }
     // Reflect externally-driven completion (e.g. rest-timer auto-tick) without re-seeding the
     // numeric fields, which must stay as the user typed them.
@@ -514,7 +513,6 @@ private fun SetRow(
             weightKg = weight.toDoubleOrNull()?.let { UnitConverter.displayToKg(it, weightUnit) },
             reps = reps.toIntOrNull(),
             isComplete = complete,
-            rpe = rpe.toIntOrNull(),
         )
     )
 
@@ -546,14 +544,6 @@ private fun SetRow(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
-        )
-        OutlinedTextField(
-            value = rpe,
-            onValueChange = { rpe = it; push() },
-            label = { Text("RPE") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(72.dp),
         )
         Checkbox(
             checked = complete,
