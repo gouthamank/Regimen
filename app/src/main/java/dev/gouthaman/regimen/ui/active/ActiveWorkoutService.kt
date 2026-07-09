@@ -44,16 +44,22 @@ class ActiveWorkoutService : Service() {
 
     @Inject
     lateinit var observeActiveWorkoutId: ObserveActiveWorkoutIdUseCase
+
     @Inject
     lateinit var observeWorkout: ObserveWorkoutUseCase
+
     @Inject
     lateinit var pauseWorkout: PauseWorkoutUseCase
+
     @Inject
     lateinit var resumeWorkout: ResumeWorkoutUseCase
+
     @Inject
     lateinit var finishWorkout: FinishWorkoutUseCase
+
     @Inject
     lateinit var getInProgressWorkoutId: GetInProgressWorkoutIdUseCase
+
     @Inject
     @ApplicationScope
     lateinit var appScope: CoroutineScope
