@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.gouthaman.regimen.data.local.entity.Exercise
+import dev.gouthaman.regimen.domain.model.matchesSearch
 import dev.gouthaman.regimen.ui.exercise.label
 
 /**
@@ -51,8 +52,7 @@ fun ExercisePickerSheet(
     val selected = remember { mutableStateListOf<Long>() }
 
     val visible = remember(exercises, query) {
-        if (query.isBlank()) exercises
-        else exercises.filter { it.name.contains(query.trim(), ignoreCase = true) }
+        exercises.filter { it.matchesSearch(query) }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = modifier) {

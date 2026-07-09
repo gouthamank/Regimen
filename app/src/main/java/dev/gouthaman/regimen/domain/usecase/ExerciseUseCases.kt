@@ -5,6 +5,7 @@ import dev.gouthaman.regimen.data.repository.ExerciseRepository
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
+import dev.gouthaman.regimen.domain.model.matchesSearch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -20,7 +21,7 @@ class ObserveExercisesUseCase @Inject constructor(
         equipment: Equipment? = null,
     ): Flow<List<Exercise>> = repo.observeAll().map { list ->
         list.filter { e ->
-            (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) &&
+            e.matchesSearch(query) &&
                     (type == null || e.type == type) &&
                     (muscleGroup == null || e.muscleGroup == muscleGroup) &&
                     (equipment == null || e.equipment == equipment)
