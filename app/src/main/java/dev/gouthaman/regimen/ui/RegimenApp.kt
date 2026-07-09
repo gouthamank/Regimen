@@ -16,16 +16,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavHostController
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.gouthaman.regimen.ui.navigation.ActiveWorkoutRoute
@@ -57,14 +62,19 @@ fun RegimenApp(
 
             // All routes live in a single flat NavHost (no per-tab nested graphs), so a pushed
             // detail screen (e.g. Session Detail, Exercise Detail) has no graph-level tie back to
-            // the tab it was opened from. Instead, walk the live back stack for the most recent
-            // top-level entry: that's the tab that should stay highlighted underneath the detail
-            // screens pushed on top of it.
-            val fullBackStack by navController.currentBackStack.collectAsStateWithLifecycle()
-            val activeTab = remember(fullBackStack) {
-                fullBackStack.lastOrNull { entry ->
-                    topLevelDestinations.any { entry.destination.hasRoute(it.route::class) }
-                }?.destination
+            // the tab it was opened from. Track the most recently visited top-level destination
+            // ourselves instead of walking NavController.currentBackStack (restricted to the
+            // androidx.navigation library group): that's the tab that should stay highlighted
+            // underneath the detail screens pushed on top of it.
+            var activeTab by remember { mutableStateOf<NavDestination?>(null) }
+            DisposableEffect(navController) {
+                val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+                    if (topLevelDestinations.any { destination.hasRoute(it.route::class) }) {
+                        activeTab = destination
+                    }
+                }
+                navController.addOnDestinationChangedListener(listener)
+                onDispose { navController.removeOnDestinationChangedListener(listener) }
             }
 
             Column {
@@ -83,7 +93,13 @@ fun RegimenApp(
                         val selected = activeTab?.hasRoute(dest.route::class) == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { onTabSelected(navController, dest, alreadySelected = selected) },
+                            onClick = {
+                                onTabSelected(
+                                    navController,
+                                    dest,
+                                    alreadySelected = selected
+                                )
+                            },
                             icon = { Icon(dest.icon, contentDescription = dest.label) },
                             label = { Text(dest.label) },
                         )

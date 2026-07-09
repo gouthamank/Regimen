@@ -47,7 +47,12 @@ class ExerciseDetailViewModel @Inject constructor(
             val value = UnitConverter.kgToDisplay(pr.bestWeightKg, prefs.weightUnit)
             "${UnitConverter.formatValue(value)} ${UnitConverter.weightLabel(prefs.weightUnit)}"
         }
-        ExerciseDetailUiState(exerciseId = exerciseId, exercise = exercise, prLabel = prLabel, loaded = true)
+        ExerciseDetailUiState(
+            exerciseId = exerciseId,
+            exercise = exercise,
+            prLabel = prLabel,
+            loaded = true
+        )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),

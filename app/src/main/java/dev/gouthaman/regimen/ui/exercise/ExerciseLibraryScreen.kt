@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -446,6 +445,7 @@ private fun ExerciseIcon(type: ExerciseType, equipment: Equipment) {
     val (container, onContainer) = when (type) {
         ExerciseType.STRENGTH -> MaterialTheme.colorScheme.primaryContainer to
                 MaterialTheme.colorScheme.onPrimaryContainer
+
         ExerciseType.CARDIO -> MaterialTheme.colorScheme.tertiaryContainer to
                 MaterialTheme.colorScheme.onTertiaryContainer
     }

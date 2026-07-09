@@ -351,7 +351,7 @@ fun ActiveWorkoutScreen(
                 text = {
                     Text(
                         "Changes you've made so far are already saved. This closes editing and " +
-                            "returns the session to its original finished state."
+                                "returns the session to its original finished state."
                     )
                 },
                 confirmButton = {

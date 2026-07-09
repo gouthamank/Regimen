@@ -43,12 +43,14 @@ class GetWorkoutFrequencyUseCase @Inject constructor(
                 Instant.ofEpochMilli(startTime).atZone(zone).toLocalDate()
                     .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
-            val countsByWeek: Map<LocalDate, Int> = workouts.groupingBy { weekOf(it.workout.startTime) }.eachCount()
+            val countsByWeek: Map<LocalDate, Int> =
+                workouts.groupingBy { weekOf(it.workout.startTime) }.eachCount()
 
             val thisWeekStart = LocalDate.now(zone)
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             val weeks = range.weeks ?: run {
-                val earliest = workouts.minOfOrNull { weekOf(it.workout.startTime) } ?: thisWeekStart
+                val earliest =
+                    workouts.minOfOrNull { weekOf(it.workout.startTime) } ?: thisWeekStart
                 (ChronoUnit.WEEKS.between(earliest, thisWeekStart).toInt() + 1).coerceAtLeast(1)
             }
             (weeks - 1 downTo 0).map { back ->

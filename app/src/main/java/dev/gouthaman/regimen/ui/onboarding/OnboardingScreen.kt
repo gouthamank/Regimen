@@ -98,6 +98,7 @@ fun OnboardingScreen(
                         onWeightUnitChange = onWeightUnitChange,
                         onDistanceUnitChange = onDistanceUnitChange,
                     )
+
                     else -> AppearancePage(
                         themeMode = prefs.themeMode,
                         dynamicColor = prefs.dynamicColor,
