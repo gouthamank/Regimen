@@ -43,8 +43,8 @@ class ExerciseDetailViewModel @Inject constructor(
         observePreferences(),
     ) { exercise, prs, prefs ->
         val prLabel = prs.firstOrNull { it.exerciseId == exerciseId }?.let { pr ->
-            val value = UnitConverter.kgToDisplay(pr.bestWeightKg, prefs.unitSystem)
-            "${UnitConverter.formatValue(value)} ${UnitConverter.weightLabel(prefs.unitSystem)}"
+            val value = UnitConverter.kgToDisplay(pr.bestWeightKg, prefs.weightUnit)
+            "${UnitConverter.formatValue(value)} ${UnitConverter.weightLabel(prefs.weightUnit)}"
         }
         ExerciseDetailUiState(exercise = exercise, prLabel = prLabel, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailUiState())

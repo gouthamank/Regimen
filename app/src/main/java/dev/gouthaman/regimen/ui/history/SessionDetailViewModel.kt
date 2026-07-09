@@ -42,7 +42,8 @@ data class SessionDetailUiState(
     val durationLabel: String = "",
     val note: String? = null,
     val exercises: List<SessionExercise> = emptyList(),
-    val unitSystem: UnitSystem = UnitSystem.METRIC,
+    val weightUnit: UnitSystem = UnitSystem.METRIC,
+    val distanceUnit: UnitSystem = UnitSystem.METRIC,
     val loaded: Boolean = false,
     val notFound: Boolean = false,
 ) {
@@ -80,7 +81,8 @@ class SessionDetailViewModel @Inject constructor(
         observePreferences(),
     ) { workout, routines, prefs ->
         restDefaultSec = prefs.restDefaultSec
-        val system = prefs.unitSystem
+        val weightUnit = prefs.weightUnit
+        val distanceUnit = prefs.distanceUnit
         if (workout == null) {
             SessionDetailUiState(loaded = true, notFound = true)
         } else {
@@ -95,7 +97,8 @@ class SessionDetailViewModel @Inject constructor(
                     workout.workout.accumulatedPausedMs,
                 ),
                 note = workout.workout.note?.takeIf { it.isNotBlank() },
-                unitSystem = system,
+                weightUnit = weightUnit,
+                distanceUnit = distanceUnit,
                 exercises = workout.exercises
                     .sortedBy { it.workoutExercise.position }
                     .map { we ->
@@ -107,8 +110,10 @@ class SessionDetailViewModel @Inject constructor(
                             isSkipped = we.workoutExercise.isSkipped,
                             setLabels = we.sets
                                 .sortedBy { it.setNumber }
-                                .map { SessionFormat.setLabel(it, system) },
-                            cardioLabels = we.cardio.map { SessionFormat.cardioLabel(it, system) },
+                                .map { SessionFormat.setLabel(it, weightUnit) },
+                            cardioLabels = we.cardio.map {
+                                SessionFormat.cardioLabel(it, distanceUnit)
+                            },
                         )
                     },
                 loaded = true,

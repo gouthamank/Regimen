@@ -184,7 +184,7 @@ fun MeasurementDetailScreen(
     if (showAddEntry && type != null) {
         AddMeasurementSheet(
             types = listOf(type),
-            unitSystem = uiState.unitSystem,
+            weightUnit = uiState.weightUnit,
             fixedTypeId = type.id,
             onDismiss = { showAddEntry = false },
             onSave = { _, date, value ->

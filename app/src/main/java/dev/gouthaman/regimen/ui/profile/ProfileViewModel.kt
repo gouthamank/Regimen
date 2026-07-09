@@ -23,8 +23,12 @@ class ProfileViewModel @Inject constructor(
     val preferences: StateFlow<UserPreferences> = observePreferences()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserPreferences())
 
-    fun setUnitSystem(value: UnitSystem) = viewModelScope.launch {
-        updatePreferences.setUnitSystem(value)
+    fun setWeightUnit(value: UnitSystem) = viewModelScope.launch {
+        updatePreferences.setWeightUnit(value)
+    }
+
+    fun setDistanceUnit(value: UnitSystem) = viewModelScope.launch {
+        updatePreferences.setDistanceUnit(value)
     }
 
     fun setThemeMode(value: ThemeMode) = viewModelScope.launch {

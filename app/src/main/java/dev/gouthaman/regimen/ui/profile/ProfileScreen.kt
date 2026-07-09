@@ -59,7 +59,8 @@ fun ProfileScreen(
     ProfileScreen(
         prefs = prefs,
         modifier = modifier,
-        onUnitSystemChange = viewModel::setUnitSystem,
+        onWeightUnitChange = viewModel::setWeightUnit,
+        onDistanceUnitChange = viewModel::setDistanceUnit,
         onThemeModeChange = viewModel::setThemeMode,
         onDynamicColorChange = viewModel::setDynamicColor,
         onRestDefaultChange = viewModel::setRestDefaultSec,
@@ -73,7 +74,8 @@ fun ProfileScreen(
 fun ProfileScreen(
     prefs: UserPreferences,
     modifier: Modifier = Modifier,
-    onUnitSystemChange: (UnitSystem) -> Unit = {},
+    onWeightUnitChange: (UnitSystem) -> Unit = {},
+    onDistanceUnitChange: (UnitSystem) -> Unit = {},
     onThemeModeChange: (ThemeMode) -> Unit = {},
     onDynamicColorChange: (Boolean) -> Unit = {},
     onRestDefaultChange: (Int) -> Unit = {},
@@ -95,8 +97,12 @@ fun ProfileScreen(
         ) {
             SectionHeader("Preferences")
 
-            SettingRow(headline = "Units", supporting = "Weight and distance display") {
-                UnitSystemSelector(prefs.unitSystem, onUnitSystemChange)
+            SettingRow(headline = "Weight unit") {
+                UnitSystemSelector(prefs.weightUnit, onWeightUnitChange, weightLabels = true)
+            }
+
+            SettingRow(headline = "Distance unit") {
+                UnitSystemSelector(prefs.distanceUnit, onDistanceUnitChange, weightLabels = false)
             }
 
             SettingRow(headline = "Theme") {
@@ -183,7 +189,11 @@ private fun SettingRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UnitSystemSelector(selected: UnitSystem, onChange: (UnitSystem) -> Unit) {
+private fun UnitSystemSelector(
+    selected: UnitSystem,
+    onChange: (UnitSystem) -> Unit,
+    weightLabels: Boolean,
+) {
     val options = UnitSystem.entries
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, option ->
@@ -193,9 +203,16 @@ private fun UnitSystemSelector(selected: UnitSystem, onChange: (UnitSystem) -> U
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(
-                    when (option) {
-                        UnitSystem.METRIC -> "Metric (kg, km)"
-                        UnitSystem.IMPERIAL -> "Imperial (lb, mi)"
+                    if (weightLabels) {
+                        when (option) {
+                            UnitSystem.METRIC -> "Metric (kg)"
+                            UnitSystem.IMPERIAL -> "Imperial (lb)"
+                        }
+                    } else {
+                        when (option) {
+                            UnitSystem.METRIC -> "Metric (km)"
+                            UnitSystem.IMPERIAL -> "Imperial (mi)"
+                        }
                     },
                 )
             }

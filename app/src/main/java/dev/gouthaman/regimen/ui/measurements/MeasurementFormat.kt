@@ -11,24 +11,24 @@ import dev.gouthaman.regimen.domain.util.UnitConverter
  */
 object MeasurementFormat {
 
-    /** The unit label to show for [type] given the current [system] (kg/lb for bodyweight). */
-    fun unitLabel(type: MeasurementType, system: UnitSystem): String =
-        if (type.isBuiltIn) UnitConverter.weightLabel(system) else type.unit
+    /** The unit label to show for [type] given the current [weightUnit] (kg/lb for bodyweight). */
+    fun unitLabel(type: MeasurementType, weightUnit: UnitSystem): String =
+        if (type.isBuiltIn) UnitConverter.weightLabel(weightUnit) else type.unit
 
     /** Stored value → the numeric value shown to the user. */
-    fun toDisplay(type: MeasurementType, storedValue: Double, system: UnitSystem): Double =
-        if (type.isBuiltIn) UnitConverter.kgToDisplay(storedValue, system) else storedValue
+    fun toDisplay(type: MeasurementType, storedValue: Double, weightUnit: UnitSystem): Double =
+        if (type.isBuiltIn) UnitConverter.kgToDisplay(storedValue, weightUnit) else storedValue
 
     /** A value the user typed (in display units) → the value to store. */
-    fun toStored(type: MeasurementType, displayValue: Double, system: UnitSystem): Double =
-        if (type.isBuiltIn) UnitConverter.displayToKg(displayValue, system) else displayValue
+    fun toStored(type: MeasurementType, displayValue: Double, weightUnit: UnitSystem): Double =
+        if (type.isBuiltIn) UnitConverter.displayToKg(displayValue, weightUnit) else displayValue
 
     /** Stored value → "72 kg" / "34.5 cm". */
-    fun format(type: MeasurementType, storedValue: Double, system: UnitSystem): String =
-        "${UnitConverter.formatValue(toDisplay(type, storedValue, system))} ${
+    fun format(type: MeasurementType, storedValue: Double, weightUnit: UnitSystem): String =
+        "${UnitConverter.formatValue(toDisplay(type, storedValue, weightUnit))} ${
             unitLabel(
                 type,
-                system
+                weightUnit
             )
         }"
 }

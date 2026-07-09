@@ -239,7 +239,8 @@ fun ActiveWorkoutScreen(
             items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
                 ExerciseCard(
                     exercise = exercise,
-                    unitSystem = uiState.unitSystem,
+                    weightUnit = uiState.weightUnit,
+                    distanceUnit = uiState.distanceUnit,
                     onUpdateSet = onUpdateSet,
                     onAddSet = onAddSet,
                     onDeleteSet = onDeleteSet,
@@ -319,7 +320,8 @@ fun ActiveWorkoutScreen(
 @Composable
 private fun ExerciseCard(
     exercise: ActiveExercise,
-    unitSystem: UnitSystem,
+    weightUnit: UnitSystem,
+    distanceUnit: UnitSystem,
     onUpdateSet: (SetEntry) -> Unit,
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
@@ -384,7 +386,7 @@ private fun ExerciseCard(
                     exercise.sets.forEach { set ->
                         SetRow(
                             set = set,
-                            unitSystem = unitSystem,
+                            weightUnit = weightUnit,
                             onUpdate = onUpdateSet,
                             onDelete = { onDeleteSet(set) },
                         )
@@ -424,7 +426,7 @@ private fun ExerciseCard(
                 else -> CardioRow(
                     cardio = exercise.cardio,
                     workoutExerciseId = exercise.workoutExerciseId,
-                    unitSystem = unitSystem,
+                    distanceUnit = distanceUnit,
                     onUpdate = onUpdateCardio,
                 )
             }
@@ -435,7 +437,7 @@ private fun ExerciseCard(
 @Composable
 private fun SetRow(
     set: SetEntry,
-    unitSystem: UnitSystem,
+    weightUnit: UnitSystem,
     onUpdate: (SetEntry) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -447,7 +449,7 @@ private fun SetRow(
             UnitConverter.formatValue(
                 UnitConverter.kgToDisplay(
                     it,
-                    unitSystem
+                    weightUnit
                 )
             )
         } ?: "")
@@ -461,7 +463,7 @@ private fun SetRow(
 
     fun push() = onUpdate(
         set.copy(
-            weightKg = weight.toDoubleOrNull()?.let { UnitConverter.displayToKg(it, unitSystem) },
+            weightKg = weight.toDoubleOrNull()?.let { UnitConverter.displayToKg(it, weightUnit) },
             reps = reps.toIntOrNull(),
             isComplete = complete,
             rpe = rpe.toIntOrNull(),
@@ -484,7 +486,7 @@ private fun SetRow(
         OutlinedTextField(
             value = weight,
             onValueChange = { weight = it; push() },
-            label = { Text(UnitConverter.weightLabel(unitSystem)) },
+            label = { Text(UnitConverter.weightLabel(weightUnit)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),
@@ -519,7 +521,7 @@ private fun SetRow(
 private fun CardioRow(
     cardio: CardioEntry?,
     workoutExerciseId: Long,
-    unitSystem: UnitSystem,
+    distanceUnit: UnitSystem,
     onUpdate: (CardioEntry) -> Unit,
 ) {
     val base = cardio ?: CardioEntry(workoutExerciseId = workoutExerciseId, durationSec = 0)
@@ -531,7 +533,7 @@ private fun CardioRow(
             UnitConverter.formatValue(
                 UnitConverter.metersToDisplay(
                     it,
-                    unitSystem
+                    distanceUnit
                 )
             )
         } ?: "")
@@ -541,7 +543,7 @@ private fun CardioRow(
         base.copy(
             durationSec = (minutes.toLongOrNull() ?: 0L) * 60,
             distanceMeters = distance.toDoubleOrNull()
-                ?.let { UnitConverter.displayToMeters(it, unitSystem) },
+                ?.let { UnitConverter.displayToMeters(it, distanceUnit) },
         )
     )
 
@@ -562,7 +564,7 @@ private fun CardioRow(
         OutlinedTextField(
             value = distance,
             onValueChange = { distance = it; push() },
-            label = { Text("Distance (${UnitConverter.distanceLabel(unitSystem)})") },
+            label = { Text("Distance (${UnitConverter.distanceLabel(distanceUnit)})") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),

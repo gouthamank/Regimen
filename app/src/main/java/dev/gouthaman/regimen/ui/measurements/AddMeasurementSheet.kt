@@ -44,7 +44,7 @@ import java.util.Locale
 @Composable
 fun AddMeasurementSheet(
     types: List<MeasurementType>,
-    unitSystem: UnitSystem,
+    weightUnit: UnitSystem,
     onDismiss: () -> Unit,
     onSave: (typeId: Long, date: Long, displayValue: Double) -> Unit,
     fixedTypeId: Long? = null,
@@ -60,7 +60,7 @@ fun AddMeasurementSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
 
-    val unitLabel = MeasurementFormat.unitLabel(selectedType, unitSystem)
+    val unitLabel = MeasurementFormat.unitLabel(selectedType, weightUnit)
     val parsedValue = value.trim().toDoubleOrNull()
     val canSave = parsedValue != null
 

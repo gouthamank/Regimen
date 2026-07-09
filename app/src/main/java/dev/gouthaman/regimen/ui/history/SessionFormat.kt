@@ -26,16 +26,16 @@ object SessionFormat {
     }
 
     /** One logged strength set, e.g. "60 kg × 8", "8 reps" (bodyweight), or "60 kg" (no reps). */
-    fun setLabel(set: SetEntry, system: UnitSystem): String {
+    fun setLabel(set: SetEntry, weightUnit: UnitSystem): String {
         val weight = set.weightKg?.let {
             "${
                 UnitConverter.formatValue(
                     UnitConverter.kgToDisplay(
                         it,
-                        system
+                        weightUnit
                     )
                 )
-            } ${UnitConverter.weightLabel(system)}"
+            } ${UnitConverter.weightLabel(weightUnit)}"
         }
         val reps = set.reps?.let { "$it reps" }
         return when {
@@ -49,7 +49,7 @@ object SessionFormat {
     }
 
     /** A cardio bout, e.g. "12:30" or "12:30 · 3.2 km". */
-    fun cardioLabel(cardio: CardioEntry, system: UnitSystem): String {
+    fun cardioLabel(cardio: CardioEntry, distanceUnit: UnitSystem): String {
         val minutes = cardio.durationSec / 60
         val seconds = cardio.durationSec % 60
         val time = "%d:%02d".format(minutes, seconds)
@@ -58,10 +58,10 @@ object SessionFormat {
                 UnitConverter.formatValue(
                     UnitConverter.metersToDisplay(
                         it,
-                        system
+                        distanceUnit
                     )
                 )
-            } ${UnitConverter.distanceLabel(system)}"
+            } ${UnitConverter.distanceLabel(distanceUnit)}"
         }
         return if (distance != null) "$time · $distance" else time
     }

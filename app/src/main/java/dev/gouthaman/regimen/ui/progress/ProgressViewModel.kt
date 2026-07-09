@@ -53,7 +53,7 @@ class ProgressViewModel @Inject constructor(
         getWorkoutFrequency(FREQUENCY_WEEKS),
         observePreferences(),
     ) { prs, frequency, prefs ->
-        val system: UnitSystem = prefs.unitSystem
+        val system: UnitSystem = prefs.weightUnit
         ProgressUiState(
             frequency = frequency,
             personalRecords = prs.map { pr ->

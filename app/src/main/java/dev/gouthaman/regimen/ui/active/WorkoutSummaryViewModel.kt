@@ -56,7 +56,7 @@ class WorkoutSummaryViewModel @Inject constructor(
         if (workout == null) {
             WorkoutSummaryUiState(loaded = true, notFound = true)
         } else {
-            val system = prefs.unitSystem
+            val system = prefs.weightUnit
             val routineName = workout.workout.routineId
                 ?.let { id -> routines.firstOrNull { it.routine.id == id }?.routine?.name }
             val completedSets = workout.exercises.flatMap { it.sets }.filter { it.isComplete }

@@ -16,9 +16,13 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** User-facing settings. Weight/distance are stored canonically; [unitSystem] is display-only. */
+/**
+ * User-facing settings. Weight/distance are stored canonically; [weightUnit]/[distanceUnit]
+ * are display-only.
+ */
 data class UserPreferences(
-    val unitSystem: UnitSystem = UnitSystem.METRIC,
+    val weightUnit: UnitSystem = UnitSystem.METRIC,
+    val distanceUnit: UnitSystem = UnitSystem.METRIC,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val restDefaultSec: Int = 90,
@@ -32,7 +36,11 @@ class PreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
+        // Legacy single-axis unit preference; kept read-only as a migration fallback for
+        // WEIGHT_UNIT/DISTANCE_UNIT below.
         val UNIT = stringPreferencesKey("unit_system")
+        val WEIGHT_UNIT = stringPreferencesKey("weight_unit")
+        val DISTANCE_UNIT = stringPreferencesKey("distance_unit")
         val THEME = stringPreferencesKey("theme_mode")
         val DYNAMIC = booleanPreferencesKey("dynamic_color")
         val REST = intPreferencesKey("rest_default_sec")
@@ -40,9 +48,12 @@ class PreferencesRepository @Inject constructor(
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { p ->
+        val legacyUnit = p[Keys.UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
         UserPreferences(
-            unitSystem = p[Keys.UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
-                ?: UnitSystem.METRIC,
+            weightUnit = p[Keys.WEIGHT_UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
+                ?: legacyUnit ?: UnitSystem.METRIC,
+            distanceUnit = p[Keys.DISTANCE_UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
+                ?: legacyUnit ?: UnitSystem.METRIC,
             themeMode = p[Keys.THEME]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                 ?: ThemeMode.SYSTEM,
             dynamicColor = p[Keys.DYNAMIC] ?: true,
@@ -51,8 +62,11 @@ class PreferencesRepository @Inject constructor(
         )
     }
 
-    suspend fun setUnitSystem(value: UnitSystem) =
-        edit { it[Keys.UNIT] = value.name }
+    suspend fun setWeightUnit(value: UnitSystem) =
+        edit { it[Keys.WEIGHT_UNIT] = value.name }
+
+    suspend fun setDistanceUnit(value: UnitSystem) =
+        edit { it[Keys.DISTANCE_UNIT] = value.name }
 
     suspend fun setThemeMode(value: ThemeMode) =
         edit { it[Keys.THEME] = value.name }

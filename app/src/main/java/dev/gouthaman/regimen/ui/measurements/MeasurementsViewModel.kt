@@ -35,7 +35,7 @@ data class MeasurementRow(
 
 data class MeasurementsUiState(
     val rows: List<MeasurementRow> = emptyList(),
-    val unitSystem: UnitSystem = UnitSystem.METRIC,
+    val weightUnit: UnitSystem = UnitSystem.METRIC,
     val loaded: Boolean = false,
 )
 
@@ -64,9 +64,9 @@ class MeasurementsViewModel @Inject constructor(
     val uiState: StateFlow<MeasurementsUiState> =
         combine(typesWithMetrics, observePreferences()) { pairs, prefs ->
             val rows = pairs.map { (type, metrics) ->
-                type.toRow(metrics, prefs.unitSystem)
+                type.toRow(metrics, prefs.weightUnit)
             }
-            MeasurementsUiState(rows = rows, unitSystem = prefs.unitSystem, loaded = true)
+            MeasurementsUiState(rows = rows, weightUnit = prefs.weightUnit, loaded = true)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
 
     private fun MeasurementType.toRow(
@@ -92,7 +92,7 @@ class MeasurementsViewModel @Inject constructor(
     /** Log an entry for [typeId]; [displayValue] is in the user's units and converted for storage. */
     fun addEntry(typeId: Long, date: Long, displayValue: Double) {
         val type = uiState.value.rows.firstOrNull { it.type.id == typeId }?.type ?: return
-        val stored = MeasurementFormat.toStored(type, displayValue, uiState.value.unitSystem)
+        val stored = MeasurementFormat.toStored(type, displayValue, uiState.value.weightUnit)
         viewModelScope.launch { addMeasurementUseCase(typeId, date, stored) }
     }
 }

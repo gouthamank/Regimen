@@ -78,7 +78,7 @@ class HomeViewModel @Inject constructor(
         observeHistory(),
         observePreferences(),
     ) { summary, routines, history, prefs ->
-        val system = prefs.unitSystem
+        val system = prefs.weightUnit
 
         // Order quick-start chips by most-recently-used routine, then by manual position.
         val lastUsed: Map<Long, Long> = history

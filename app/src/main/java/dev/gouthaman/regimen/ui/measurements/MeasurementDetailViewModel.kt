@@ -32,7 +32,7 @@ data class MeasurementEntry(
 
 data class MeasurementDetailUiState(
     val type: MeasurementType? = null,
-    val unitSystem: UnitSystem = UnitSystem.METRIC,
+    val weightUnit: UnitSystem = UnitSystem.METRIC,
     /** Display-unit values in chronological order, for the trend chart. */
     val trend: List<Float> = emptyList(),
     /** Entries newest-first for the list. */
@@ -63,10 +63,10 @@ class MeasurementDetailViewModel @Inject constructor(
         if (type == null) {
             MeasurementDetailUiState(loaded = true)
         } else {
-            val system = prefs.unitSystem
+            val system = prefs.weightUnit
             MeasurementDetailUiState(
                 type = type,
-                unitSystem = system,
+                weightUnit = system,
                 trend = metrics.map {
                     MeasurementFormat.toDisplay(type, it.value, system).toFloat()
                 },
@@ -84,7 +84,7 @@ class MeasurementDetailViewModel @Inject constructor(
 
     fun addEntry(date: Long, displayValue: Double) {
         val type = uiState.value.type ?: return
-        val stored = MeasurementFormat.toStored(type, displayValue, uiState.value.unitSystem)
+        val stored = MeasurementFormat.toStored(type, displayValue, uiState.value.weightUnit)
         viewModelScope.launch { addMeasurementUseCase(type.id, date, stored) }
     }
 

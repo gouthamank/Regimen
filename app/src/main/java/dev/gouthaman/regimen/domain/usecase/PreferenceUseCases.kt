@@ -17,7 +17,8 @@ class ObservePreferencesUseCase @Inject constructor(
 class UpdatePreferencesUseCase @Inject constructor(
     private val repo: PreferencesRepository,
 ) {
-    suspend fun setUnitSystem(value: UnitSystem) = repo.setUnitSystem(value)
+    suspend fun setWeightUnit(value: UnitSystem) = repo.setWeightUnit(value)
+    suspend fun setDistanceUnit(value: UnitSystem) = repo.setDistanceUnit(value)
     suspend fun setThemeMode(value: ThemeMode) = repo.setThemeMode(value)
     suspend fun setDynamicColor(value: Boolean) = repo.setDynamicColor(value)
     suspend fun setRestDefaultSec(value: Int) = repo.setRestDefaultSec(value)

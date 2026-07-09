@@ -50,7 +50,8 @@ fun OnboardingScreen(
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
     OnboardingScreen(
         prefs = prefs,
-        onUnitSystemChange = viewModel::setUnitSystem,
+        onWeightUnitChange = viewModel::setWeightUnit,
+        onDistanceUnitChange = viewModel::setDistanceUnit,
         onThemeModeChange = viewModel::setThemeMode,
         onDynamicColorChange = viewModel::setDynamicColor,
         onFinish = { viewModel.finish() },
@@ -61,7 +62,8 @@ fun OnboardingScreen(
 @Composable
 fun OnboardingScreen(
     prefs: UserPreferences,
-    onUnitSystemChange: (UnitSystem) -> Unit,
+    onWeightUnitChange: (UnitSystem) -> Unit,
+    onDistanceUnitChange: (UnitSystem) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
     onFinish: () -> Unit,
@@ -90,7 +92,12 @@ fun OnboardingScreen(
                     .weight(1f),
             ) { page ->
                 when (page) {
-                    0 -> UnitsPage(prefs.unitSystem, onUnitSystemChange)
+                    0 -> UnitsPage(
+                        weightUnit = prefs.weightUnit,
+                        distanceUnit = prefs.distanceUnit,
+                        onWeightUnitChange = onWeightUnitChange,
+                        onDistanceUnitChange = onDistanceUnitChange,
+                    )
                     else -> AppearancePage(
                         themeMode = prefs.themeMode,
                         dynamicColor = prefs.dynamicColor,
@@ -118,12 +125,29 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun UnitsPage(selected: UnitSystem, onChange: (UnitSystem) -> Unit) {
+private fun UnitsPage(
+    weightUnit: UnitSystem,
+    distanceUnit: UnitSystem,
+    onWeightUnitChange: (UnitSystem) -> Unit,
+    onDistanceUnitChange: (UnitSystem) -> Unit,
+) {
     OnboardingPage(
         title = "Welcome to Regimen",
         subtitle = "Track your workouts, all on your device. First, which units do you use?",
     ) {
-        UnitSystemSelector(selected, onChange)
+        Text(
+            "Weight",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        UnitSystemSelector(weightUnit, onWeightUnitChange, weightLabels = true)
+        Text(
+            "Distance",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        UnitSystemSelector(distanceUnit, onDistanceUnitChange, weightLabels = false)
     }
 }
 
@@ -193,7 +217,11 @@ private fun OnboardingPage(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UnitSystemSelector(selected: UnitSystem, onChange: (UnitSystem) -> Unit) {
+private fun UnitSystemSelector(
+    selected: UnitSystem,
+    onChange: (UnitSystem) -> Unit,
+    weightLabels: Boolean,
+) {
     val options = UnitSystem.entries
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, option ->
@@ -203,9 +231,16 @@ private fun UnitSystemSelector(selected: UnitSystem, onChange: (UnitSystem) -> U
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(
-                    when (option) {
-                        UnitSystem.METRIC -> "Metric (kg, km)"
-                        UnitSystem.IMPERIAL -> "Imperial (lb, mi)"
+                    if (weightLabels) {
+                        when (option) {
+                            UnitSystem.METRIC -> "Metric (kg)"
+                            UnitSystem.IMPERIAL -> "Imperial (lb)"
+                        }
+                    } else {
+                        when (option) {
+                            UnitSystem.METRIC -> "Metric (km)"
+                            UnitSystem.IMPERIAL -> "Imperial (mi)"
+                        }
                     },
                 )
             }

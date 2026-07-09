@@ -55,7 +55,7 @@ fun MeasurementsScreen(
         onOpenType = onOpenType,
         onAddType = viewModel::addType,
         onAddEntry = viewModel::addEntry,
-        unitSystem = uiState.unitSystem,
+        weightUnit = uiState.weightUnit,
         modifier = modifier,
     )
 }
@@ -69,7 +69,7 @@ fun MeasurementsScreen(
     onOpenType: (Long) -> Unit,
     onAddType: (String, String) -> Unit,
     onAddEntry: (Long, Long, Double) -> Unit,
-    unitSystem: dev.gouthaman.regimen.domain.model.UnitSystem,
+    weightUnit: dev.gouthaman.regimen.domain.model.UnitSystem,
     modifier: Modifier = Modifier,
 ) {
     var showAddType by remember { mutableStateOf(false) }
@@ -132,7 +132,7 @@ fun MeasurementsScreen(
     if (showAddEntry) {
         AddMeasurementSheet(
             types = rows.map { it.type },
-            unitSystem = unitSystem,
+            weightUnit = weightUnit,
             onDismiss = { showAddEntry = false },
             onSave = { typeId, date, value ->
                 onAddEntry(typeId, date, value)

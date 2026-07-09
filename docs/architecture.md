@@ -310,13 +310,11 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
   `RestAlerts.playChime()`
   (vibration/notification stay). Wire the pref into `ActiveWorkoutViewModel` → `RestAlerts.fire()`.
 
-- **Separate weight vs. distance units.** Today a single `UnitSystem` (metric/imperial) drives
-  *both* weight (kg/lb) and cardio distance (km/mi) — see `UserPreferences.unitSystem`,
-  `UnitConverter`, Settings, and Onboarding. Split into **independent** preferences (e.g.
-  `weightUnit` + `distanceUnit`) so a user can log weight in kg but distance in miles. Canonical
-  storage (kg, meters) is unaffected; this is display/entry only. Touches: prefs schema + repo,
-  `UnitConverter` call sites, the Settings & Onboarding selectors, and every `SessionFormat` /
-  measurement label.
+- ~~**Separate weight vs. distance units.**~~ **Done.** `UserPreferences` now has independent
+  `weightUnit`/`distanceUnit` (each a `UnitSystem`), backed by separate DataStore keys with a
+  fallback to the old single `unit_system` key for existing installs. Settings and Onboarding
+  each show two selectors; `SessionFormat`, `MeasurementFormat`, and Active Workout's
+  weight/cardio rows take the appropriate unit independently.
 - **Bottom-tab navigation correctness.** Two related gaps in the current single-NavHost setup
   (top-level routes are siblings of pushed detail routes):
   1. **Re-tapping the active tab** should pop that tab back to its root — currently a no-op.
