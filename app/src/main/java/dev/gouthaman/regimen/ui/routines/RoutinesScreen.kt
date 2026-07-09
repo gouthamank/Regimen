@@ -86,7 +86,7 @@ fun RoutinesScreen(
         },
     ) { innerPadding ->
         if (routines.isEmpty()) {
-            EmptyState(Modifier.padding(innerPadding), onCreateRoutine)
+            EmptyState(Modifier.padding(innerPadding))
         } else {
             RoutineList(
                 routines = routines,
@@ -222,7 +222,7 @@ private fun RoutineCard(
 }
 
 @Composable
-private fun EmptyState(modifier: Modifier, onCreateRoutine: () -> Unit) {
+private fun EmptyState(modifier: Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -235,9 +235,6 @@ private fun EmptyState(modifier: Modifier, onCreateRoutine: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            TextButton(onClick = onCreateRoutine, modifier = Modifier.padding(top = 12.dp)) {
-                Text("Create your first routine")
-            }
         }
     }
 }
