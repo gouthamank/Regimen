@@ -37,7 +37,7 @@ class GetHomeSummaryUseCase @Inject constructor(
         }
         val duration = thisWeekWorkouts.sumOf { w ->
             val end = w.workout.endTime ?: w.workout.startTime
-            (end - w.workout.startTime).coerceAtLeast(0)
+            (end - w.workout.startTime - w.workout.accumulatedPausedMs).coerceAtLeast(0)
         }
 
         // Consecutive weeks with >=1 workout, ending at the current week. The current

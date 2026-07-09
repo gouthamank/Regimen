@@ -16,10 +16,10 @@ object SessionFormat {
     fun fullDate(millis: Long): String = dayFormatter.format(millis)
     fun time(millis: Long): String = timeFormatter.format(millis)
 
-    /** "45 min", "1h 05m", or "—" when the session has no recorded end. */
-    fun duration(startMillis: Long, endMillis: Long?): String {
+    /** "45 min", "1h 05m", or "—" when the session has no recorded end. Excludes paused time. */
+    fun duration(startMillis: Long, endMillis: Long?, pausedMs: Long = 0): String {
         if (endMillis == null) return "—"
-        val totalMin = ((endMillis - startMillis) / 60_000L).coerceAtLeast(0)
+        val totalMin = ((endMillis - startMillis - pausedMs) / 60_000L).coerceAtLeast(0)
         val hours = totalMin / 60
         val minutes = totalMin % 60
         return if (hours > 0) "${hours}h %02dm".format(minutes) else "$minutes min"

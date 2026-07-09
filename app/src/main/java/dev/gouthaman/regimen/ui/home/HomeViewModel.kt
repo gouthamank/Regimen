@@ -5,15 +5,21 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
+import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
+import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.ui.history.SessionFormat
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalTime
 import javax.inject.Inject
 
@@ -32,7 +38,10 @@ data class HomeUiState(
     val volumeLabel: String = "",
     val timeLabel: String = "",
     val weekStreak: Int = 0,
+    /** Top few recent routines shown as quick-start chips. */
     val quickStart: List<QuickStartRoutine> = emptyList(),
+    /** All routines (recency-ordered) for the "Start a workout" chooser. */
+    val routines: List<QuickStartRoutine> = emptyList(),
     val loaded: Boolean = false,
 )
 
@@ -44,7 +53,24 @@ class HomeViewModel @Inject constructor(
     observeRoutines: ObserveRoutinesUseCase,
     observeHistory: ObserveHistoryUseCase,
     observePreferences: ObservePreferencesUseCase,
+    private val startWorkoutUseCase: StartWorkoutUseCase,
+    private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
 ) : ViewModel() {
+
+    // In-progress workout ids to navigate to (one-shot; buffered so the event isn't lost).
+    private val startedWorkouts = Channel<Long>(Channel.BUFFERED)
+    val startedWorkout: Flow<Long> = startedWorkouts.receiveAsFlow()
+
+    /**
+     * Opens the active workout: resumes the one already in progress if there is one (single-active —
+     * avoids orphaning a session), otherwise starts a new one from [routineId] (null = freeform).
+     */
+    fun startWorkout(routineId: Long?) {
+        viewModelScope.launch {
+            val id = getInProgressWorkoutId() ?: startWorkoutUseCase(routineId)
+            startedWorkouts.send(id)
+        }
+    }
 
     val uiState: StateFlow<HomeUiState> = combine(
         getHomeSummary(),
@@ -59,13 +85,12 @@ class HomeViewModel @Inject constructor(
             .mapNotNull { w -> w.workout.routineId?.let { it to w.workout.startTime } }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, times) -> times.max() }
-        val quickStart = routines
+        val orderedRoutines = routines
             .sortedWith(
                 compareByDescending<RoutineWithExercises> {
                     lastUsed[it.routine.id] ?: Long.MIN_VALUE
                 }.thenBy { it.routine.position }
             )
-            .take(MAX_QUICK_START)
             .map { QuickStartRoutine(it.routine.id, it.routine.name) }
 
         HomeUiState(
@@ -83,7 +108,8 @@ class HomeViewModel @Inject constructor(
             } ${UnitConverter.weightLabel(system)}",
             timeLabel = SessionFormat.duration(0L, summary.durationMillisThisWeek),
             weekStreak = summary.weekStreak,
-            quickStart = quickStart,
+            quickStart = orderedRoutines.take(MAX_QUICK_START),
+            routines = orderedRoutines,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())

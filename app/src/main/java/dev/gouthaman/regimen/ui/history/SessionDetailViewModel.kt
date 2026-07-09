@@ -8,14 +8,20 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.ReopenWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.RepeatWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
 import dev.gouthaman.regimen.ui.navigation.SessionDetailRoute
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -52,10 +58,21 @@ class SessionDetailViewModel @Inject constructor(
     observePreferences: ObservePreferencesUseCase,
     private val deleteWorkoutUseCase: DeleteWorkoutUseCase,
     private val saveAsRoutineUseCase: SaveWorkoutAsRoutineUseCase,
+    private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
+    private val repeatWorkoutUseCase: RepeatWorkoutUseCase,
+    private val reopenWorkoutUseCase: ReopenWorkoutUseCase,
 ) : ViewModel() {
 
     private val workoutId = savedStateHandle.toRoute<SessionDetailRoute>().workoutId
     private var restDefaultSec = 90
+
+    // Workout id to open in Active Workout (from Repeat/Edit).
+    private val openActiveWorkout = Channel<Long>(Channel.BUFFERED)
+    val openWorkout: Flow<Long> = openActiveWorkout.receiveAsFlow()
+
+    // One-shot user messages (e.g. the edit guard).
+    private val messages = Channel<String>(Channel.BUFFERED)
+    val message: Flow<String> = messages.receiveAsFlow()
 
     val uiState: StateFlow<SessionDetailUiState> = combine(
         observeWorkout(workoutId),
@@ -75,6 +92,7 @@ class SessionDetailViewModel @Inject constructor(
                 durationLabel = SessionFormat.duration(
                     workout.workout.startTime,
                     workout.workout.endTime,
+                    workout.workout.accumulatedPausedMs,
                 ),
                 note = workout.workout.note?.takeIf { it.isNotBlank() },
                 unitSystem = system,
@@ -104,5 +122,25 @@ class SessionDetailViewModel @Inject constructor(
 
     fun saveAsRoutine(name: String) {
         viewModelScope.launch { saveAsRoutineUseCase(workoutId, name, restDefaultSec) }
+    }
+
+    /** Start the same workout again (resumes an in-progress one if there is one — single-active). */
+    fun repeat() {
+        viewModelScope.launch {
+            val id = getInProgressWorkoutId() ?: repeatWorkoutUseCase(workoutId) ?: return@launch
+            openActiveWorkout.send(id)
+        }
+    }
+
+    /** Reopen this finished session for editing. Blocked while another workout is in progress. */
+    fun edit() {
+        viewModelScope.launch {
+            if (getInProgressWorkoutId() != null) {
+                messages.send("Finish your active workout first.")
+                return@launch
+            }
+            reopenWorkoutUseCase(workoutId)
+            openActiveWorkout.send(workoutId)
+        }
     }
 }

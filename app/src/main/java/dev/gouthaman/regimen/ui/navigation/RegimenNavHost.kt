@@ -5,6 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen
+import dev.gouthaman.regimen.ui.active.WorkoutSummaryScreen
 import dev.gouthaman.regimen.ui.exercise.EditExerciseScreen
 import dev.gouthaman.regimen.ui.exercise.ExerciseDetailScreen
 import dev.gouthaman.regimen.ui.exercise.ExerciseLibraryScreen
@@ -38,8 +40,8 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *
  *  Detail / secondary destinations (pushed above the tabs):
  *
- *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine";
- *                                            Start/Quick-workout CTAs deferred to S13, #15)
+ *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
+ *              ──▶ [✓] Active Workout     ActiveWorkoutRoute(workoutId) (Start/quick-start/Quick-workout)
  *    Profile   ──▶ [✓] Exercise Library   ExerciseLibraryRoute
  *              ──▶ [✓] Body Measurements  MeasurementsRoute (S8, "Measurement types" row)
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
@@ -48,16 +50,21 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *    Routines  ──▶ [✓] Routine Editor     RoutineEditorRoute(routineId=0)
  *    Editor    ──▶ [✓] Exercise Picker    (S16 modal bottom sheet, in-screen)
  *              ──▶ [✓] Add Custom Exercise EditExerciseRoute() (from picker)
- *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (S5, read-only + save-as-routine/delete;
- *                                            Repeat/Edit deferred to S13 Active Workout)
+ *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (S5; read-only + repeat/edit/
+ *                                            save-as-routine/delete — Repeat/Edit open Active Workout)
  *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (S8; S6 PR list + frequency chart now on the tab root)
  *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (S8 → trend + entries)
  *
  *  Full-screen gate (outside this NavHost, in MainActivity):
  *    [✓] Onboarding (S17) — shown first-run while prefs.onboarded == false
  *
- *  Full-screen (outside the tab scaffold), added LAST:
- *    [ ] Active Workout → Rest Timer (sheet) → Workout Summary   (S13/S14/S15)
+ *  Core loop (pushed above the tabs; #15):
+ *    [✓] Active Workout   ActiveWorkoutRoute(workoutId)   (S13; per-set logging, skip, cardio, notes)
+ *    [✓] Workout Summary  WorkoutSummaryRoute(workoutId)  (S15; recap + PRs + save-as-routine)
+ *    [✓] Rest Timer (sheet, within Active Workout)         (S14; manual, adjustable, vibrate+chime)
+ *    [✓] In-progress "Resume" banner (above the tab bar) + resume/single-active + notif permission (Phase 3a)
+ *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/End notification + Pause (Phase 3b)
+ *    [✓] Session-Detail Repeat/Edit → Active Workout (Phase 3c)  — #15 COMPLETE
  * ─────────────────────────────────────────────────────────────────────────
  */
 @Composable
@@ -73,6 +80,7 @@ fun RegimenNavHost(
         composable<HomeRoute> {
             HomeScreen(
                 onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },
+                onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
             )
         }
         composable<RoutinesRoute> {
@@ -87,7 +95,27 @@ fun RegimenNavHost(
             )
         }
         composable<SessionDetailRoute> {
-            SessionDetailScreen(onBack = navController::popBackStack)
+            SessionDetailScreen(
+                onBack = navController::popBackStack,
+                onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
+            )
+        }
+        composable<ActiveWorkoutRoute> {
+            ActiveWorkoutScreen(
+                onFinished = { workoutId ->
+                    navController.navigate(WorkoutSummaryRoute(workoutId)) {
+                        // Leave the finished session behind; back from the summary shouldn't reopen it.
+                        popUpTo(ActiveWorkoutRoute(workoutId)) { inclusive = true }
+                    }
+                },
+                onDiscarded = { navController.popBackStack() },
+                onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
+            )
+        }
+        composable<WorkoutSummaryRoute> {
+            WorkoutSummaryScreen(
+                onDone = { navController.popBackStack(HomeRoute, inclusive = false) },
+            )
         }
         composable<ProgressRoute> {
             ProgressScreen(

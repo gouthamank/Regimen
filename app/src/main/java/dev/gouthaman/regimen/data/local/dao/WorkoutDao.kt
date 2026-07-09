@@ -73,6 +73,12 @@ interface WorkoutDao {
     @Update
     suspend fun updateWorkout(workout: Workout)
 
+    @Query("UPDATE workouts SET pausedAt = :pausedAt WHERE id = :id")
+    suspend fun setPausedAt(id: Long, pausedAt: Long?)
+
+    @Query("UPDATE workouts SET pausedAt = NULL, accumulatedPausedMs = :accumulatedMs WHERE id = :id")
+    suspend fun clearPause(id: Long, accumulatedMs: Long)
+
     @Delete
     suspend fun deleteWorkout(workout: Workout)
 

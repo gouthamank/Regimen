@@ -42,6 +42,12 @@ data class RoutineEditorRoute(val routineId: Long = 0L)
 data class SessionDetailRoute(val workoutId: Long)
 
 @Serializable
+data class ActiveWorkoutRoute(val workoutId: Long)
+
+@Serializable
+data class WorkoutSummaryRoute(val workoutId: Long)
+
+@Serializable
 data object MeasurementsRoute
 
 @Serializable

@@ -22,6 +22,8 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): RegimenDatabase =
         Room.databaseBuilder(context, RegimenDatabase::class.java, RegimenDatabase.NAME)
+            // Pre-release: no hand-written migrations — recreate the DB on any schema change.
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
 
     @Provides

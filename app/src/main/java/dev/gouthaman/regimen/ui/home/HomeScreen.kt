@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -15,36 +16,44 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
     onCreateRoutine: () -> Unit,
+    onOpenActiveWorkout: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.startedWorkout.collect { onOpenActiveWorkout(it) }
+    }
     HomeScreen(
         uiState = uiState,
+        onStartWorkout = viewModel::startWorkout,
         onCreateRoutine = onCreateRoutine,
         modifier = modifier,
     )
@@ -54,20 +63,14 @@ fun HomeScreen(
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
+    onStartWorkout: (Long?) -> Unit,
     onCreateRoutine: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    // Active Workout (S13) is built last (#15). Until it lands, the workout-start actions give
-    // feedback via a snackbar; replace these with real navigation callbacks when #15 ships.
-    val comingSoon: () -> Unit = {
-        scope.launch { snackbarHostState.showSnackbar("Active Workout is coming in a later update") }
-    }
+    var showStartSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text(uiState.greeting.ifEmpty { "Regimen" }) }) },
     ) { innerPadding ->
         Column(
@@ -82,8 +85,9 @@ fun HomeScreen(
                 !uiState.loaded -> Unit
                 !uiState.hasRoutines -> EmptyHome(onCreateRoutine)
                 else -> {
+                    // Primary CTA opens a chooser (pick a routine, or a freeform quick workout).
                     Button(
-                        onClick = comingSoon,
+                        onClick = { showStartSheet = true },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp),
@@ -99,17 +103,57 @@ fun HomeScreen(
                     WeekSummaryCard(uiState)
 
                     if (uiState.quickStart.isNotEmpty()) {
-                        QuickStartSection(uiState, onStartRoutine = { comingSoon() })
-                    }
-
-                    if (uiState.isEstablished) {
-                        TextButton(
-                            onClick = comingSoon,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                        ) { Text("Start a quick workout") }
+                        QuickStartSection(uiState, onStartRoutine = { onStartWorkout(it) })
                     }
                 }
             }
+        }
+    }
+
+    if (showStartSheet) {
+        StartWorkoutSheet(
+            routines = uiState.routines,
+            onPick = {
+                showStartSheet = false
+                onStartWorkout(it)
+            },
+            onDismiss = { showStartSheet = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StartWorkoutSheet(
+    routines: List<QuickStartRoutine>,
+    onPick: (Long?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Text(
+                "Start a workout",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            routines.forEach { routine ->
+                ListItem(
+                    headlineContent = { Text(routine.name) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { onPick(routine.routineId) },
+                )
+            }
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text("Quick workout") },
+                supportingContent = { Text("Freeform — no routine") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { onPick(null) },
+            )
         }
     }
 }

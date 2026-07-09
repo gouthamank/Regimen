@@ -69,8 +69,9 @@ navigates elsewhere, a persistent "workout in progress" banner returns them to i
 - **S5. Session Detail** — read-only view of one past workout. Actions: **Repeat workout**,
   **Save as routine**, edit / delete.
   - _Built in #12:_ read-only view + **Save as routine** (strength exercises only) + **Delete**.
-    **Repeat** and **Edit** are deferred to #15 — both open the Active Workout screen, which is
-    built last.
+  - _Built in #15 (Phase 3c):_ **Repeat** (start the same workout again — from its routine, or a
+    freeform clone with prior numbers prefilled) and **Edit** (reopen the session in Active Workout;
+    blocked while another workout is in progress). Both open Active Workout.
 
 ### Tab 4 — Progress
 - **S6. Progress Overview** — a **PR list** (records per exercise) plus a
@@ -102,11 +103,22 @@ navigates elsewhere, a persistent "workout in progress" banner returns them to i
 
 ### Cross-cutting / modal screens
 - **S13. Active Workout** (full screen) — the core loop. See [detailed spec](#s13-active-workout--detailed-spec).
+  - _Built:_ per-set logging (weight/reps/RPE/done), skip/include, add & remove exercises via the
+    picker, cardio entry, session note, live session timer, discard/finish (Phase 1); rest timer
+    (Phase 2); in-progress **Resume banner** + single-active resume + process-death resume +
+    POST_NOTIFICATIONS request (Phase 3a); **foreground service + persistent Pause/End notification
+    + Pause** (Phase 3b — session timer & recorded duration exclude paused time). **Not yet:**
+      Session-Detail Repeat/Edit (Phase 3c).
 - **S14. Rest Timer** — bottom sheet/overlay within Active Workout. **Started manually** (no
   auto-start); adjustable duration defaulting to the routine's per-exercise rest target. On
   finish: **vibration + audio chime + a system notification** (user's default sound).
+  - _Built in #15 (Phase 2):_ per-exercise Rest button opens a bottom-sheet countdown defaulting to
+    the routine's rest target (fallback: global rest default), adjustable ±15s, running alongside
+    the session timer; on finish → vibration + default notification sound. The notification renders
+    on Android <13 now and on 13+ once POST_NOTIFICATIONS is granted (Phase 3).
 - **S15. Workout Summary** — post-finish recap: duration, total volume, sets, PRs hit. For a
   freeform Quick workout, offers **Save as routine**.
+  - _Built in #15 (Phase 1)._
 - **S16. Exercise Picker** — reusable bottom sheet for adding exercises; used by the Routine
   Editor (S3) and Active Workout (S13). Search + multi-select + a link to add a custom
   exercise (S12). **Context-filtered:** routines show strength only; Active Workout shows all,
@@ -260,6 +272,43 @@ This accepts alpha API churn (APIs can shift release to release) — a **known, 
 
 ## Deferred / backlog (post-milestone, not blocking)
 Cross-cutting enhancements captured for later; none block the numbered build order.
+
+- **Externalize strings to `strings.xml`.** User-facing text is currently hardcoded in Composables
+  throughout. Migrate all of it to `res/values/strings.xml` (enables localization + consistency),
+  and use **`<plurals>`** (quantity strings) wherever a count drives wording — e.g. "N workouts",
+  "N-week streak", "N exercises", "N reps", "in the last N weeks". Prefer parameterized resources
+  over string concatenation.
+- **Remove emoji everywhere.** Emoji are currently used as UI accents — the "🔥 N-week streak" line
+  on Home and the "🏆 Personal records" headers on the Workout Summary. Replace with Material icons
+  or plain typographic emphasis for a cleaner, more consistent look. Audit all user-facing strings.
+- **Lean into Material 3 Expressive (design discussion).** The app ships on **stable** `material3`
+  (no Expressive alpha). Revisit going more aggressive once Expressive stabilizes: expressive
+  **shapes** (larger/asymmetric corner families, shape morphing on press), and **navigation
+  transitions** (shared-axis / container-transform between screens, animated bottom-bar). Weigh the
+  alpha-churn risk (see "Material 3 Expressive is not fully stable" above) vs. the visual payoff.
+- **Home screen: split the "This week" card into smaller expressive cards.** Instead of one card
+  holding Workouts / Volume / Time + streak, break it into dedicated, individually styled tiles
+  (e.g. a streak tile, per-stat tiles, maybe a mini frequency sparkline) for a livelier dashboard.
+  Revisit alongside the Expressive discussion above.
+- **Historical-data cutoff in graphs (discussion).** Decide range/cutoff policy for charts: the
+  Progress frequency chart is a fixed 8 weeks; the Body-Measurement trend plots *all* entries
+  (unbounded — will get noisy/slow over time). Consider selectable ranges (e.g. 4w / 3m / 1y / all),
+  a sensible default cutoff, and downsampling for long series.
+- **Edit re-timestamps a past session.** "Edit session" (S5) reopens a finished workout by clearing
+  its end time and reusing Active Workout; finishing again sets endTime = now, so editing an *old*
+  session inflates its recorded duration (fine when editing right after finishing). Refine to
+  preserve original start/end timestamps (dedicated edit mode, or restore endTime on finish).
+- **Code structure: non-UI classes under `ui/`.** `ActiveWorkoutService`,
+  `ActiveWorkoutServiceController`,
+  and `RestAlerts` live in `ui/active/` but are platform/service code, not Compose UI. Move them to
+  a
+  dedicated layer (e.g. `service/` or `platform/`) and reconsider whether alert/notification
+  plumbing
+  belongs in domain vs. a framework layer.
+- **Rest-alert sound toggle (Settings).** Add a preference (e.g. `restChimeEnabled`, default on) to
+  `UserPreferences`/DataStore + a Settings switch, gating the audio chime in
+  `RestAlerts.playChime()`
+  (vibration/notification stay). Wire the pref into `ActiveWorkoutViewModel` → `RestAlerts.fire()`.
 
 - **Separate weight vs. distance units.** Today a single `UnitSystem` (metric/imperial) drives
   *both* weight (kg/lb) and cardio distance (km/mi) — see `UserPreferences.unitSystem`,

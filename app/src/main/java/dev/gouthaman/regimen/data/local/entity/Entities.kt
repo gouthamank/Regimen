@@ -76,6 +76,10 @@ data class Workout(
     val endTime: Long? = null,
     val note: String? = null,
     val routineId: Long? = null,
+    // Session pause (S13). Non-null pausedAt = currently paused (value = when it began);
+    // accumulatedPausedMs = total paused time so far. Excluded from the session timer & duration.
+    val pausedAt: Long? = null,
+    val accumulatedPausedMs: Long = 0,
 )
 
 @Entity(

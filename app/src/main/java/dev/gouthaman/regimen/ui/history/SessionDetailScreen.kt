@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,18 +48,31 @@ import kotlinx.coroutines.launch
 @Composable
 fun SessionDetailScreen(
     onBack: () -> Unit,
+    onOpenActiveWorkout: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SessionDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.openWorkout.collect { onOpenActiveWorkout(it) }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.message.collect { snackbarHostState.showSnackbar(it) }
+    }
+
     SessionDetailScreen(
         uiState = uiState,
+        snackbarHostState = snackbarHostState,
         onBack = onBack,
         onDelete = {
             viewModel.delete()
             onBack()
         },
         onSaveAsRoutine = viewModel::saveAsRoutine,
+        onRepeat = viewModel::repeat,
+        onEdit = viewModel::edit,
         modifier = modifier,
     )
 }
@@ -67,15 +81,17 @@ fun SessionDetailScreen(
 @Composable
 fun SessionDetailScreen(
     uiState: SessionDetailUiState,
+    snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onDelete: () -> Unit,
     onSaveAsRoutine: (String) -> Unit,
+    onRepeat: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showSaveAsRoutine by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -98,6 +114,22 @@ fun SessionDetailScreen(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false },
                         ) {
+                            if (uiState.exercises.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Repeat workout") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onRepeat()
+                                    },
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Edit session") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onEdit()
+                                },
+                            )
                             if (uiState.canSaveAsRoutine) {
                                 DropdownMenuItem(
                                     text = { Text("Save as routine") },
