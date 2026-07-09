@@ -40,6 +40,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.gouthaman.regimen.domain.model.HistoryRange
+import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
 import dev.gouthaman.regimen.ui.components.LineChart
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -60,6 +62,7 @@ fun MeasurementDetailScreen(
             viewModel.deleteType()
             onBack()
         },
+        onRangeChange = viewModel::setRange,
         modifier = modifier,
     )
 }
@@ -72,6 +75,7 @@ fun MeasurementDetailScreen(
     onAddEntry: (Long, Double) -> Unit,
     onDeleteEntry: (MeasurementEntry) -> Unit,
     onDeleteType: () -> Unit,
+    onRangeChange: (HistoryRange) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val type = uiState.type
@@ -139,15 +143,30 @@ fun MeasurementDetailScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (uiState.trend.isNotEmpty()) {
+            if (uiState.entries.isNotEmpty()) {
+                item {
+                    HistoryRangeSelector(
+                        selected = uiState.range,
+                        onSelect = onRangeChange,
+                    )
+                }
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("Trend", style = MaterialTheme.typography.titleMedium)
-                            LineChart(
-                                points = uiState.trend,
-                                modifier = Modifier.padding(top = 12.dp),
-                            )
+                            if (uiState.trend.isNotEmpty()) {
+                                LineChart(
+                                    points = uiState.trend,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                            } else {
+                                Text(
+                                    "No entries in this range.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                            }
                         }
                     }
                 }

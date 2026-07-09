@@ -22,5 +22,6 @@ class UpdatePreferencesUseCase @Inject constructor(
     suspend fun setThemeMode(value: ThemeMode) = repo.setThemeMode(value)
     suspend fun setDynamicColor(value: Boolean) = repo.setDynamicColor(value)
     suspend fun setRestDefaultSec(value: Int) = repo.setRestDefaultSec(value)
+    suspend fun setRestChimeEnabled(value: Boolean) = repo.setRestChimeEnabled(value)
     suspend fun setOnboarded(value: Boolean) = repo.setOnboarded(value)
 }

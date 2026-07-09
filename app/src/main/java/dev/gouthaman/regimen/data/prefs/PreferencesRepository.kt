@@ -26,6 +26,7 @@ data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val restDefaultSec: Int = 90,
+    val restChimeEnabled: Boolean = true,
     val onboarded: Boolean = false,
 )
 
@@ -44,6 +45,7 @@ class PreferencesRepository @Inject constructor(
         val THEME = stringPreferencesKey("theme_mode")
         val DYNAMIC = booleanPreferencesKey("dynamic_color")
         val REST = intPreferencesKey("rest_default_sec")
+        val REST_CHIME = booleanPreferencesKey("rest_chime_enabled")
         val ONBOARDED = booleanPreferencesKey("onboarded")
     }
 
@@ -58,6 +60,7 @@ class PreferencesRepository @Inject constructor(
                 ?: ThemeMode.SYSTEM,
             dynamicColor = p[Keys.DYNAMIC] ?: true,
             restDefaultSec = p[Keys.REST] ?: 90,
+            restChimeEnabled = p[Keys.REST_CHIME] ?: true,
             onboarded = p[Keys.ONBOARDED] ?: false,
         )
     }
@@ -76,6 +79,9 @@ class PreferencesRepository @Inject constructor(
 
     suspend fun setRestDefaultSec(value: Int) =
         edit { it[Keys.REST] = value }
+
+    suspend fun setRestChimeEnabled(value: Boolean) =
+        edit { it[Keys.REST_CHIME] = value }
 
     suspend fun setOnboarded(value: Boolean) =
         edit { it[Keys.ONBOARDED] = value }

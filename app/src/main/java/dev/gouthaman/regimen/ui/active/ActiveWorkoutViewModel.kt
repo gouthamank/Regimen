@@ -73,11 +73,15 @@ data class ActiveWorkoutUiState(
     val note: String = "",
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
+    val restChimeEnabled: Boolean = true,
     /** Non-null when the session is paused (millis at which it was paused). */
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
     /** True once the workout has an end time — finished here or via the notification's End action. */
     val finished: Boolean = false,
+    /** True while re-editing a previously finished session (via Session Detail's "Edit"). No
+     * live session timer runs in this mode — see [dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen]. */
+    val isEditingPastSession: Boolean = false,
     val loaded: Boolean = false,
     val notFound: Boolean = false,
 ) {
@@ -142,9 +146,11 @@ class ActiveWorkoutViewModel @Inject constructor(
                 note = workout.workout.note.orEmpty(),
                 weightUnit = prefs.weightUnit,
                 distanceUnit = prefs.distanceUnit,
+                restChimeEnabled = prefs.restChimeEnabled,
                 pausedAt = workout.workout.pausedAt,
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 finished = workout.workout.endTime != null,
+                isEditingPastSession = workout.workout.preEditEndTime != null,
                 exercises = workout.exercises
                     .sortedBy { it.workoutExercise.position }
                     .map { we ->
@@ -213,7 +219,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 val current = _rest.value ?: break
                 val remaining = current.endAtMillis - System.currentTimeMillis()
                 if (remaining <= 0) {
-                    restAlerts.fire()
+                    restAlerts.fire(chimeEnabled = uiState.value.restChimeEnabled)
                     endRest()
                     break
                 }

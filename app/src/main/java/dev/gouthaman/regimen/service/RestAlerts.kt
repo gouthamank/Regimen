@@ -24,19 +24,32 @@ class RestAlerts @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     init {
-        val channel = NotificationChannel(
+        // Two channels, not one: on Android 8+ notification sound is a *channel* property, not a
+        // per-notification one, so gating just our manual playChime() call left the channel's own
+        // default sound still playing regardless of the preference. notifyDone() picks whichever
+        // channel matches chimeEnabled.
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val soundChannel = NotificationChannel(
             CHANNEL_ID,
             "Rest timer",
             NotificationManager.IMPORTANCE_HIGH,
         ).apply { description = "Alerts when a rest period ends" }
-        context.getSystemService(NotificationManager::class.java)
-            ?.createNotificationChannel(channel)
+        val silentChannel = NotificationChannel(
+            CHANNEL_ID_SILENT,
+            "Rest timer (silent)",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = "Alerts when a rest period ends (no sound)"
+            setSound(null, null)
+        }
+        manager?.createNotificationChannel(soundChannel)
+        manager?.createNotificationChannel(silentChannel)
     }
 
-    fun fire() {
+    fun fire(chimeEnabled: Boolean = true) {
         vibrate()
-        playChime()
-        notifyDone()
+        if (chimeEnabled) playChime()
+        notifyDone(chimeEnabled)
     }
 
     private fun vibrate() {
@@ -56,8 +69,9 @@ class RestAlerts @Inject constructor(
         }
     }
 
-    private fun notifyDone() {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+    private fun notifyDone(chimeEnabled: Boolean) {
+        val channelId = if (chimeEnabled) CHANNEL_ID else CHANNEL_ID_SILENT
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Rest complete")
             .setContentText("Time for your next set.")
@@ -71,6 +85,7 @@ class RestAlerts @Inject constructor(
 
     companion object {
         private const val CHANNEL_ID = "rest_timer"
+        private const val CHANNEL_ID_SILENT = "rest_timer_silent"
         private const val NOTIFICATION_ID = 2001
     }
 }

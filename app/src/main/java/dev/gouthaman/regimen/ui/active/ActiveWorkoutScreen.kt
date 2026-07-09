@@ -80,10 +80,16 @@ fun ActiveWorkoutScreen(
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
 
+    // Set when the user explicitly cancels an edit (below), so the finished-flag effect doesn't
+    // also fire onFinished (which would send them to the Workout Summary screen instead of just
+    // closing back out — cancelling an edit restores the original endTime the same way finishing
+    // does, so uiState.finished flips true either way).
+    var cancellingEdit by remember { mutableStateOf(false) }
+
     // Navigate reactively off the observed workout state, so ending/discarding from the notification
     // (not just the in-app buttons) moves the screen too. Guarded so each fires once.
     LaunchedEffect(uiState.finished) {
-        if (uiState.finished) onFinished(viewModel.workoutId)
+        if (uiState.finished && !cancellingEdit) onFinished(viewModel.workoutId)
     }
     LaunchedEffect(uiState.loaded, uiState.notFound) {
         if (uiState.loaded && uiState.notFound) onDiscarded()
@@ -123,6 +129,13 @@ fun ActiveWorkoutScreen(
         // Finish/discard only flip the workout state; the LaunchedEffects above handle navigation.
         onFinish = viewModel::finish,
         onDiscard = viewModel::discard,
+        // Cancel-edit restores the session to its original finished state (same write finish()
+        // does when re-editing) but navigates straight back instead of to Workout Summary.
+        onCancelEdit = {
+            cancellingEdit = true
+            viewModel.finish()
+            onDiscarded()
+        },
         onCreateCustomExercise = onCreateCustomExercise,
         modifier = modifier,
     )
@@ -149,15 +162,19 @@ fun ActiveWorkoutScreen(
     onResume: () -> Unit,
     onFinish: () -> Unit,
     onDiscard: () -> Unit,
+    onCancelEdit: () -> Unit,
     onCreateCustomExercise: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDiscard by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
+    val isEditing = uiState.isEditingPastSession
 
     // Session timer: elapsed derives from startTime, so it survives rotation / process death.
+    // Not relevant while re-editing a past session — there's no live session to time.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(uiState.startTime) {
+    LaunchedEffect(uiState.startTime, isEditing) {
+        if (isEditing) return@LaunchedEffect
         while (true) {
             now = System.currentTimeMillis()
             delay(1000)
@@ -179,9 +196,11 @@ fun ActiveWorkoutScreen(
                         Text(uiState.title.ifEmpty { "Workout" })
                         if (uiState.loaded && !uiState.notFound) {
                             Text(
-                                if (uiState.isPaused) "${formatElapsed(elapsed)} · Paused" else formatElapsed(
-                                    elapsed
-                                ),
+                                when {
+                                    isEditing -> "Editing session"
+                                    uiState.isPaused -> "${formatElapsed(elapsed)} · Paused"
+                                    else -> formatElapsed(elapsed)
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -190,19 +209,24 @@ fun ActiveWorkoutScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { showDiscard = true }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Discard")
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = if (isEditing) "Cancel edit" else "Discard",
+                        )
                     }
                 },
                 actions = {
                     if (uiState.loaded && !uiState.notFound) {
-                        IconButton(onClick = { if (uiState.isPaused) onResume() else onPause() }) {
-                            if (uiState.isPaused) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
-                            } else {
-                                Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                        if (!isEditing) {
+                            IconButton(onClick = { if (uiState.isPaused) onResume() else onPause() }) {
+                                if (uiState.isPaused) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
+                                } else {
+                                    Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                                }
                             }
                         }
-                        TextButton(onClick = onFinish) { Text("Finish") }
+                        TextButton(onClick = onFinish) { Text(if (isEditing) "Done" else "Finish") }
                     }
                 },
             )
@@ -248,6 +272,7 @@ fun ActiveWorkoutScreen(
                     onRemoveExercise = onRemoveExercise,
                     onUpdateCardio = onUpdateCardio,
                     onStartRest = onStartRest,
+                    showRestTimer = !isEditing,
                 )
             }
 
@@ -300,20 +325,42 @@ fun ActiveWorkoutScreen(
     }
 
     if (showDiscard) {
-        AlertDialog(
-            onDismissRequest = { showDiscard = false },
-            title = { Text("Discard this workout?") },
-            text = { Text("Everything logged in this session will be deleted. This can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDiscard = false
-                    onDiscard()
-                }) { Text("Discard") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDiscard = false }) { Text("Keep going") }
-            },
-        )
+        if (isEditing) {
+            AlertDialog(
+                onDismissRequest = { showDiscard = false },
+                title = { Text("Cancel edit?") },
+                text = {
+                    Text(
+                        "Changes you've made so far are already saved. This closes editing and " +
+                            "returns the session to its original finished state."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDiscard = false
+                        onCancelEdit()
+                    }) { Text("Cancel edit") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscard = false }) { Text("Keep editing") }
+                },
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { showDiscard = false },
+                title = { Text("Discard this workout?") },
+                text = { Text("Everything logged in this session will be deleted. This can't be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDiscard = false
+                        onDiscard()
+                    }) { Text("Discard") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscard = false }) { Text("Keep going") }
+                },
+            )
+        }
     }
 }
 
@@ -329,6 +376,7 @@ private fun ExerciseCard(
     onRemoveExercise: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (Long, Int) -> Unit,
+    showRestTimer: Boolean = true,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Card(
@@ -409,7 +457,7 @@ private fun ExerciseCard(
                             Icon(Icons.Filled.Add, contentDescription = null)
                             Text("Add set", modifier = Modifier.padding(start = 8.dp))
                         }
-                        TextButton(
+                        if (showRestTimer) TextButton(
                             onClick = {
                                 onStartRest(
                                     exercise.workoutExerciseId,

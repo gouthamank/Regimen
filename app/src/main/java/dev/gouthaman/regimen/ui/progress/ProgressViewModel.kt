@@ -3,15 +3,20 @@ package dev.gouthaman.regimen.ui.progress
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -25,6 +30,7 @@ data class PersonalRecordItem(
 data class ProgressUiState(
     /** Weekly workout counts, oldest week first (for the frequency chart). */
     val frequency: List<WeekCount> = emptyList(),
+    val range: HistoryRange = HistoryRange.THREE_MONTHS,
     val personalRecords: List<PersonalRecordItem> = emptyList(),
     val loaded: Boolean = false,
 ) {
@@ -39,8 +45,7 @@ data class ProgressUiState(
     val isEmpty: Boolean get() = !hasFrequency && !hasRecords
 }
 
-private const val FREQUENCY_WEEKS = 8
-
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ProgressViewModel @Inject constructor(
     getPersonalRecords: GetPersonalRecordsUseCase,
@@ -48,14 +53,19 @@ class ProgressViewModel @Inject constructor(
     observePreferences: ObservePreferencesUseCase,
 ) : ViewModel() {
 
+    private val _range = MutableStateFlow(HistoryRange.THREE_MONTHS)
+    val range: StateFlow<HistoryRange> = _range.asStateFlow()
+
     val uiState: StateFlow<ProgressUiState> = combine(
         getPersonalRecords(),
-        getWorkoutFrequency(FREQUENCY_WEEKS),
+        _range.flatMapLatest { getWorkoutFrequency(it) },
+        _range,
         observePreferences(),
-    ) { prs, frequency, prefs ->
+    ) { prs, frequency, range, prefs ->
         val system: UnitSystem = prefs.weightUnit
         ProgressUiState(
             frequency = frequency,
+            range = range,
             personalRecords = prs.map { pr ->
                 PersonalRecordItem(
                     exerciseId = pr.exerciseId,
@@ -73,4 +83,8 @@ class ProgressViewModel @Inject constructor(
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProgressUiState())
+
+    fun setRange(value: HistoryRange) {
+        _range.value = value
+    }
 }

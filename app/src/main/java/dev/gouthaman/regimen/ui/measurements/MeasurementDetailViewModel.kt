@@ -7,7 +7,9 @@ import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.data.local.entity.BodyMetric
 import dev.gouthaman.regimen.data.local.entity.MeasurementType
+import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.usecase.AddMeasurementUseCase
 import dev.gouthaman.regimen.domain.usecase.DeleteMeasurementTypeUseCase
 import dev.gouthaman.regimen.domain.usecase.DeleteMeasurementUseCase
@@ -15,8 +17,10 @@ import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.ui.navigation.MeasurementDetailRoute
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -33,9 +37,10 @@ data class MeasurementEntry(
 data class MeasurementDetailUiState(
     val type: MeasurementType? = null,
     val weightUnit: UnitSystem = UnitSystem.METRIC,
-    /** Display-unit values in chronological order, for the trend chart. */
+    /** Display-unit values in chronological order, for the trend chart (filtered by [range]). */
     val trend: List<Float> = emptyList(),
-    /** Entries newest-first for the list. */
+    val range: HistoryRange = HistoryRange.THREE_MONTHS,
+    /** Entries newest-first for the list (full history, not filtered by [range]). */
     val entries: List<MeasurementEntry> = emptyList(),
     val loaded: Boolean = false,
 ) {
@@ -55,21 +60,28 @@ class MeasurementDetailViewModel @Inject constructor(
 
     private val typeId = savedStateHandle.toRoute<MeasurementDetailRoute>().typeId
 
+    private val _range = MutableStateFlow(HistoryRange.THREE_MONTHS)
+    val range: StateFlow<HistoryRange> = _range.asStateFlow()
+
     val uiState: StateFlow<MeasurementDetailUiState> = combine(
         observeTypes().map { types -> types.firstOrNull { it.id == typeId } },
         observeMeasurements(typeId),
         observePreferences(),
-    ) { type, metrics, prefs ->
+        _range,
+    ) { type, metrics, prefs, range ->
         if (type == null) {
             MeasurementDetailUiState(loaded = true)
         } else {
             val system = prefs.weightUnit
+            val cutoff = range.cutoffMillis()
             MeasurementDetailUiState(
                 type = type,
                 weightUnit = system,
-                trend = metrics.map {
-                    MeasurementFormat.toDisplay(type, it.value, system).toFloat()
-                },
+                trend = metrics
+                    .filter { cutoff == null || it.date >= cutoff }
+                    .sortedBy { it.date }
+                    .map { MeasurementFormat.toDisplay(type, it.value, system).toFloat() },
+                range = range,
                 entries = metrics.sortedByDescending { it.date }.map { metric ->
                     MeasurementEntry(
                         metric = metric,
@@ -81,6 +93,10 @@ class MeasurementDetailViewModel @Inject constructor(
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementDetailUiState())
+
+    fun setRange(value: HistoryRange) {
+        _range.value = value
+    }
 
     fun addEntry(date: Long, displayValue: Double) {
         val type = uiState.value.type ?: return

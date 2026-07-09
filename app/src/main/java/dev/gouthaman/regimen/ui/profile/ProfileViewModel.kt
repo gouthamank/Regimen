@@ -42,4 +42,8 @@ class ProfileViewModel @Inject constructor(
     fun setRestDefaultSec(value: Int) = viewModelScope.launch {
         updatePreferences.setRestDefaultSec(value)
     }
+
+    fun setRestChimeEnabled(value: Boolean) = viewModelScope.launch {
+        updatePreferences.setRestChimeEnabled(value)
+    }
 }

@@ -80,6 +80,10 @@ data class Workout(
     // accumulatedPausedMs = total paused time so far. Excluded from the session timer & duration.
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
+    // Set by ReopenWorkoutUseCase when re-editing a finished session (its endTime moves here
+    // while endTime is cleared back to in-progress); FinishWorkoutUseCase restores it instead of
+    // stamping "now", so editing an old session doesn't inflate its recorded duration.
+    val preEditEndTime: Long? = null,
 )
 
 @Entity(

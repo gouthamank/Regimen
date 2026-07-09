@@ -299,24 +299,43 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
   Time) in a row, plus a dedicated `StreakTile` styled with the primary container color and an
   expressive-shape icon badge (`ui/home/HomeScreen.kt`). A frequency sparkline was considered but
   left out of this pass — still open if wanted later.
-- **Historical-data cutoff in graphs (discussion).** Decide range/cutoff policy for charts: the
-  Progress frequency chart is a fixed 8 weeks; the Body-Measurement trend plots *all* entries
-  (unbounded — will get noisy/slow over time). Consider selectable ranges (e.g. 4w / 3m / 1y / all),
-  a sensible default cutoff, and downsampling for long series.
-- **Edit re-timestamps a past session.** "Edit session" (S5) reopens a finished workout by clearing
-  its end time and reusing Active Workout; finishing again sets endTime = now, so editing an *old*
-  session inflates its recorded duration (fine when editing right after finishing). Refine to
-  preserve original start/end timestamps (dedicated edit mode, or restore endTime on finish).
+- ~~**Historical-data cutoff in graphs (discussion).**~~ **Done.** Added a shared
+  `HistoryRange` enum (4w / 3m / 1y / All, `domain/model/Enums.kt`) and a `HistoryRangeSelector`
+  segmented-button component (`ui/components/`), wired into both charts:
+  - **Progress frequency chart**: `GetWorkoutFrequencyUseCase` now takes a `HistoryRange` (default
+    3m) instead of a fixed 8-week count; `ALL` spans back to the first logged workout.
+  - **Measurement trend**: `MeasurementDetailViewModel` filters the trend chart's entries by the
+    selected range's cutoff (`HistoryRange.cutoffMillis()`); the entries list below stays
+    unfiltered (full history). Downsampling for long series was not added — still open if a range
+    proves too dense to render well.
+- ~~**Edit re-timestamps a past session.**~~ **Done**, plus follow-on UX/safety fixes found while
+  verifying it:
+  - `Workout.preEditEndTime` (new column, DB bumped to v3) stashes the original `endTime` when
+    `ReopenWorkoutUseCase` clears it for editing; `FinishWorkoutUseCase` restores it instead of
+    stamping "now", so re-finishing an edited session no longer inflates its duration.
+  - The discard (✕) button in Active Workout, while editing a past session, no longer routes
+    through `CancelWorkoutUseCase` (which deleted the whole session — found during verification).
+    It now shows a distinct "Cancel edit?" dialog that restores the finished state (the same
+    non-destructive restore Finish does) and pops back to Session Detail instead of Workout
+    Summary. Edits already made during the edit session are kept (consistent with the rest of the
+    app: every write autosaves immediately; nothing else supports undo either).
+  - Editing mode no longer shows a live ticking session timer, Pause/Resume, or the per-exercise
+    "Rest" timer button (`ActiveWorkoutUiState.isEditingPastSession`) — none of those make sense
+    against a static past session. The top bar shows a static "Editing session" label instead.
 - ~~**Code structure: non-UI classes under `ui/`.**~~ **Done.** `ActiveWorkoutService`,
   `ActiveWorkoutServiceController`, and `RestAlerts` moved out of `ui/active/` into a dedicated
   `dev.gouthaman.regimen.service` package (manifest, `RegimenApplication`, and
   `ActiveWorkoutViewModel` updated accordingly). `ui/active/` now holds only Compose UI
   (`ActiveWorkoutScreen`, `ActiveWorkoutViewModel`, `WorkoutSummaryScreen`,
   `WorkoutSummaryViewModel`).
-- **Rest-alert sound toggle (Settings).** Add a preference (e.g. `restChimeEnabled`, default on) to
-  `UserPreferences`/DataStore + a Settings switch, gating the audio chime in
-  `RestAlerts.playChime()`
-  (vibration/notification stay). Wire the pref into `ActiveWorkoutViewModel` → `RestAlerts.fire()`.
+- ~~**Rest-alert sound toggle (Settings).**~~ **Done.** `UserPreferences.restChimeEnabled`
+  (default on) + a Profile switch ("Rest timer sound"); `RestAlerts.fire(chimeEnabled)` skips
+  `playChime()` when off. Also fixed a related bug found during verification: on Android 8+,
+  notification sound is a *channel* property, not per-notification — gating just `playChime()`
+  wasn't enough, since the notification itself still played the channel's default sound
+  regardless. `RestAlerts` now creates two channels (`rest_timer` with sound,
+  `rest_timer_silent` with `setSound(null, null)`) and `notifyDone()` posts to whichever matches
+  the preference. Vibration and the notification itself always fire either way.
 
 - ~~**Separate weight vs. distance units.**~~ **Done.** `UserPreferences` now has independent
   `weightUnit`/`distanceUnit` (each a `UnitSystem`), backed by separate DataStore keys with a

@@ -67,8 +67,17 @@ class FinishWorkoutUseCase @Inject constructor(
         // Settle any in-progress pause into the accumulated total so recorded duration is correct.
         val settledPaused =
             w.accumulatedPausedMs + (w.pausedAt?.let { (now - it).coerceAtLeast(0) } ?: 0)
+        // Editing a past session (ReopenWorkoutUseCase) stashes its original endTime in
+        // preEditEndTime; restore it here instead of stamping "now", so re-finishing an old
+        // session doesn't inflate its recorded duration.
+        val endTime = w.preEditEndTime ?: now
         workoutRepo.updateWorkout(
-            w.copy(endTime = now, pausedAt = null, accumulatedPausedMs = settledPaused)
+            w.copy(
+                endTime = endTime,
+                pausedAt = null,
+                accumulatedPausedMs = settledPaused,
+                preEditEndTime = null,
+            )
         )
     }
 }
@@ -172,13 +181,19 @@ class RepeatWorkoutUseCase @Inject constructor(
     }
 }
 
-/** Reopens a finished session for editing ("Edit") by clearing its end time (back to in-progress). */
+/**
+ * Reopens a finished session for editing ("Edit") by clearing its end time (back to
+ * in-progress). Stashes the original endTime in [dev.gouthaman.regimen.data.local.entity.Workout.preEditEndTime]
+ * so [FinishWorkoutUseCase] can restore it rather than stamping "now".
+ */
 class ReopenWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
-        if (w.endTime != null) workoutRepo.updateWorkout(w.copy(endTime = null))
+        if (w.endTime != null) {
+            workoutRepo.updateWorkout(w.copy(endTime = null, preEditEndTime = w.endTime))
+        }
     }
 }
 

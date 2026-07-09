@@ -31,7 +31,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.WeekCount
+import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
 import dev.gouthaman.regimen.ui.components.LineChart
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -46,6 +48,7 @@ fun ProgressScreen(
     ProgressScreen(
         uiState = uiState,
         onOpenMeasurements = onOpenMeasurements,
+        onRangeChange = viewModel::setRange,
         modifier = modifier,
     )
 }
@@ -55,6 +58,7 @@ fun ProgressScreen(
 fun ProgressScreen(
     uiState: ProgressUiState,
     onOpenMeasurements: () -> Unit,
+    onRangeChange: (HistoryRange) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -90,6 +94,11 @@ fun ProgressScreen(
             if (uiState.hasFrequency) {
                 item {
                     SectionHeader("Workout frequency")
+                    HistoryRangeSelector(
+                        selected = uiState.range,
+                        onSelect = onRangeChange,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
                     FrequencyCard(uiState)
                 }
             }

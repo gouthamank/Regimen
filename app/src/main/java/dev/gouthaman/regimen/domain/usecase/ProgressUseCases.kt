@@ -2,6 +2,7 @@ package dev.gouthaman.regimen.domain.usecase
 
 import dev.gouthaman.regimen.data.repository.ExerciseRepository
 import dev.gouthaman.regimen.data.repository.WorkoutRepository
+import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.PersonalRecord
 import dev.gouthaman.regimen.domain.model.WeekCount
 import kotlinx.coroutines.flow.Flow
@@ -11,6 +12,7 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
@@ -29,22 +31,26 @@ class GetPersonalRecordsUseCase @Inject constructor(
         }
 }
 
-/** Workout counts per week for the last [weeks] weeks (oldest first). */
+/** Workout counts per week for [range] (oldest first). [HistoryRange.ALL] spans back to the first
+ * logged workout. */
 class GetWorkoutFrequencyUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    operator fun invoke(weeks: Int = 8): Flow<List<WeekCount>> =
+    operator fun invoke(range: HistoryRange = HistoryRange.THREE_MONTHS): Flow<List<WeekCount>> =
         workoutRepo.observeCompleted().map { workouts ->
             val zone = ZoneId.systemDefault()
-            val countsByWeek: Map<LocalDate, Int> = workouts
-                .groupingBy { w ->
-                    Instant.ofEpochMilli(w.workout.startTime).atZone(zone).toLocalDate()
-                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                }
-                .eachCount()
+            fun weekOf(startTime: Long) =
+                Instant.ofEpochMilli(startTime).atZone(zone).toLocalDate()
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+            val countsByWeek: Map<LocalDate, Int> = workouts.groupingBy { weekOf(it.workout.startTime) }.eachCount()
 
             val thisWeekStart = LocalDate.now(zone)
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val weeks = range.weeks ?: run {
+                val earliest = workouts.minOfOrNull { weekOf(it.workout.startTime) } ?: thisWeekStart
+                (ChronoUnit.WEEKS.between(earliest, thisWeekStart).toInt() + 1).coerceAtLeast(1)
+            }
             (weeks - 1 downTo 0).map { back ->
                 val weekStart = thisWeekStart.minusWeeks(back.toLong())
                 WeekCount(weekStart, countsByWeek[weekStart] ?: 0)

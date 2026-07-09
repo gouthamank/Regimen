@@ -64,6 +64,7 @@ fun ProfileScreen(
         onThemeModeChange = viewModel::setThemeMode,
         onDynamicColorChange = viewModel::setDynamicColor,
         onRestDefaultChange = viewModel::setRestDefaultSec,
+        onRestChimeEnabledChange = viewModel::setRestChimeEnabled,
         onOpenExerciseLibrary = onOpenExerciseLibrary,
         onManageMeasurementTypes = onManageMeasurementTypes,
     )
@@ -79,6 +80,7 @@ fun ProfileScreen(
     onThemeModeChange: (ThemeMode) -> Unit = {},
     onDynamicColorChange: (Boolean) -> Unit = {},
     onRestDefaultChange: (Int) -> Unit = {},
+    onRestChimeEnabledChange: (Boolean) -> Unit = {},
     onOpenExerciseLibrary: () -> Unit = {},
     onManageMeasurementTypes: () -> Unit = {},
 ) {
@@ -128,6 +130,17 @@ fun ProfileScreen(
             )
 
             RestTimerRow(prefs.restDefaultSec, onRestDefaultChange)
+
+            ListItem(
+                headlineContent = { Text("Rest timer sound") },
+                supportingContent = { Text("Chime when a rest period ends (vibration always on)") },
+                trailingContent = {
+                    Switch(
+                        checked = prefs.restChimeEnabled,
+                        onCheckedChange = onRestChimeEnabledChange,
+                    )
+                },
+            )
 
             HorizontalDivider()
             SectionHeader("Library & data")
