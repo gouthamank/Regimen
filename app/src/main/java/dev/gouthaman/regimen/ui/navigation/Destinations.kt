@@ -7,6 +7,8 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import kotlinx.serialization.Serializable
 
 /** Top-level (bottom-tab) destinations. */
@@ -69,3 +71,18 @@ val topLevelDestinations = listOf(
     TopLevelDestination(ProgressRoute, "Progress", Icons.AutoMirrored.Filled.TrendingUp),
     TopLevelDestination(ProfileRoute, "Profile", Icons.Outlined.Person),
 )
+
+/**
+ * Navigates to a top-level (bottom-tab) [route] exactly as tapping it in the bottom bar would:
+ * saves/restores each tab's own back stack rather than pushing a new instance on top. Shared by
+ * the bottom bar itself and any in-screen shortcut that should act like switching tabs (e.g.
+ * Home's empty-state "Create your first routine" going to the Routines tab instead of pushing
+ * the Routine Editor).
+ */
+fun NavHostController.navigateToTab(route: Any) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}

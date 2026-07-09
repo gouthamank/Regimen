@@ -81,18 +81,31 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         topBar = { TopAppBar(title = { Text(uiState.greeting.ifEmpty { "Regimen" }) }) },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            when {
-                !uiState.loaded -> Unit
-                !uiState.hasRoutines -> EmptyHome(onCreateRoutine)
-                else -> {
+        when {
+            !uiState.loaded -> Unit
+            !uiState.hasRoutines -> {
+                // Its own centered Box (not sharing the loaded state's top-anchored, scrollable
+                // Column) — that's the only way to vertically center this content, since a plain
+                // Column inside verticalScroll can't distribute leftover space via Arrangement.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyHome(onCreateRoutine)
+                }
+            }
+
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
                     // Primary CTA opens a chooser (pick a routine, or a freeform quick workout).
                     Button(
                         onClick = { showStartSheet = true },
@@ -270,7 +283,7 @@ private fun EmptyHome(onCreateRoutine: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 48.dp, start = 16.dp, end = 16.dp),
+            .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

@@ -26,13 +26,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.gouthaman.regimen.ui.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.ui.navigation.RegimenNavHost
 import dev.gouthaman.regimen.ui.navigation.TopLevelDestination
 import dev.gouthaman.regimen.ui.navigation.WorkoutSummaryRoute
+import dev.gouthaman.regimen.ui.navigation.navigateToTab
 import dev.gouthaman.regimen.ui.navigation.topLevelDestinations
 
 @Composable
@@ -108,11 +108,7 @@ private fun onTabSelected(
     if (alreadySelected) {
         navController.popBackStack(dest.route, inclusive = false)
     } else {
-        navController.navigate(dest.route) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
+        navController.navigateToTab(dest.route)
     }
 }
 

@@ -102,7 +102,9 @@ fun RegimenNavHost(
     ) {
         composable<HomeRoute> {
             HomeScreen(
-                onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },
+                // The empty-state CTA switches to the Routines tab (where routine creation
+                // actually lives) rather than pushing the editor directly from Home.
+                onCreateRoutine = { navController.navigateToTab(RoutinesRoute) },
                 onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
             )
         }
