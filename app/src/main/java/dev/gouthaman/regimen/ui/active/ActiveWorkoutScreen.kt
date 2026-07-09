@@ -5,6 +5,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,13 +19,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -33,8 +43,10 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -54,6 +66,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -66,7 +85,9 @@ import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.ui.routines.ExercisePickerSheet
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.ceil
+import kotlin.math.hypot
 
 @Composable
 fun ActiveWorkoutScreen(
@@ -191,42 +212,13 @@ fun ActiveWorkoutScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(uiState.title.ifEmpty { "Workout" })
-                        if (uiState.loaded && !uiState.notFound) {
-                            Text(
-                                when {
-                                    isEditing -> "Editing session"
-                                    uiState.isPaused -> "${formatElapsed(elapsed)} · Paused"
-                                    else -> formatElapsed(elapsed)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                },
+                title = { Text(uiState.title.ifEmpty { "Workout" }) },
                 navigationIcon = {
                     IconButton(onClick = { showDiscard = true }) {
                         Icon(
                             Icons.Filled.Close,
                             contentDescription = if (isEditing) "Cancel edit" else "Discard",
                         )
-                    }
-                },
-                actions = {
-                    if (uiState.loaded && !uiState.notFound) {
-                        if (!isEditing) {
-                            IconButton(onClick = { if (uiState.isPaused) onResume() else onPause() }) {
-                                if (uiState.isPaused) {
-                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
-                                } else {
-                                    Icon(Icons.Filled.Pause, contentDescription = "Pause")
-                                }
-                            }
-                        }
-                        TextButton(onClick = onFinish) { Text(if (isEditing) "Done" else "Finish") }
                     }
                 },
             )
@@ -242,60 +234,87 @@ fun ActiveWorkoutScreen(
             return@Scaffold
         }
 
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (uiState.exercises.isEmpty()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                // Extra bottom inset so the last item can scroll clear of the floating toolbar
+                // instead of sitting underneath it.
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = 96.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (uiState.exercises.isEmpty()) {
+                    item {
+                        Text(
+                            "No exercises yet. Add one to start logging.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 24.dp),
+                        )
+                    }
+                }
+
+                items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
+                    ExerciseCard(
+                        exercise = exercise,
+                        weightUnit = uiState.weightUnit,
+                        distanceUnit = uiState.distanceUnit,
+                        onUpdateSet = onUpdateSet,
+                        onAddSet = onAddSet,
+                        onDeleteSet = onDeleteSet,
+                        onToggleSkip = onToggleSkip,
+                        onRemoveExercise = onRemoveExercise,
+                        onUpdateCardio = onUpdateCardio,
+                        onStartRest = onStartRest,
+                        showRestTimer = !isEditing,
+                    )
+                }
+
                 item {
-                    Text(
-                        "No exercises yet. Add one to start logging.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp),
+                    OutlinedButton(
+                        onClick = { showPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+
+                item {
+                    var note by remember(uiState.note) { mutableStateOf(uiState.note) }
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = {
+                            note = it
+                            onUpdateNote(it)
+                        },
+                        label = { Text("Session note") },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
 
-            items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
-                ExerciseCard(
-                    exercise = exercise,
-                    weightUnit = uiState.weightUnit,
-                    distanceUnit = uiState.distanceUnit,
-                    onUpdateSet = onUpdateSet,
-                    onAddSet = onAddSet,
-                    onDeleteSet = onDeleteSet,
-                    onToggleSkip = onToggleSkip,
-                    onRemoveExercise = onRemoveExercise,
-                    onUpdateCardio = onUpdateCardio,
-                    onStartRest = onStartRest,
-                    showRestTimer = !isEditing,
-                )
-            }
-
-            item {
-                OutlinedButton(
-                    onClick = { showPicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-
-            item {
-                var note by remember(uiState.note) { mutableStateOf(uiState.note) }
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = {
-                        note = it
-                        onUpdateNote(it)
-                    },
-                    label = { Text("Session note") },
-                    modifier = Modifier.fillMaxWidth(),
+            if (uiState.loaded && !uiState.notFound) {
+                ActiveWorkoutToolbar(
+                    isEditing = isEditing,
+                    isPaused = uiState.isPaused,
+                    elapsed = elapsed,
+                    onPause = onPause,
+                    onResume = onResume,
+                    onFinish = onFinish,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .height(64.dp),
                 )
             }
         }
@@ -360,6 +379,137 @@ fun ActiveWorkoutScreen(
                     TextButton(onClick = { showDiscard = false }) { Text("Keep going") }
                 },
             )
+        }
+    }
+}
+
+private val ToolbarShape = RoundedCornerShape(percent = 50)
+
+/**
+ * The session's prominent controls (elapsed timer, Pause/Resume, Finish), pulled out of the top
+ * bar into their own toolbar so the top bar stays to just the title. Built as a plain [Surface]-
+ * style pill (shadow + clip + fill) rather than the alpha `HorizontalFloatingToolbar` API — same
+ * building blocks a FAB uses, which is what reads correctly in dark theme. Tinted with the
+ * theme's primary color (darker while paused, as a status cue). Pausing/resuming animates the
+ * color with a ripple-style circular reveal plus a small scale "pop", so the state flip reads as
+ * a distinct event rather than an abrupt cut. Collapses to just a status label + Done while
+ * editing a past session (no live timer/pause makes sense there).
+ */
+@Composable
+private fun ActiveWorkoutToolbar(
+    isEditing: Boolean,
+    isPaused: Boolean,
+    elapsed: Long,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onFinish: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    // A lighter darken than a literal "paused = dark" read (0.35 was too heavy) — enough to cue
+    // a status change without losing the toolbar's contrast against the background.
+    val targetColor = if (isPaused) lerp(primary, Color.Black, 0.18f) else primary
+    val contentColor = MaterialTheme.colorScheme.onPrimary
+
+    // The base fill continuously cross-fades to the target over the same duration as the reveal
+    // circle below, so there's no discrete "cutover" moment to race against the circle finishing
+    // — a manual cutover (baseColor flipped in a coroutine right as the circle hits full radius)
+    // was landing a frame early/late and flickering the old color for an instant.
+    val baseColor by animateColorAsState(targetValue = targetColor, animationSpec = tween(420))
+    val revealProgress = remember { Animatable(1f) }
+    val scale = remember { Animatable(1f) }
+    // Skip the reveal/pop on first composition (opening the screen) — only animate on an actual
+    // pause/resume flip.
+    var initialized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isPaused) {
+        if (!initialized) {
+            initialized = true
+            return@LaunchedEffect
+        }
+        revealProgress.snapTo(0f)
+        scale.snapTo(0.94f)
+        // Both run independently of each other and of the baseColor cross-fade above — all three
+        // are driven by the same tween/spring durations so they land together.
+        launch { revealProgress.animateTo(1f, animationSpec = tween(420)) }
+        scale.animateTo(
+            1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessLow,
+            ),
+        )
+    }
+
+    Box(modifier = modifier.scale(scale.value)) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .shadow(elevation = 8.dp, shape = ToolbarShape)
+                .clip(ToolbarShape)
+                .let {
+                    // Tapping anywhere on the pill defers to Pause/Resume too (mini-player
+                    // pattern) — not available while editing a past session, and the Finish
+                    // button's own click still takes precedence since it's a nested target.
+                    if (isEditing) it else it.clickable(
+                        onClick = { if (isPaused) onResume() else onPause() },
+                    )
+                }
+                .background(baseColor)
+                .drawBehind {
+                    if (revealProgress.value < 1f) {
+                        val maxRadius = hypot(size.width, size.height)
+                        drawCircle(
+                            color = targetColor,
+                            radius = revealProgress.value * maxRadius,
+                            // Roughly where the Pause/Resume button sits, so the reveal reads as
+                            // originating from the control that was tapped.
+                            center = Offset(size.width * 0.82f, size.height / 2f),
+                        )
+                    }
+                },
+        )
+        Row(
+            modifier = Modifier
+                .matchParentSize()
+                .padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                if (isEditing) "Editing session" else {
+                    if (isPaused) "${formatElapsed(elapsed)} · Paused" else formatElapsed(elapsed)
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = contentColor,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val buttonColors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = contentColor,
+                    contentColor = baseColor,
+                )
+                if (!isEditing) {
+                    FilledIconButton(
+                        onClick = { if (isPaused) onResume() else onPause() },
+                        colors = buttonColors,
+                    ) {
+                        if (isPaused) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
+                        } else {
+                            Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                        }
+                    }
+                }
+                FilledIconButton(onClick = onFinish, colors = buttonColors) {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = if (isEditing) "Done" else "Finish",
+                    )
+                }
+            }
         }
     }
 }

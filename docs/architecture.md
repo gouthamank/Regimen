@@ -320,7 +320,26 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
     app: every write autosaves immediately; nothing else supports undo either).
   - Editing mode no longer shows a live ticking session timer, Pause/Resume, or the per-exercise
     "Rest" timer button (`ActiveWorkoutUiState.isEditingPastSession`) — none of those make sense
-    against a static past session. The top bar shows a static "Editing session" label instead.
+    against a static past session. The bottom toolbar (see below) shows a static "Editing session"
+    label instead.
+- **Active Workout bottom toolbar (redesign).** Pulled the elapsed timer, Pause/Resume, and
+  Finish out of the top bar (now just the title + close/cancel-edit icon) into a dedicated
+  floating pill toolbar anchored above the bottom edge, over the scrolling content
+  (`ActiveWorkoutToolbar` in `ActiveWorkoutScreen.kt`):
+  - Built from plain `Surface`-style primitives (shadow + clip + fill), not the alpha
+    `HorizontalFloatingToolbar` API — that component expanded to fill the whole available height
+    when placed in `Scaffold`'s `bottomBar` slot, and its default shadow elevation read as
+    invisible against a dark background.
+  - Tinted with the theme's primary color (a lighter darken while paused, as a status cue,
+    not a fixed color).
+  - Pausing/resuming animates a circular color-reveal (wiping from the old to the new color,
+    roughly originating from the Pause/Resume button) plus a small scale "pop" (a floaty,
+    low-stiffness spring) — driven by a continuous `animateColorAsState` for the base fill (not a
+    discrete cutover) to avoid a one-frame flicker of the old color.
+  - Pause/Resume and Finish are `FilledIconButton`s (Finish is icon-only, a checkmark) with
+    inverted colors (light container against the primary-tinted pill) so they read as distinct
+    controls. Tapping anywhere on the pill (outside the Finish button) also triggers Pause/Resume
+    — a mini-player-style affordance — except while editing a past session.
 - ~~**Code structure: non-UI classes under `ui/`.**~~ **Done.** `ActiveWorkoutService`,
   `ActiveWorkoutServiceController`, and `RestAlerts` moved out of `ui/active/` into a dedicated
   `dev.gouthaman.regimen.service` package (manifest, `RegimenApplication`, and
