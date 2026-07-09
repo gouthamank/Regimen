@@ -110,7 +110,9 @@ fun RoutineEditorScreen(
         },
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -191,7 +193,14 @@ private fun ExerciseEditorCard(
     onRestChange: (Int) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)) {
+        Column(
+            modifier = Modifier.padding(
+                start = 16.dp,
+                top = 12.dp,
+                bottom = 12.dp,
+                end = 4.dp
+            )
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(exercise.name, style = MaterialTheme.typography.titleMedium)
@@ -212,16 +221,21 @@ private fun ExerciseEditorCard(
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, end = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Stepper("Sets", exercise.targetSets.toString(),
+                Stepper(
+                    "Sets", exercise.targetSets.toString(),
                     onDec = { onSetsChange(exercise.targetSets - 1) },
                     onInc = { onSetsChange(exercise.targetSets + 1) })
-                Stepper("Reps", exercise.targetReps.toString(),
+                Stepper(
+                    "Reps", exercise.targetReps.toString(),
                     onDec = { onRepsChange(exercise.targetReps - 1) },
                     onInc = { onRepsChange(exercise.targetReps + 1) })
-                Stepper("Rest", formatRest(exercise.targetRestSec),
+                Stepper(
+                    "Rest", formatRest(exercise.targetRestSec),
                     onDec = { onRestChange(exercise.targetRestSec - restStep) },
                     onInc = { onRestChange(exercise.targetRestSec + restStep) })
             }
@@ -232,16 +246,30 @@ private fun ExerciseEditorCard(
 @Composable
 private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onDec) { Icon(Icons.Filled.Remove, contentDescription = "Decrease $label") }
+            IconButton(onClick = onDec) {
+                Icon(
+                    Icons.Filled.Remove,
+                    contentDescription = "Decrease $label"
+                )
+            }
             Text(
                 value,
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(min = 44.dp),
             )
-            IconButton(onClick = onInc) { Icon(Icons.Filled.Add, contentDescription = "Increase $label") }
+            IconButton(onClick = onInc) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Increase $label"
+                )
+            }
         }
     }
 }

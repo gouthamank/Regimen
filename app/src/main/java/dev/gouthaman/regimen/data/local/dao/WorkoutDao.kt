@@ -41,7 +41,7 @@ interface WorkoutDao {
     @Transaction
     @Query(
         "SELECT * FROM workouts WHERE routineId = :routineId AND endTime IS NOT NULL " +
-            "ORDER BY startTime DESC LIMIT 1"
+                "ORDER BY startTime DESC LIMIT 1"
     )
     suspend fun getMostRecentCompletedForRoutine(routineId: Long): WorkoutWithDetails?
 
@@ -51,19 +51,19 @@ interface WorkoutDao {
     /** Heaviest weight ever lifted for an exercise — the PR definition. */
     @Query(
         "SELECT MAX(se.weightKg) FROM set_entries se " +
-            "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
-            "JOIN workouts w ON we.workoutId = w.id " +
-            "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL AND se.isComplete = 1"
+                "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL AND se.isComplete = 1"
     )
     fun observeBestWeight(exerciseId: Long): Flow<Double?>
 
     /** Heaviest completed set per exercise across all finished workouts. */
     @Query(
         "SELECT we.exerciseId AS exerciseId, MAX(se.weightKg) AS bestWeightKg FROM set_entries se " +
-            "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
-            "JOIN workouts w ON we.workoutId = w.id " +
-            "WHERE w.endTime IS NOT NULL AND se.isComplete = 1 AND se.weightKg IS NOT NULL " +
-            "GROUP BY we.exerciseId"
+                "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.endTime IS NOT NULL AND se.isComplete = 1 AND se.weightKg IS NOT NULL " +
+                "GROUP BY we.exerciseId"
     )
     fun observePersonalRecords(): Flow<List<PersonalRecordRow>>
 

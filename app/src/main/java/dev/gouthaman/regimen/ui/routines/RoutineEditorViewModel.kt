@@ -138,16 +138,23 @@ class RoutineEditorViewModel @Inject constructor(
         })
     }
 
-    fun setSets(index: Int, value: Int) = updateItem(index) { it.copy(targetSets = value.coerceIn(SETS_MIN, SETS_MAX)) }
-    fun setReps(index: Int, value: Int) = updateItem(index) { it.copy(targetReps = value.coerceIn(REPS_MIN, REPS_MAX)) }
-    fun setRest(index: Int, value: Int) = updateItem(index) { it.copy(targetRestSec = value.coerceIn(REST_MIN, REST_MAX)) }
+    fun setSets(index: Int, value: Int) =
+        updateItem(index) { it.copy(targetSets = value.coerceIn(SETS_MIN, SETS_MAX)) }
+
+    fun setReps(index: Int, value: Int) =
+        updateItem(index) { it.copy(targetReps = value.coerceIn(REPS_MIN, REPS_MAX)) }
+
+    fun setRest(index: Int, value: Int) =
+        updateItem(index) { it.copy(targetRestSec = value.coerceIn(REST_MIN, REST_MAX)) }
 
     val restStep: Int get() = REST_STEP
 
     private fun updateItem(index: Int, transform: (EditorExercise) -> EditorExercise) =
         _uiState.update { state ->
             if (index !in state.exercises.indices) return@update state
-            state.copy(exercises = state.exercises.toMutableList().also { it[index] = transform(it[index]) })
+            state.copy(
+                exercises = state.exercises.toMutableList()
+                    .also { it[index] = transform(it[index]) })
         }
 
     fun save() {

@@ -67,7 +67,9 @@ class MeasurementDetailViewModel @Inject constructor(
             MeasurementDetailUiState(
                 type = type,
                 unitSystem = system,
-                trend = metrics.map { MeasurementFormat.toDisplay(type, it.value, system).toFloat() },
+                trend = metrics.map {
+                    MeasurementFormat.toDisplay(type, it.value, system).toFloat()
+                },
                 entries = metrics.sortedByDescending { it.date }.map { metric ->
                     MeasurementEntry(
                         metric = metric,

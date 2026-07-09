@@ -85,7 +85,9 @@ fun OnboardingScreen(
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             ) { page ->
                 when (page) {
                     0 -> UnitsPage(prefs.unitSystem, onUnitSystemChange)
@@ -105,7 +107,9 @@ fun OnboardingScreen(
                     if (onLastPage) onFinish()
                     else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                 },
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
             ) {
                 Text(if (onLastPage) "Get started" else "Next")
             }
@@ -137,7 +141,9 @@ private fun AppearancePage(
         ThemeModeSelector(themeMode, onThemeModeChange)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -163,7 +169,9 @@ private fun OnboardingPage(
     content: @Composable () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(top = 24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -231,7 +239,9 @@ private fun ThemeModeSelector(selected: ThemeMode, onChange: (ThemeMode) -> Unit
 @Composable
 private fun PagerDots(current: Int, count: Int) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -24,8 +24,15 @@ object DatabaseModule {
         Room.databaseBuilder(context, RegimenDatabase::class.java, RegimenDatabase.NAME)
             .build()
 
-    @Provides fun provideExerciseDao(db: RegimenDatabase): ExerciseDao = db.exerciseDao()
-    @Provides fun provideRoutineDao(db: RegimenDatabase): RoutineDao = db.routineDao()
-    @Provides fun provideWorkoutDao(db: RegimenDatabase): WorkoutDao = db.workoutDao()
-    @Provides fun provideMeasurementDao(db: RegimenDatabase): MeasurementDao = db.measurementDao()
+    @Provides
+    fun provideExerciseDao(db: RegimenDatabase): ExerciseDao = db.exerciseDao()
+
+    @Provides
+    fun provideRoutineDao(db: RegimenDatabase): RoutineDao = db.routineDao()
+
+    @Provides
+    fun provideWorkoutDao(db: RegimenDatabase): WorkoutDao = db.workoutDao()
+
+    @Provides
+    fun provideMeasurementDao(db: RegimenDatabase): MeasurementDao = db.measurementDao()
 }

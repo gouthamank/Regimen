@@ -31,9 +31,23 @@ fun LineChart(
     lineColor: Color = MaterialTheme.colorScheme.primary,
     fillColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
 ) {
-    Box(modifier = modifier.fillMaxWidth().height(height)) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(height)) {
-            drawTrend(points, lineColor, fillColor, strokeWidthPx = 3.dp.toPx(), dotRadiusPx = 4.dp.toPx())
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(height)
+        ) {
+            drawTrend(
+                points,
+                lineColor,
+                fillColor,
+                strokeWidthPx = 3.dp.toPx(),
+                dotRadiusPx = 4.dp.toPx()
+            )
         }
     }
 }
@@ -49,7 +63,13 @@ fun Sparkline(
     lineColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     Canvas(modifier = modifier.height(height)) {
-        drawTrend(points, lineColor, fill = null, strokeWidthPx = 2.dp.toPx(), dotRadiusPx = 2.5.dp.toPx())
+        drawTrend(
+            points,
+            lineColor,
+            fill = null,
+            strokeWidthPx = 2.dp.toPx(),
+            dotRadiusPx = 2.5.dp.toPx()
+        )
     }
 }
 

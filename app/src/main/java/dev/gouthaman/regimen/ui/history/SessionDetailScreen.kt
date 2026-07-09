@@ -39,7 +39,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -123,14 +122,18 @@ fun SessionDetailScreen(
     ) { innerPadding ->
         if (uiState.notFound) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) { Text("Session not found") }
             return@Scaffold
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -218,7 +221,11 @@ private fun ExerciseCard(exercise: SessionExercise) {
                         EmptyDetail("No sets logged")
                     } else {
                         exercise.setLabels.forEachIndexed { index, label ->
-                            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
                                 Text(
                                     "${index + 1}",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -230,6 +237,7 @@ private fun ExerciseCard(exercise: SessionExercise) {
                         }
                     }
                 }
+
                 else -> {
                     if (exercise.cardioLabels.isEmpty()) {
                         EmptyDetail("No cardio logged")
@@ -280,7 +288,9 @@ private fun SaveAsRoutineDialog(
                     onValueChange = { name = it },
                     label = { Text("Routine name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
                 )
             }
         },

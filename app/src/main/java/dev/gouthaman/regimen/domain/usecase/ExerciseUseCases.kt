@@ -21,9 +21,9 @@ class ObserveExercisesUseCase @Inject constructor(
     ): Flow<List<Exercise>> = repo.observeAll().map { list ->
         list.filter { e ->
             (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) &&
-                (type == null || e.type == type) &&
-                (muscleGroup == null || e.muscleGroup == muscleGroup) &&
-                (equipment == null || e.equipment == equipment)
+                    (type == null || e.type == type) &&
+                    (muscleGroup == null || e.muscleGroup == muscleGroup) &&
+                    (equipment == null || e.equipment == equipment)
         }
     }
 }
@@ -37,7 +37,11 @@ class ObserveExerciseUseCase @Inject constructor(
 class AddCustomExerciseUseCase @Inject constructor(
     private val repo: ExerciseRepository,
 ) {
-    suspend operator fun invoke(name: String, muscleGroup: MuscleGroup, equipment: Equipment): Long =
+    suspend operator fun invoke(
+        name: String,
+        muscleGroup: MuscleGroup,
+        equipment: Equipment
+    ): Long =
         repo.addCustom(name, muscleGroup, equipment)
 }
 

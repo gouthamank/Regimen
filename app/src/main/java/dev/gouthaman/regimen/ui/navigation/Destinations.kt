@@ -5,26 +5,50 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.Serializable
 
 /** Top-level (bottom-tab) destinations. */
-@Serializable data object HomeRoute
-@Serializable data object RoutinesRoute
-@Serializable data object HistoryRoute
-@Serializable data object ProgressRoute
-@Serializable data object ProfileRoute
+@Serializable
+data object HomeRoute
+
+@Serializable
+data object RoutinesRoute
+
+@Serializable
+data object HistoryRoute
+
+@Serializable
+data object ProgressRoute
+
+@Serializable
+data object ProfileRoute
 
 /** Detail / secondary destinations. */
-@Serializable data object ExerciseLibraryRoute
-@Serializable data class ExerciseDetailRoute(val exerciseId: Long)
-@Serializable data class EditExerciseRoute(val exerciseId: Long = 0L)
-@Serializable data class RoutineEditorRoute(val routineId: Long = 0L)
-@Serializable data class SessionDetailRoute(val workoutId: Long)
-@Serializable data object MeasurementsRoute
-@Serializable data class MeasurementDetailRoute(val typeId: Long)
-@Serializable data object SettingsRoute
+@Serializable
+data object ExerciseLibraryRoute
+
+@Serializable
+data class ExerciseDetailRoute(val exerciseId: Long)
+
+@Serializable
+data class EditExerciseRoute(val exerciseId: Long = 0L)
+
+@Serializable
+data class RoutineEditorRoute(val routineId: Long = 0L)
+
+@Serializable
+data class SessionDetailRoute(val workoutId: Long)
+
+@Serializable
+data object MeasurementsRoute
+
+@Serializable
+data class MeasurementDetailRoute(val typeId: Long)
+
+@Serializable
+data object SettingsRoute
 
 data class TopLevelDestination(
     val route: Any,
@@ -37,5 +61,5 @@ val topLevelDestinations = listOf(
     TopLevelDestination(RoutinesRoute, "Routines", Icons.Filled.FitnessCenter),
     TopLevelDestination(HistoryRoute, "History", Icons.Filled.CalendarMonth),
     TopLevelDestination(ProgressRoute, "Progress", Icons.AutoMirrored.Filled.TrendingUp),
-    TopLevelDestination(ProfileRoute, "Profile", Icons.Filled.Person),
+    TopLevelDestination(ProfileRoute, "Profile", Icons.Outlined.Person),
 )

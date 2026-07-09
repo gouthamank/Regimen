@@ -93,7 +93,9 @@ fun RoutinesScreen(
                 onOpenRoutine = onOpenRoutine,
                 onDelete = onDelete,
                 onReorder = onReorder,
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
             )
         }
     }
@@ -221,7 +223,11 @@ private fun RoutineCard(
 
 @Composable
 private fun EmptyState(modifier: Modifier, onCreateRoutine: () -> Unit) {
-    Box(modifier = modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp), contentAlignment = Alignment.Center
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 "No routines yet. Build one to start working out from a template.",

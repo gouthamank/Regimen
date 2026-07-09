@@ -11,9 +11,12 @@ import javax.inject.Inject
 @HiltAndroidApp
 class RegimenApplication : Application() {
 
-    @Inject lateinit var seeder: Seeder
+    @Inject
+    lateinit var seeder: Seeder
 
-    @Inject @ApplicationScope lateinit var appScope: CoroutineScope
+    @Inject
+    @ApplicationScope
+    lateinit var appScope: CoroutineScope
 
     override fun onCreate() {
         super.onCreate()

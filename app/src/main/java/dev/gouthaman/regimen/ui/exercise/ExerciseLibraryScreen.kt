@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.ui.exercise
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.clickable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.gouthaman.regimen.data.local.entity.Exercise
@@ -86,14 +87,18 @@ fun ExerciseLibraryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onAddCustom) {
+                    FilledIconButton(onClick = onAddCustom) {
                         Icon(Icons.Filled.Add, contentDescription = "Add custom exercise")
                     }
                 },
             )
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             OutlinedTextField(
                 value = filters.query,
                 onValueChange = onQueryChange,
@@ -171,7 +176,13 @@ private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
             Text("${exercise.muscleGroup.label()} · ${exercise.equipment.label()}")
         },
         trailingContent = if (exercise.isCustom) {
-            { Text("Custom", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+            {
+                Text(
+                    "Custom",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         } else null,
         modifier = Modifier.clickable(onClick = onClick),
     )
@@ -179,7 +190,11 @@ private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
 
 @Composable
 private fun EmptyState() {
-    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp), contentAlignment = Alignment.Center
+    ) {
         Text(
             "No exercises match your filters.",
             style = MaterialTheme.typography.bodyMedium,

@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ScreenPlaceholder(title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

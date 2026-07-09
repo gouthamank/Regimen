@@ -69,7 +69,10 @@ class MeasurementsViewModel @Inject constructor(
             MeasurementsUiState(rows = rows, unitSystem = prefs.unitSystem, loaded = true)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
 
-    private fun MeasurementType.toRow(metrics: List<BodyMetric>, system: UnitSystem): MeasurementRow {
+    private fun MeasurementType.toRow(
+        metrics: List<BodyMetric>,
+        system: UnitSystem
+    ): MeasurementRow {
         val latest = metrics.maxByOrNull { it.date }
         return MeasurementRow(
             type = this,

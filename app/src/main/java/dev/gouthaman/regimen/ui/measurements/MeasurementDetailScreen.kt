@@ -122,7 +122,9 @@ fun MeasurementDetailScreen(
     ) { innerPadding ->
         if (type == null) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 if (uiState.loaded) Text("Measurement not found")
@@ -131,7 +133,9 @@ fun MeasurementDetailScreen(
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -156,7 +160,9 @@ fun MeasurementDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 32.dp),
                     )
                 }
             } else {
@@ -209,7 +215,9 @@ fun MeasurementDetailScreen(
 @Composable
 private fun EntryRow(entry: MeasurementEntry, onDelete: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {

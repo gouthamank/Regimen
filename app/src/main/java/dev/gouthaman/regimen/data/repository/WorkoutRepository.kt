@@ -19,6 +19,7 @@ class WorkoutRepository @Inject constructor(
     fun observeWorkout(id: Long): Flow<WorkoutWithDetails?> = dao.observeWorkout(id)
     fun observeCompletedBetween(start: Long, end: Long): Flow<List<Workout>> =
         dao.observeCompletedBetween(start, end)
+
     fun observeInProgressId(): Flow<Long?> = dao.observeInProgressId()
     fun observeBestWeight(exerciseId: Long): Flow<Double?> = dao.observeBestWeight(exerciseId)
     fun observePersonalRecords(): Flow<List<PersonalRecordRow>> = dao.observePersonalRecords()

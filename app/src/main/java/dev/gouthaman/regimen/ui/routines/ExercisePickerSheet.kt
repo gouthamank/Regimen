@@ -1,9 +1,7 @@
 package dev.gouthaman.regimen.ui.routines
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -67,7 +65,9 @@ fun ExercisePickerSheet(
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 placeholder = { Text("Search") },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
             )
 
             ListItem(
@@ -99,7 +99,9 @@ fun ExercisePickerSheet(
             Button(
                 onClick = { onConfirm(selected.toList()) },
                 enabled = selected.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
             ) {
                 Text(if (selected.isEmpty()) "Add" else "Add ${selected.size}")
             }

@@ -25,5 +25,10 @@ object MeasurementFormat {
 
     /** Stored value → "72 kg" / "34.5 cm". */
     fun format(type: MeasurementType, storedValue: Double, system: UnitSystem): String =
-        "${UnitConverter.formatValue(toDisplay(type, storedValue, system))} ${unitLabel(type, system)}"
+        "${UnitConverter.formatValue(toDisplay(type, storedValue, system))} ${
+            unitLabel(
+                type,
+                system
+            )
+        }"
 }

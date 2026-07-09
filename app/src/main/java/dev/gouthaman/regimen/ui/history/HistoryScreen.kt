@@ -3,7 +3,6 @@ package dev.gouthaman.regimen.ui.history
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +36,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -96,7 +94,9 @@ fun HistoryScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp),
                 )
             }
         }
@@ -131,7 +131,9 @@ fun HistoryScreen(
 @Composable
 private fun MonthHeader(month: YearMonth, onPrev: () -> Unit, onNext: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onPrev) {
@@ -160,7 +162,9 @@ private fun WeekdayHeader() {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 8.dp),
             )
         }
     }

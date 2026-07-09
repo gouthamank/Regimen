@@ -29,7 +29,11 @@ fun ProgressScreen(
         modifier = modifier.fillMaxSize(),
         topBar = { TopAppBar(title = { Text("Progress") }) },
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             ListItem(
                 headlineContent = { Text("Body measurements") },
                 supportingContent = { Text("Bodyweight and custom measurement trends") },

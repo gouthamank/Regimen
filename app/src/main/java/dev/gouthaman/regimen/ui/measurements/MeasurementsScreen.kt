@@ -106,7 +106,9 @@ fun MeasurementsScreen(
             EmptyState(Modifier.padding(innerPadding)) { showAddType = true }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -142,9 +144,15 @@ fun MeasurementsScreen(
 
 @Composable
 private fun MeasurementCard(row: MeasurementRow, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -158,7 +166,9 @@ private fun MeasurementCard(row: MeasurementRow, onClick: () -> Unit) {
             if (row.trend.size >= 2) {
                 Sparkline(
                     points = row.trend,
-                    modifier = Modifier.width(88.dp).padding(start = 12.dp),
+                    modifier = Modifier
+                        .width(88.dp)
+                        .padding(start = 12.dp),
                 )
             }
         }
@@ -203,7 +213,11 @@ private fun AddTypeDialog(
 
 @Composable
 private fun EmptyState(modifier: Modifier, onAddType: () -> Unit) {
-    Box(modifier = modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp), contentAlignment = Alignment.Center
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 "Track bodyweight and your own measurements (waist, arm, body-fat %…) over time.",
