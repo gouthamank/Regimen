@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Regimen" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Launch theme: keeps the system splash on screen (see MainActivity.setKeepOnScreenCondition)
+         until preferences load, then swaps to Theme.Regimen. Avoids a first-frame flash. -->
+    <style name="Theme.Regimen.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="postSplashScreenTheme">@style/Theme.Regimen</item>
+    </style>
+</resources>

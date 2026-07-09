@@ -1,0 +1,277 @@
+# Regimen — Architecture
+
+Regimen is a local-only Android gym-tracking app. Users build **routines** (workout
+templates) ahead of time, then **record** actual workouts against them — sets, reps, and
+weight — with optional cardio, rest timing, and progress tracking. No backend, no account,
+no network; all data lives on the device.
+
+This document is the reference for what the app is made of: its screens, navigation, the
+core workout loop, key product decisions, and the data model. It reflects the v1 scope.
+
+---
+
+## Core concepts
+
+| Concept | What it is |
+|---|---|
+| **Exercise** | A movement definition (e.g. Barbell Bench Press). Has a **type**: `strength` or `cardio`, a muscle group, equipment, and a built-in vs. custom flag. |
+| **Cardio activity** | A cardio-type exercise (Treadmill, Running, Cycling, Rowing…). Logged into a session with **duration + distance** instead of sets/reps/weight. **Session-only — never part of a routine.** |
+| **Routine (Template)** | A named, ordered list of **strength** exercises with target sets/reps/rest. Built ahead of time; workouts start from it. |
+| **Session (Workout)** | An actual workout performed on a date — the log of sets × reps × weight per exercise, plus any cardio. Usually created from a routine. |
+| **Body metric** | Bodyweight and user-defined body measurements tracked over time. |
+
+**Logging model:** template-driven. The primary path is: build a routine → start a workout
+from it (exercises pre-filled) → record your numbers. Established users also get a secondary
+freeform "Quick workout" (see [Workout entry](#workout-entry)).
+
+---
+
+## Navigation
+
+Single-Activity, Jetpack Compose, Navigation Compose (type-safe routes). Top-level
+navigation is a **bottom tab bar** with 5 destinations:
+
+1. **Home** · 2. **Routines** · 3. **History** · 4. **Progress** · 5. **Profile**
+
+**Active Workout is not a tab** — it's a full-screen destination launched from Home or
+Routines and backed by a foreground service. While a workout is in progress and the user
+navigates elsewhere, a persistent "workout in progress" banner returns them to it.
+
+---
+
+## Screen inventory
+
+### Tab 1 — Home
+- **S1. Home** — greeting, prominent **Start Workout** CTA, **quick-start routine chips**
+  (tap a recent routine to jump in), a **this-week summary** (workouts / volume / time), and
+  a **streak**. No recent-workouts list here (that's the History tab).
+  - **Empty state (new user, no routines):** minimal — one line + a CTA that funnels into
+    **Create your first routine** (guided). This is the sole cold-start path; no seeded
+    routines, no demo data.
+  - **Established user:** also surfaces a secondary, de-emphasized **Quick workout**
+    (freeform) entry.
+
+### Tab 2 — Routines
+- **S2. Routines List** — a flat, **reorderable** list of saved templates. No folders in v1.
+- **S3. Routine Editor** — create/edit a routine: name, add/reorder exercises, per-exercise
+  target sets/reps/rest. Uses the shared Exercise Picker (S16). **Strength exercises only** —
+  cardio is excluded from templates.
+
+### Tab 3 — History
+- **S4. History** — **calendar view**: a month grid with workout days marked; tap a day →
+  Session Detail. (A chronological list view is deferred to a later version.)
+- **S5. Session Detail** — read-only view of one past workout. Actions: **Repeat workout**,
+  **Save as routine**, edit / delete.
+  - _Built in #12:_ read-only view + **Save as routine** (strength exercises only) + **Delete**.
+    **Repeat** and **Edit** are deferred to #15 — both open the Active Workout screen, which is
+    built last.
+
+### Tab 4 — Progress
+- **S6. Progress Overview** — a **PR list** (records per exercise) plus a
+  **workout-frequency chart**. No estimated-1RM or volume-trend charts in v1.
+- **S8. Body Measurements** — **bodyweight** (built-in) plus **user-defined custom
+  measurement types** (e.g. waist, arm, body-fat %), each with a trend chart. No fixed preset
+  list — the user adds the types they want.
+  - **S8a. Add Measurement Entry** — bottom sheet.
+
+> There is no separate per-exercise progress chart screen in v1. Per-exercise history and PRs
+> live in Exercise Detail (S11).
+
+### Tab 5 — Profile
+- **S9. Profile / Settings** — **units** (metric/imperial: kg/lb + km/mi), **theme**
+  (light / dark / system + dynamic-color toggle), **rest-timer default duration**, **manage
+  custom measurement types**, an entry point to the Exercise Library, and **data export →
+  JSON** (deferred).
+- **S10. Exercise Library** — all exercises (built-in + custom). Ships with a **curated
+  ~50–100 built-in set** (common barbell/dumbbell/machine/bodyweight movements **plus cardio
+  activities**). Filter by **type** (strength/cardio), **muscle group**, and **equipment**,
+  plus **free-text search**. No favorites in v1. Doubles as the picker source (S16).
+- **S11. Exercise Detail** — description, target muscles, and **per-exercise history / PRs /
+  best set**.
+- **S12. Add/Edit Custom Exercise** — create/edit a user-defined **strength** exercise.
+  Cardio is predefined-only in v1 — no custom cardio.
+
+### Cross-cutting / modal screens
+- **S13. Active Workout** (full screen) — the core loop. See [detailed spec](#s13-active-workout--detailed-spec).
+- **S14. Rest Timer** — bottom sheet/overlay within Active Workout. **Started manually** (no
+  auto-start); adjustable duration defaulting to the routine's per-exercise rest target. On
+  finish: **vibration + audio chime + a system notification** (user's default sound).
+- **S15. Workout Summary** — post-finish recap: duration, total volume, sets, PRs hit. For a
+  freeform Quick workout, offers **Save as routine**.
+- **S16. Exercise Picker** — reusable bottom sheet for adding exercises; used by the Routine
+  Editor (S3) and Active Workout (S13). Search + multi-select + a link to add a custom
+  exercise (S12). **Context-filtered:** routines show strength only; Active Workout shows all,
+  including cardio.
+- **S17. Onboarding** (optional, first-run) — light: units + theme, always skippable.
+
+---
+
+## S13 Active Workout — detailed spec
+
+The core loop, and the highest-risk screen. Users spend most of their time here.
+
+- **Entry** — from a saved routine (exercises pre-filled) or a freeform **Quick workout**
+  (established users only). New users are guided to create a routine first.
+- **Session timer** — total elapsed workout time; starts on begin and **runs continuously**
+  to finish. *Resting does not pause it.* A distinct **Pause** action (in-app and from the
+  persistent notification) can pause/resume the whole session.
+- **Rest mode** — started **manually** via a Rest button (no auto-start on set completion).
+  The rest countdown runs alongside the session timer; default duration comes from the
+  routine's per-exercise rest target and is adjustable.
+- **Per-set logging** — each exercise lists its sets with freely editable **reps + weight**.
+  Sets can be added/removed on the fly. Each set has a **"done" checkoff** as a progress
+  indicator (not tied to rest, since rest is manual). Optional **RPE** (effort rating) per set.
+- **Prefill** — each exercise's sets are prefilled from **the most recent session of the
+  same routine**. For a freeform workout, or a newly added exercise with no routine history,
+  fall back to blank.
+- **Skip** — an exercise can be marked **skipped** (greyed, labeled) and **un-skipped**
+  mid-workout. If left skipped, it's saved to history as skipped (adherence signal), not
+  removed.
+- **Cardio** — add a cardio activity (from the library's cardio list) into the session and
+  record **duration + distance**. Session-only — never part of a routine.
+- **Other** — add/remove exercises mid-session (via S16), per-exercise/session notes, PR
+  detection on completed sets.
+- **Resilience** — **must survive process death / rotation / backgrounding.** The in-progress
+  session is persisted to Room continuously, not just on finish.
+- **Persistent notification (foreground service)** — while a workout is active, an ongoing
+  notification exposes **Pause** and **End workout** actions and backs the always-running
+  timer. Requires a foreground service and the `POST_NOTIFICATIONS` permission (Android 13+).
+- **Finish** → S15 Workout Summary.
+
+---
+
+## Key decisions (v1 scope)
+
+### Onboarding & empty states
+- **Onboarding:** light — max 2–3 screens (units + theme, optional), always skippable.
+- **Empty states:** minimal + functional everywhere — a short line of text and a single CTA,
+  no illustrations.
+
+### Workout entry
+- Primary path is **routine-driven**; new users are funneled to guided create-first-routine.
+- A secondary freeform **Quick workout** is available to established users. A freeform
+  session can be **saved as a routine** afterward.
+
+### Workout mechanics
+- **Supersets:** deferred to v2. v1 does exercises one at a time. The data model is designed
+  so supersets can be added later without a painful migration (see below).
+- **RPE:** in v1 — optional per-set effort rating.
+- **Per-set checkoff:** kept, as a progress indicator.
+- **Warm-up sets** and **plate calculator:** out of v1.
+
+### Exercises & routines
+- **Built-in library:** curated ~50–100 movements shipped with the app; users add custom
+  strength exercises.
+- **Library taxonomy:** filter by type, muscle group, and equipment, plus text search. No
+  favorites in v1.
+- **Routine organization:** flat, reorderable list — no folders in v1.
+- **PR definition:** **heaviest weight lifted** per exercise (derived, not stored).
+
+### System & polish
+- **Theming:** **dynamic color (Material You)** on Android 12+ with a branded fallback
+  palette below; light/dark follows system and is user-overridable.
+- **Units:** a global **metric/imperial** preference governs weight (kg/lb) and cardio
+  distance (km/mi). Values are **stored canonically** (weight in kg, distance in meters) and
+  converted only at display/entry, so switching units never loses precision.
+- **Rest alert:** vibration + audio chime + a system notification (user's default sound).
+- **Active-workout notification:** persistent, foreground-service-backed, with Pause / End
+  actions.
+- **Data export:** deferred, but designed toward **JSON** (full-fidelity backup/re-import).
+
+---
+
+## Reusable components
+- **Exercise Picker sheet (S16)** — shared by the Routine Editor and Active Workout.
+- **Set-entry row** — weight/reps input + complete toggle; used in Active Workout.
+- **Chart component** — used by Progress (frequency) and Body Measurements (bodyweight +
+  custom-measurement trends).
+- **Empty states** — first-run Routines / History / Progress.
+
+---
+
+## Data model (Room entities)
+
+```
+Exercise(id, name, type, muscleGroup, equipment, isCustom)
+    type = strength | cardio
+
+Routine(id, name, position)
+RoutineExercise(id, routineId, exerciseId, position, targetSets, targetReps, targetRestSec)
+
+Workout(id, startTime, endTime, note, routineId?)
+WorkoutExercise(id, workoutId, exerciseId, position, isSkipped)
+
+SetEntry(id, workoutExerciseId, setNumber, weightKg, reps, isComplete, rpe?)
+    strength WorkoutExercises only; weight stored canonically in kg; rpe nullable
+
+CardioEntry(id, workoutExerciseId, durationSec, distanceMeters?)
+    cardio WorkoutExercises only; distance stored canonically in meters
+
+MeasurementType(id, name, unit, isBuiltIn)   -- "Bodyweight" is built-in
+BodyMetric(id, measurementTypeId, date, value)
+```
+
+**Notes**
+- **PRs** are derived (`max(weightKg)` per exercise), not stored, to start.
+- **Supersets (future):** add a nullable `supersetGroupId` on `RoutineExercise` /
+  `WorkoutExercise` and keep ordering position-based so grouping can layer on without a
+  disruptive migration.
+
+---
+
+## Tech stack
+
+| Area | Choice |
+|---|---|
+| Language / build | Kotlin, Gradle Kotlin DSL, version catalog, **KSP** (kapt is maintenance-only) |
+| UI | Jetpack Compose, **Material 3 Expressive**, single-Activity |
+| Navigation | Navigation Compose (type-safe routes) |
+| Architecture | **MVVM + UDF** with a **full use-case (domain) layer** — `ui → domain/use-cases → data/repository → Room DAO`; ViewModels expose immutable `StateFlow` UI state |
+| DI | Hilt (`2.57.2`, `androidx.hilt` `1.3.0`) |
+| Persistence | Room (`2.8.4`) + Coroutines/Flow; DAOs return `Flow` |
+| Active Workout runtime | Foreground service (persistent notification, Pause/End). Needs `FOREGROUND_SERVICE` (+ type) and `POST_NOTIFICATIONS` (Android 13+) |
+| minSdk | 26 (Android 8) |
+
+### Verified versions (July 2026)
+- Compose BOM `2026.06.00` · AGP `9.2.0` (Gradle 8.11+) · Kotlin `2.3.x` · KSP `2.3.4` ·
+  Room `2.8.4` · Navigation Compose `2.9.6`.
+
+### ⚠️ Material 3 Expressive is not fully stable
+Stable `material3` is `1.4.0`, which does **not** include the Expressive APIs. The Expressive
+components (flexible top bars, FAB menus, split buttons, toggle buttons, floating toolbars,
+expressive list items, …) are graduating in `1.5.0-alpha23`; full stability awaits
+`material3 1.5.0`. To use Expressive today:
+1. Override the Compose BOM to pull `androidx.compose.material3:material3:1.5.0-alpha23`
+   explicitly, and
+2. Opt into `@ExperimentalMaterial3ExpressiveApi` on the affected components.
+
+This accepts alpha API churn (APIs can shift release to release) — a **known, accepted risk**.
+
+---
+
+## Deferred / backlog (post-milestone, not blocking)
+Cross-cutting enhancements captured for later; none block the numbered build order.
+
+- **Separate weight vs. distance units.** Today a single `UnitSystem` (metric/imperial) drives
+  *both* weight (kg/lb) and cardio distance (km/mi) — see `UserPreferences.unitSystem`,
+  `UnitConverter`, Settings, and Onboarding. Split into **independent** preferences (e.g.
+  `weightUnit` + `distanceUnit`) so a user can log weight in kg but distance in miles. Canonical
+  storage (kg, meters) is unaffected; this is display/entry only. Touches: prefs schema + repo,
+  `UnitConverter` call sites, the Settings & Onboarding selectors, and every `SessionFormat` /
+  measurement label.
+- **Bottom-tab navigation correctness.** Two related gaps in the current single-NavHost setup
+  (top-level routes are siblings of pushed detail routes):
+  1. **Re-tapping the active tab** should pop that tab back to its root — currently a no-op.
+  2. **A pushed detail screen doesn't keep its parent tab highlighted** (e.g. Session Detail under
+     History, Exercise Detail under Profile) — the selected-state check matches the exact
+     top-level route only, not descendants. Fix likely means **per-tab nested nav graphs** (each
+     tab owns its own back stack) or computing the selected tab from the back-stack hierarchy,
+     plus `launchSingleTop` + `popUpTo(tab root)` on tab reselect. Revisit when Active Workout
+     lands, since it also reshapes the nav graph.
+
+---
+
+## Status
+Documentation only — no code scaffold exists yet. The next step is a separate implementation
+plan for the project scaffold (Compose + Room + Navigation + Hilt) and the core loop,
+starting with **S13 Active Workout** as the highest-risk screen.
