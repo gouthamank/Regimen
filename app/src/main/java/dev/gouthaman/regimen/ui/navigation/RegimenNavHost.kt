@@ -28,7 +28,8 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *
  *  Bottom-tab graph (single-Activity, type-safe routes):
  *
- *    [✓] Home       HomeRoute        ← start destination
+ *    [✓] Home       HomeRoute        ← start destination (S1 dashboard: greeting, Start Workout
+ *                                       CTA, quick-start routine chips, this-week summary, streak)
  *    [✓] Routines   RoutinesRoute
  *    [✓] History    HistoryRoute
  *    [✓] Progress   ProgressRoute
@@ -37,6 +38,8 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *
  *  Detail / secondary destinations (pushed above the tabs):
  *
+ *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine";
+ *                                            Start/Quick-workout CTAs deferred to S13, #15)
  *    Profile   ──▶ [✓] Exercise Library   ExerciseLibraryRoute
  *              ──▶ [✓] Body Measurements  MeasurementsRoute (S8, "Measurement types" row)
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
@@ -47,7 +50,7 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *              ──▶ [✓] Add Custom Exercise EditExerciseRoute() (from picker)
  *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (S5, read-only + save-as-routine/delete;
  *                                            Repeat/Edit deferred to S13 Active Workout)
- *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (S8, temp entry until S6 lands)
+ *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (S8; S6 PR list + frequency chart now on the tab root)
  *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (S8 → trend + entries)
  *
  *  Full-screen gate (outside this NavHost, in MainActivity):
@@ -67,7 +70,11 @@ fun RegimenNavHost(
         startDestination = HomeRoute,
         modifier = modifier,
     ) {
-        composable<HomeRoute> { HomeScreen() }
+        composable<HomeRoute> {
+            HomeScreen(
+                onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },
+            )
+        }
         composable<RoutinesRoute> {
             RoutinesScreen(
                 onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },

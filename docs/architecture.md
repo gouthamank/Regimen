@@ -50,6 +50,12 @@ navigates elsewhere, a persistent "workout in progress" banner returns them to i
     routines, no demo data.
   - **Established user:** also surfaces a secondary, de-emphasized **Quick workout**
     (freeform) entry.
+  - _Built in #14:_ time-of-day greeting, prominent **Start Workout** CTA, quick-start routine
+    chips (ordered most-recently-used first), a **this-week** card (workouts / volume / time) +
+    a weekly **streak**, and the freeform **Quick workout** entry for established users
+    (≥1 completed workout). New-user empty state → **Create your first routine** (real nav).
+    The workout-start actions show a "coming soon" snackbar until Active Workout (S13) lands in
+    #15; the empty-state Create-routine CTA is fully wired.
 
 ### Tab 2 — Routines
 - **S2. Routines List** — a flat, **reorderable** list of saved templates. No folders in v1.
@@ -69,6 +75,9 @@ navigates elsewhere, a persistent "workout in progress" banner returns them to i
 ### Tab 4 — Progress
 - **S6. Progress Overview** — a **PR list** (records per exercise) plus a
   **workout-frequency chart**. No estimated-1RM or volume-trend charts in v1.
+  - _Built in #13:_ PR list (heaviest weight per exercise, formatted to the unit preference) +
+    an 8-week workout-frequency trend (shared `LineChart`), with the Body Measurements entry
+    point kept on the tab root. Empty state until the first workout is finished.
 - **S8. Body Measurements** — **bodyweight** (built-in) plus **user-defined custom
   measurement types** (e.g. waist, arm, body-fat %), each with a trend chart. No fixed preset
   list — the user adds the types they want.
