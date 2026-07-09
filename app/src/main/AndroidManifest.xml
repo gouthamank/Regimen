@@ -31,7 +31,7 @@
         </activity>
 
         <service
-            android:name=".ui.active.ActiveWorkoutService"
+            android:name=".service.ActiveWorkoutService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

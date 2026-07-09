@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.active
+package dev.gouthaman.regimen.service
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

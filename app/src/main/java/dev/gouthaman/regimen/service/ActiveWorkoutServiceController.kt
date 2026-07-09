@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.active
+package dev.gouthaman.regimen.service
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext

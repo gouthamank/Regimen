@@ -298,13 +298,12 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
   its end time and reusing Active Workout; finishing again sets endTime = now, so editing an *old*
   session inflates its recorded duration (fine when editing right after finishing). Refine to
   preserve original start/end timestamps (dedicated edit mode, or restore endTime on finish).
-- **Code structure: non-UI classes under `ui/`.** `ActiveWorkoutService`,
-  `ActiveWorkoutServiceController`,
-  and `RestAlerts` live in `ui/active/` but are platform/service code, not Compose UI. Move them to
-  a
-  dedicated layer (e.g. `service/` or `platform/`) and reconsider whether alert/notification
-  plumbing
-  belongs in domain vs. a framework layer.
+- ~~**Code structure: non-UI classes under `ui/`.**~~ **Done.** `ActiveWorkoutService`,
+  `ActiveWorkoutServiceController`, and `RestAlerts` moved out of `ui/active/` into a dedicated
+  `dev.gouthaman.regimen.service` package (manifest, `RegimenApplication`, and
+  `ActiveWorkoutViewModel` updated accordingly). `ui/active/` now holds only Compose UI
+  (`ActiveWorkoutScreen`, `ActiveWorkoutViewModel`, `WorkoutSummaryScreen`,
+  `WorkoutSummaryViewModel`).
 - **Rest-alert sound toggle (Settings).** Add a preference (e.g. `restChimeEnabled`, default on) to
   `UserPreferences`/DataStore + a Settings switch, gating the audio chime in
   `RestAlerts.playChime()`
@@ -315,15 +314,16 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
   fallback to the old single `unit_system` key for existing installs. Settings and Onboarding
   each show two selectors; `SessionFormat`, `MeasurementFormat`, and Active Workout's
   weight/cardio rows take the appropriate unit independently.
-- **Bottom-tab navigation correctness.** Two related gaps in the current single-NavHost setup
-  (top-level routes are siblings of pushed detail routes):
-  1. **Re-tapping the active tab** should pop that tab back to its root — currently a no-op.
-  2. **A pushed detail screen doesn't keep its parent tab highlighted** (e.g. Session Detail under
-     History, Exercise Detail under Profile) — the selected-state check matches the exact
-     top-level route only, not descendants. Fix likely means **per-tab nested nav graphs** (each
-     tab owns its own back stack) or computing the selected tab from the back-stack hierarchy,
-     plus `launchSingleTop` + `popUpTo(tab root)` on tab reselect. Revisit when Active Workout
-     lands, since it also reshapes the nav graph.
+- ~~**Bottom-tab navigation correctness.**~~ **Done.** Two related gaps in the single-NavHost setup
+  (top-level routes are siblings of pushed detail routes), fixed in `RegimenApp.kt` without moving
+  to per-tab nested graphs:
+  1. **Re-tapping the active tab** now pops that tab back to its root
+     (`navController.popBackStack(dest.route, inclusive = false)`) instead of being a no-op.
+  2. **A pushed detail screen now keeps its parent tab highlighted.** Rather than matching only the
+     exact top-level route, the bottom bar walks the live back stack
+     (`navController.currentBackStack`) for the most recent top-level entry and highlights that tab
+     underneath any detail screens pushed on top of it (e.g. Session Detail stays under History,
+     Exercise Detail stays under Profile).
 
 ---
 

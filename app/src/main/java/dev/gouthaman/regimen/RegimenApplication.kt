@@ -4,7 +4,7 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import dev.gouthaman.regimen.data.local.Seeder
 import dev.gouthaman.regimen.di.ApplicationScope
-import dev.gouthaman.regimen.ui.active.ActiveWorkoutServiceController
+import dev.gouthaman.regimen.service.ActiveWorkoutServiceController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject

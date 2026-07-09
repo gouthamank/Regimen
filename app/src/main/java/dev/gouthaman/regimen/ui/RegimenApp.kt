@@ -17,18 +17,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavHostController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.gouthaman.regimen.ui.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.ui.navigation.RegimenNavHost
+import dev.gouthaman.regimen.ui.navigation.TopLevelDestination
 import dev.gouthaman.regimen.ui.navigation.WorkoutSummaryRoute
 import dev.gouthaman.regimen.ui.navigation.topLevelDestinations
 
@@ -52,6 +55,18 @@ fun RegimenApp(
                 it.hasRoute(ActiveWorkoutRoute::class) || it.hasRoute(WorkoutSummaryRoute::class)
             } == true
 
+            // All routes live in a single flat NavHost (no per-tab nested graphs), so a pushed
+            // detail screen (e.g. Session Detail, Exercise Detail) has no graph-level tie back to
+            // the tab it was opened from. Instead, walk the live back stack for the most recent
+            // top-level entry: that's the tab that should stay highlighted underneath the detail
+            // screens pushed on top of it.
+            val fullBackStack by navController.currentBackStack.collectAsStateWithLifecycle()
+            val activeTab = remember(fullBackStack) {
+                fullBackStack.lastOrNull { entry ->
+                    topLevelDestinations.any { entry.destination.hasRoute(it.route::class) }
+                }?.destination
+            }
+
             Column {
                 val activeId = inProgressWorkoutId
                 if (activeId != null && !inWorkoutFlow) {
@@ -65,20 +80,10 @@ fun RegimenApp(
                 }
                 NavigationBar {
                     topLevelDestinations.forEach { dest ->
-                        val selected = currentDestination?.hierarchy?.any {
-                            it.hasRoute(dest.route::class)
-                        } == true
+                        val selected = activeTab?.hasRoute(dest.route::class) == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                navController.navigate(dest.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { onTabSelected(navController, dest, alreadySelected = selected) },
                             icon = { Icon(dest.icon, contentDescription = dest.label) },
                             label = { Text(dest.label) },
                         )
@@ -88,6 +93,26 @@ fun RegimenApp(
         },
     ) { innerPadding ->
         RegimenNavHost(navController, Modifier.padding(innerPadding))
+    }
+}
+
+/**
+ * Re-tapping the already-selected tab pops it back to its root; tapping a different tab
+ * navigates there, saving/restoring each tab's own back-stack state.
+ */
+private fun onTabSelected(
+    navController: NavHostController,
+    dest: TopLevelDestination,
+    alreadySelected: Boolean,
+) {
+    if (alreadySelected) {
+        navController.popBackStack(dest.route, inclusive = false)
+    } else {
+        navController.navigate(dest.route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
 }
 
