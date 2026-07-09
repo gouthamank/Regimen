@@ -1,5 +1,9 @@
 package dev.gouthaman.regimen.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -72,10 +76,29 @@ fun RegimenNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
+    // Shared-axis-x transitions between all destinations (push slides in from the end + fades in,
+    // popping reverses it) instead of the platform's abrupt default cross-fade.
+    val transitionSpec = tween<Float>(220)
     NavHost(
         navController = navController,
         startDestination = HomeRoute,
         modifier = modifier,
+        enterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(220)) +
+                fadeIn(transitionSpec)
+        },
+        exitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(220)) +
+                fadeOut(transitionSpec)
+        },
+        popEnterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
+                fadeIn(transitionSpec)
+        },
+        popExitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
+                fadeOut(transitionSpec)
+        },
     ) {
         composable<HomeRoute> {
             HomeScreen(

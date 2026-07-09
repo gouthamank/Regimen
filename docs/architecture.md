@@ -257,16 +257,24 @@ BodyMetric(id, measurementTypeId, date, value)
 - Compose BOM `2026.06.00` · AGP `9.2.0` (Gradle 8.11+) · Kotlin `2.3.x` · KSP `2.3.4` ·
   Room `2.8.4` · Navigation Compose `2.9.6`.
 
-### ⚠️ Material 3 Expressive is not fully stable
-Stable `material3` is `1.4.0`, which does **not** include the Expressive APIs. The Expressive
-components (flexible top bars, FAB menus, split buttons, toggle buttons, floating toolbars,
-expressive list items, …) are graduating in `1.5.0-alpha23`; full stability awaits
-`material3 1.5.0`. To use Expressive today:
-1. Override the Compose BOM to pull `androidx.compose.material3:material3:1.5.0-alpha23`
-   explicitly, and
-2. Opt into `@ExperimentalMaterial3ExpressiveApi` on the affected components.
+### ⚠️ Material 3 Expressive is not fully stable — adopted anyway
+Stable `material3` is `1.4.0`, which does **not** include the Expressive APIs. **Done:** the app
+now overrides the Compose BOM's `material3` version to `1.5.0-alpha23` (`material3Expressive`
+version entry in `libs.versions.toml`, applied to the `androidx-compose-material3` library alias)
+and opts into `@ExperimentalMaterial3ExpressiveApi` where needed. This accepts alpha API churn
+(APIs can shift release to release) — a **known, accepted risk**.
 
-This accepts alpha API churn (APIs can shift release to release) — a **known, accepted risk**.
+Adopted so far:
+- **Theme**: `RegimenTheme` uses `MaterialExpressiveTheme` with `MotionScheme.expressive()`
+  (`ui/theme/Theme.kt`) instead of plain `MaterialTheme`.
+- **Expressive shapes**: the Home streak tile uses `MaterialShapes.Cookie9Sided.toShape()` as a
+  decorative icon-badge shape (`ui/home/HomeScreen.kt`).
+- **Navigation transitions**: `RegimenNavHost` now applies shared-axis-x transitions (slide + fade,
+  reversed on pop) via `NavHost`'s `enterTransition`/`exitTransition`/`popEnterTransition`/
+  `popExitTransition`, replacing the platform default cross-fade.
+
+Not yet done: shape morphing on press, and a true container-transform (vs. the shared-axis
+slide/fade above) — revisit if the visual payoff justifies the extra complexity.
 
 ---
 
@@ -278,18 +286,19 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
   and use **`<plurals>`** (quantity strings) wherever a count drives wording — e.g. "N workouts",
   "N-week streak", "N exercises", "N reps", "in the last N weeks". Prefer parameterized resources
   over string concatenation.
-- **Remove emoji everywhere.** Emoji are currently used as UI accents — the "🔥 N-week streak" line
-  on Home and the "🏆 Personal records" headers on the Workout Summary. Replace with Material icons
-  or plain typographic emphasis for a cleaner, more consistent look. Audit all user-facing strings.
-- **Lean into Material 3 Expressive (design discussion).** The app ships on **stable** `material3`
-  (no Expressive alpha). Revisit going more aggressive once Expressive stabilizes: expressive
-  **shapes** (larger/asymmetric corner families, shape morphing on press), and **navigation
-  transitions** (shared-axis / container-transform between screens, animated bottom-bar). Weigh the
-  alpha-churn risk (see "Material 3 Expressive is not fully stable" above) vs. the visual payoff.
-- **Home screen: split the "This week" card into smaller expressive cards.** Instead of one card
-  holding Workouts / Volume / Time + streak, break it into dedicated, individually styled tiles
-  (e.g. a streak tile, per-stat tiles, maybe a mini frequency sparkline) for a livelier dashboard.
-  Revisit alongside the Expressive discussion above.
+- ~~**Remove emoji everywhere.**~~ **Done.** Replaced the "🔥 N-week streak" line on Home with a
+  `MaterialShapes`-badged `Icons.Filled.Whatshot` icon (see the new streak tile below), and the
+  "🏆 Personal records" header on the Workout Summary with `Icons.Filled.EmojiEvents`. No emoji
+  remain in user-facing strings.
+- ~~**Lean into Material 3 Expressive (design discussion).**~~ **Done** (see "Material 3 Expressive
+  is not fully stable — adopted anyway" above for what landed: expressive theme/motion scheme,
+  expressive shapes, shared-axis-x nav transitions). Shape morphing and container-transform remain
+  open if a future pass wants to go further.
+- ~~**Home screen: split the "This week" card into smaller expressive cards.**~~ **Done.** Replaced
+  the single card with a `WeekSummarySection`: three per-stat `StatTile`s (Workouts / Volume /
+  Time) in a row, plus a dedicated `StreakTile` styled with the primary container color and an
+  expressive-shape icon badge (`ui/home/HomeScreen.kt`). A frequency sparkline was considered but
+  left out of this pass — still open if wanted later.
 - **Historical-data cutoff in graphs (discussion).** Decide range/cutoff policy for charts: the
   Progress frequency chart is a fixed 8 weeks; the Body-Measurement trend plots *all* entries
   (unbounded — will get noisy/slow over time). Consider selectable ranges (e.g. 4w / 3m / 1y / all),
