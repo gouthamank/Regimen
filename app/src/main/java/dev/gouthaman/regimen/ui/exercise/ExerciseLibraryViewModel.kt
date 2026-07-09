@@ -23,6 +23,7 @@ data class ExerciseFilters(
     val type: ExerciseType? = null,
     val muscleGroup: MuscleGroup? = null,
     val equipment: Equipment? = null,
+    val customOnly: Boolean = false,
 )
 
 data class ExerciseLibraryUiState(
@@ -40,7 +41,7 @@ class ExerciseLibraryViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<ExerciseLibraryUiState> = filters
         .flatMapLatest { f ->
-            observeExercises(f.query, f.type, f.muscleGroup, f.equipment)
+            observeExercises(f.query, f.type, f.muscleGroup, f.equipment, f.customOnly)
                 .map { ExerciseLibraryUiState(f, it) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseLibraryUiState())
@@ -56,4 +57,6 @@ class ExerciseLibraryViewModel @Inject constructor(
 
     fun toggleEquipment(value: Equipment) =
         filters.update { it.copy(equipment = if (it.equipment == value) null else value) }
+
+    fun toggleCustomOnly() = filters.update { it.copy(customOnly = !it.customOnly) }
 }

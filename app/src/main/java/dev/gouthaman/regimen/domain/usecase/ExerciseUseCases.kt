@@ -19,12 +19,14 @@ class ObserveExercisesUseCase @Inject constructor(
         type: ExerciseType? = null,
         muscleGroup: MuscleGroup? = null,
         equipment: Equipment? = null,
+        customOnly: Boolean = false,
     ): Flow<List<Exercise>> = repo.observeAll().map { list ->
         list.filter { e ->
             e.matchesSearch(query) &&
                     (type == null || e.type == type) &&
                     (muscleGroup == null || e.muscleGroup == muscleGroup) &&
-                    (equipment == null || e.equipment == equipment)
+                    (equipment == null || e.equipment == equipment) &&
+                    (!customOnly || e.isCustom)
         }
     }
 }
