@@ -18,20 +18,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Cable
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.PrecisionManufacturing
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -427,40 +420,6 @@ private fun ExerciseRow(
                 }
             }
         }
-    }
-}
-
-/** No Material icon distinguishes barbell/dumbbell/kettlebell individually, so free weights share one glyph. */
-private fun equipmentIcon(equipment: Equipment) = when (equipment) {
-    Equipment.BARBELL, Equipment.DUMBBELL, Equipment.KETTLEBELL -> Icons.Filled.FitnessCenter
-    Equipment.MACHINE -> Icons.Filled.PrecisionManufacturing
-    Equipment.CABLE -> Icons.Filled.Cable
-    Equipment.BODYWEIGHT -> Icons.Filled.SelfImprovement
-    Equipment.CARDIO_MACHINE -> Icons.Filled.DirectionsRun
-    Equipment.OTHER -> Icons.Filled.Category
-}
-
-@Composable
-private fun ExerciseIcon(type: ExerciseType, equipment: Equipment) {
-    val (container, onContainer) = when (type) {
-        ExerciseType.STRENGTH -> MaterialTheme.colorScheme.primaryContainer to
-                MaterialTheme.colorScheme.onPrimaryContainer
-
-        ExerciseType.CARDIO -> MaterialTheme.colorScheme.tertiaryContainer to
-                MaterialTheme.colorScheme.onTertiaryContainer
-    }
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .background(color = container, shape = CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            equipmentIcon(equipment),
-            contentDescription = null,
-            tint = onContainer,
-            modifier = Modifier.size(20.dp),
-        )
     }
 }
 

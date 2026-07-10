@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.ui.routines
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +51,8 @@ import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
 
 @Composable
 fun RoutinesScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onCreateRoutine: () -> Unit,
     onOpenRoutine: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -56,6 +61,8 @@ fun RoutinesScreen(
     val routines by viewModel.routines.collectAsStateWithLifecycle()
     RoutinesScreen(
         routines = routines,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onCreateRoutine = onCreateRoutine,
         onOpenRoutine = onOpenRoutine,
         onDelete = viewModel::delete,
@@ -64,16 +71,24 @@ fun RoutinesScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun RoutinesScreen(
     routines: List<RoutineWithExercises>,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onCreateRoutine: () -> Unit,
     onOpenRoutine: (Long) -> Unit,
     onDelete: (RoutineWithExercises) -> Unit,
     onReorder: (List<Long>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val fabModifier = with(sharedTransitionScope) {
+        Modifier.sharedBounds(
+            rememberSharedContentState(key = routineCreateFabTransitionKey),
+            animatedVisibilityScope = animatedVisibilityScope,
+        )
+    }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = { TopAppBar(title = { Text("Routines") }) },
@@ -82,6 +97,7 @@ fun RoutinesScreen(
                 onClick = onCreateRoutine,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New routine") },
+                modifier = fabModifier,
             )
         },
     ) { innerPadding ->
@@ -90,6 +106,8 @@ fun RoutinesScreen(
         } else {
             RoutineList(
                 routines = routines,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
                 onOpenRoutine = onOpenRoutine,
                 onDelete = onDelete,
                 onReorder = onReorder,
@@ -101,9 +119,12 @@ fun RoutinesScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun RoutineList(
     routines: List<RoutineWithExercises>,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenRoutine: (Long) -> Unit,
     onDelete: (RoutineWithExercises) -> Unit,
     onReorder: (List<Long>) -> Unit,
@@ -144,6 +165,8 @@ private fun RoutineList(
             RoutineCard(
                 routine = routine,
                 elevated = dragging,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
                 onClick = { onOpenRoutine(routine.routine.id) },
                 onDelete = { onDelete(routine) },
                 dragHandleModifier = Modifier.dragHandle(dragState, index) {
@@ -155,10 +178,13 @@ private fun RoutineList(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun RoutineCard(
     routine: RoutineWithExercises,
     elevated: Boolean,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     dragHandleModifier: Modifier,
@@ -171,9 +197,16 @@ private fun RoutineCard(
         else -> exercises.joinToString(", ") { it.exercise.name }
     }
 
-    Card(
-        modifier = modifier
+    val cardModifier = with(sharedTransitionScope) {
+        modifier
             .fillMaxWidth()
+            .sharedBounds(
+                rememberSharedContentState(key = routineRowTransitionKey(routine.routine.id)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+    }
+    Card(
+        modifier = cardModifier
             .then(if (elevated) Modifier.shadow(8.dp, MaterialTheme.shapes.medium) else Modifier)
             .clickable(onClick = onClick),
     ) {

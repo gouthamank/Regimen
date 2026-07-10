@@ -56,7 +56,8 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
  *    Detail    ──▶ [✓] Edit Exercise      EditExerciseRoute(exerciseId)
- *    Routines  ──▶ [✓] Routine Editor     RoutineEditorRoute(routineId=0)
+ *    Routines  ──▶ [✓] Routine Editor     RoutineEditorRoute(routineId=0) (row or "New routine" FAB
+ *                                            row-expand container transform)
  *    Editor    ──▶ [✓] Exercise Picker    (S16 modal bottom sheet, in-screen)
  *              ──▶ [✓] Add Custom Exercise EditExerciseRoute() (from picker)
  *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (S5; read-only + repeat/edit/
@@ -87,9 +88,10 @@ fun RegimenNavHost(
     val transitionSpec = tween<Float>(220)
 
     // SharedTransitionLayout hosts the row-expand container transforms used by Exercise Library ->
-    // Exercise Detail and Measurements -> Measurement Detail: each destination's root expands from
-    // the tapped list row instead of sliding in like every other destination. See
-    // exerciseRowTransitionKey / measurementRowTransitionKey.
+    // Exercise Detail, Measurements -> Measurement Detail, and Routines -> Routine Editor (row or
+    // "New routine" FAB): each destination's root expands from the tapped row/FAB instead of
+    // sliding in like every other destination. See exerciseRowTransitionKey /
+    // measurementRowTransitionKey / routineRowTransitionKey / routineCreateFabTransitionKey.
     SharedTransitionLayout {
         val sharedTransitionScope = this
         NavHost(
@@ -129,6 +131,8 @@ fun RegimenNavHost(
             }
             composable<RoutinesRoute> {
                 RoutinesScreen(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
                     onCreateRoutine = { navController.navigate(RoutineEditorRoute()) },
                     onOpenRoutine = { navController.navigate(RoutineEditorRoute(it)) },
                 )
@@ -228,8 +232,16 @@ fun RegimenNavHost(
                     onSaved = navController::popBackStack,
                 )
             }
-            composable<RoutineEditorRoute> {
+            composable<RoutineEditorRoute>(
+                // Editor is the destination of the Routines row's (or "New routine" FAB's)
+                // container transform, so its own entrance/exit-back-to-list slide would fight
+                // that growth/shrink — suppress it.
+                enterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None },
+            ) {
                 RoutineEditorScreen(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
                     onBack = navController::popBackStack,
                     onSaved = navController::popBackStack,
                     onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },

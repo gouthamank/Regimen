@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
@@ -31,6 +32,7 @@ data class SessionExercise(
     val workoutExerciseId: Long,
     val name: String,
     val isStrength: Boolean,
+    val equipment: Equipment,
     val isSkipped: Boolean,
     val setLabels: List<String>,
     val cardioLabels: List<String>,
@@ -107,6 +109,7 @@ class SessionDetailViewModel @Inject constructor(
                             workoutExerciseId = we.workoutExercise.id,
                             name = we.exercise.name,
                             isStrength = strength,
+                            equipment = we.exercise.equipment,
                             isSkipped = we.workoutExercise.isSkipped,
                             setLabels = we.sets
                                 .sortedBy { it.setNumber }

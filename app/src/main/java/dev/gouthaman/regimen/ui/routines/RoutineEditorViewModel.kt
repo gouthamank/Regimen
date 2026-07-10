@@ -33,6 +33,7 @@ data class EditorExercise(
 )
 
 data class RoutineEditorUiState(
+    val routineId: Long = 0L,
     val isEditing: Boolean = false,
     val name: String = "",
     val exercises: List<EditorExercise> = emptyList(),
@@ -65,7 +66,8 @@ class RoutineEditorViewModel @Inject constructor(
 
     private val routineId = savedStateHandle.toRoute<RoutineEditorRoute>().routineId
 
-    private val _uiState = MutableStateFlow(RoutineEditorUiState(isEditing = routineId != 0L))
+    private val _uiState =
+        MutableStateFlow(RoutineEditorUiState(routineId = routineId, isEditing = routineId != 0L))
     val uiState: StateFlow<RoutineEditorUiState> = _uiState.asStateFlow()
 
     /** Default rest (seconds) for newly added exercises, seeded from user preferences. */

@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.ui.routines
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -48,6 +51,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun RoutineEditorScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onSaved: () -> Unit,
     onCreateCustomExercise: () -> Unit,
@@ -63,6 +68,8 @@ fun RoutineEditorScreen(
     RoutineEditorScreen(
         uiState = uiState,
         restStep = viewModel.restStep,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onNameChange = viewModel::setName,
         onAddExercises = viewModel::addExercises,
@@ -77,11 +84,13 @@ fun RoutineEditorScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun RoutineEditorScreen(
     uiState: RoutineEditorUiState,
     restStep: Int,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onNameChange: (String) -> Unit,
     onAddExercises: (List<Long>) -> Unit,
@@ -96,8 +105,23 @@ fun RoutineEditorScreen(
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
+    // Expands from the tapped Routines row when editing, or from the "New routine" FAB when
+    // creating (see RoutinesScreen's RoutineCard / FAB) via the shared-bounds container transform.
+    val transitionKey = if (uiState.routineId != 0L) {
+        routineRowTransitionKey(uiState.routineId)
+    } else {
+        routineCreateFabTransitionKey
+    }
+    val containerModifier = with(sharedTransitionScope) {
+        modifier
+            .fillMaxSize()
+            .sharedBounds(
+                rememberSharedContentState(key = transitionKey),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+    }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = containerModifier,
         topBar = {
             TopAppBar(
                 title = { Text(if (uiState.isEditing) "Edit routine" else "New routine") },

@@ -27,10 +27,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,7 +63,10 @@ fun HistoryScreen(
     onOpenSession: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var month by remember { mutableStateOf(YearMonth.now()) }
+    // Saveable (not just remember) so the visible month survives navigating to a session's detail
+    // and back — composable<Route> disposes this screen while Session Detail is on top, and a
+    // plain remember would reset back to the current month on return.
+    var month by rememberSaveable { mutableStateOf(YearMonth.now()) }
     // A day tapped that has more than one session — surfaces a picker dialog.
     var pickerDay by remember { mutableStateOf<List<DaySession>?>(null) }
 
@@ -75,6 +82,7 @@ fun HistoryScreen(
         ) {
             MonthHeader(
                 month = month,
+                canGoNext = month.isBefore(YearMonth.now()),
                 onPrev = { month = month.minusMonths(1) },
                 onNext = { month = month.plusMonths(1) },
             )
@@ -129,7 +137,12 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun MonthHeader(month: YearMonth, onPrev: () -> Unit, onNext: () -> Unit) {
+private fun MonthHeader(
+    month: YearMonth,
+    canGoNext: Boolean,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -145,7 +158,8 @@ private fun MonthHeader(month: YearMonth, onPrev: () -> Unit, onNext: () -> Unit
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onNext) {
+        // Can't page into future months — there's nothing there to see yet.
+        IconButton(onClick = onNext, enabled = canGoNext) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
         }
     }
@@ -197,6 +211,7 @@ private fun MonthGrid(
                             DayCell(
                                 date = date,
                                 isToday = date == today,
+                                isFuture = date.isAfter(today),
                                 sessions = sessionsByDay[date].orEmpty(),
                                 onClick = onDayClick,
                             )
@@ -212,10 +227,13 @@ private fun MonthGrid(
 private fun DayCell(
     date: LocalDate,
     isToday: Boolean,
+    isFuture: Boolean,
     sessions: List<DaySession>,
     onClick: (List<DaySession>) -> Unit,
 ) {
-    val hasWorkout = sessions.isNotEmpty()
+    // Future dates can't have a logged session yet — dim them so it reads as not-yet-available
+    // rather than just an empty day.
+    val hasWorkout = sessions.isNotEmpty() && !isFuture
     var cell = Modifier
         .padding(4.dp)
         .fillMaxWidth()
@@ -226,7 +244,22 @@ private fun DayCell(
         isToday -> cell.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
         else -> cell
     }
-    if (hasWorkout) cell = cell.clickable { onClick(sessions) }
+    // Always a clickable node (enabled = hasWorkout) rather than only adding the modifier when
+    // enabled — that's how Compose exposes a proper disabled state to accessibility services
+    // (TalkBack announces it as disabled) instead of the node just silently not existing.
+    cell = cell
+        .clickable(
+            enabled = hasWorkout,
+            onClickLabel = if (hasWorkout) "View sessions" else null,
+            role = Role.Button,
+        ) { onClick(sessions) }
+        .then(
+            if (isFuture) {
+                Modifier.semantics { contentDescription = "${date.dayOfMonth}, not yet available" }
+            } else {
+                Modifier
+            }
+        )
 
     Box(modifier = cell, contentAlignment = Alignment.Center) {
         Text(
@@ -234,6 +267,7 @@ private fun DayCell(
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (hasWorkout || isToday) FontWeight.Bold else FontWeight.Normal,
             color = when {
+                isFuture -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 hasWorkout -> MaterialTheme.colorScheme.onPrimaryContainer
                 else -> MaterialTheme.colorScheme.onSurface
             },
