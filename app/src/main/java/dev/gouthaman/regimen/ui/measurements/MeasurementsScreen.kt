@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -25,11 +26,12 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,10 +39,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.components.Sparkline
 
 @Composable
@@ -83,11 +89,15 @@ fun MeasurementsScreen(
 ) {
     var showAddType by remember { mutableStateOf(false) }
     var showAddEntry by remember { mutableStateOf(false) }
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = { Text("Body measurements") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -99,6 +109,7 @@ fun MeasurementsScreen(
                         Icon(Icons.Filled.Add, contentDescription = "Add measurement type")
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
         floatingActionButton = {
@@ -117,23 +128,43 @@ fun MeasurementsScreen(
             }
         },
     ) { innerPadding ->
-        if (loaded && rows.isEmpty()) {
-            EmptyState(Modifier.padding(innerPadding)) { showAddType = true }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(rows, key = { it.type.id }) { row ->
-                    MeasurementCard(
-                        row = row,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        onClick = { onOpenType(row.type.id) },
-                    )
+        // BookOrExpanded caps and centers the list/empty state at the same 600dp/480dp
+        // breakpoints as Routines; Compact/Tabletop unchanged.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            if (loaded && rows.isEmpty()) {
+                EmptyState(
+                    if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                        Modifier.widthIn(max = 480.dp)
+                    } else {
+                        Modifier
+                    },
+                ) { showAddType = true }
+            } else {
+                val listModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                    Modifier
+                        .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                        .fillMaxSize()
+                } else {
+                    Modifier.fillMaxSize()
+                }
+                LazyColumn(
+                    modifier = listModifier,
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(rows, key = { it.type.id }) { row ->
+                        MeasurementCard(
+                            row = row,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            onClick = { onOpenType(row.type.id) },
+                        )
+                    }
                 }
             }
         }

@@ -3,9 +3,11 @@ package dev.gouthaman.regimen.ui.exercise
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,22 +22,28 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.data.local.entity.Exercise
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -83,6 +91,8 @@ fun ExerciseDetailScreen(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val exercise = uiState.exercise
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     // Expands from the tapped Library row (see ExerciseLibraryScreen's ExerciseRow) via the
     // shared-bounds container transform keyed on this exercise's id.
@@ -93,11 +103,12 @@ fun ExerciseDetailScreen(
                 rememberSharedContentState(key = exerciseRowTransitionKey(uiState.exerciseId)),
                 animatedVisibilityScope = animatedVisibilityScope,
             )
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
     }
     Scaffold(
         modifier = containerModifier,
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = { Text(exercise?.name ?: "Exercise") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -114,24 +125,38 @@ fun ExerciseDetailScreen(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
-        Column(
+        // BookOrExpanded caps and centers content at the same 600dp breakpoint as
+        // Onboarding/Routines/History/Progress/Settings; Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            when {
-                exercise != null -> ExerciseDetailContent(
-                    exercise,
-                    uiState.prLabel,
-                    uiState.history
-                )
+            val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
+            } else {
+                Modifier.fillMaxSize()
+            }
+            Column(
+                modifier = contentModifier.verticalScroll(rememberScrollState()),
+            ) {
+                when {
+                    exercise != null -> ExerciseDetailContent(
+                        exercise,
+                        uiState.prLabel,
+                        uiState.history
+                    )
 
-                uiState.loaded -> NotFound()
-                else -> {} // initial loading — nothing to show yet
+                    uiState.loaded -> NotFound()
+                    else -> {} // initial loading — nothing to show yet
+                }
             }
         }
     }

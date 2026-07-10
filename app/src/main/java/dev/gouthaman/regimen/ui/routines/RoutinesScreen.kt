@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,10 +27,11 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,13 +43,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 
 @Composable
 fun RoutinesScreen(
@@ -83,6 +89,8 @@ fun RoutinesScreen(
     onReorder: (List<Long>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val fabModifier = with(sharedTransitionScope) {
         Modifier.sharedBounds(
             rememberSharedContentState(key = routineCreateFabTransitionKey),
@@ -90,8 +98,12 @@ fun RoutinesScreen(
         )
     }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = { Text("Routines") }) },
+        modifier = modifier
+            .fillMaxSize()
+            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
+        topBar = {
+            MediumTopAppBar(title = { Text("Routines") }, scrollBehavior = scrollBehavior)
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onCreateRoutine,
@@ -101,20 +113,41 @@ fun RoutinesScreen(
             )
         },
     ) { innerPadding ->
-        if (routines.isEmpty()) {
-            EmptyState(Modifier.padding(innerPadding))
-        } else {
-            RoutineList(
-                routines = routines,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                onOpenRoutine = onOpenRoutine,
-                onDelete = onDelete,
-                onReorder = onReorder,
-                modifier = Modifier
+        // BookOrExpanded caps and centers content, same 600dp breakpoint as Onboarding/the nav
+        // shell; Compact/Tabletop stay full-bleed. This is a flat list, not the two-column
+        // dashboard shape Home uses, so a single wider column reads better than a grid.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
                     .fillMaxSize()
-                    .padding(innerPadding),
-            )
+            } else {
+                Modifier.fillMaxSize()
+            }
+            if (routines.isEmpty()) {
+                EmptyState(
+                    if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                        Modifier.widthIn(max = 480.dp)
+                    } else {
+                        Modifier
+                    },
+                )
+            } else {
+                RoutineList(
+                    routines = routines,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    onOpenRoutine = onOpenRoutine,
+                    onDelete = onDelete,
+                    onReorder = onReorder,
+                    modifier = contentModifier,
+                )
+            }
         }
     }
 }

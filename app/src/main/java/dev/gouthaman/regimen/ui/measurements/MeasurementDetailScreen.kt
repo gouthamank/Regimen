@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -28,10 +29,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,11 +41,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.domain.model.HistoryRange
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
 import dev.gouthaman.regimen.ui.components.LineChart
 import java.text.SimpleDateFormat
@@ -91,6 +97,8 @@ fun MeasurementDetailScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteType by remember { mutableStateOf(false) }
     var showAddEntry by remember { mutableStateOf(false) }
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     // Expands from the tapped Measurements row (see MeasurementsScreen's MeasurementCard) via the
     // shared-bounds container transform keyed on this measurement type's id.
@@ -101,11 +109,12 @@ fun MeasurementDetailScreen(
                 rememberSharedContentState(key = measurementRowTransitionKey(uiState.typeId)),
                 animatedVisibilityScope = animatedVisibilityScope,
             )
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
     }
     Scaffold(
         modifier = containerModifier,
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = { Text(type?.name ?: "Measurement") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -131,6 +140,7 @@ fun MeasurementDetailScreen(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
         floatingActionButton = {
@@ -165,65 +175,79 @@ fun MeasurementDetailScreen(
             return@Scaffold
         }
 
-        LazyColumn(
+        // BookOrExpanded caps and centers the list at the same 600dp breakpoint as
+        // Onboarding/Routines/History/Progress; Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            if (uiState.entries.isNotEmpty()) {
-                item {
-                    HistoryRangeSelector(
-                        selected = uiState.range,
-                        onSelect = onRangeChange,
-                    )
-                }
-                item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Trend", style = MaterialTheme.typography.titleMedium)
-                            if (uiState.trend.isNotEmpty()) {
-                                LineChart(
-                                    points = uiState.trend,
-                                    modifier = Modifier.padding(top = 12.dp),
-                                )
-                            } else {
-                                Text(
-                                    "No entries in this range.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 12.dp),
-                                )
+            val listModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
+            } else {
+                Modifier.fillMaxSize()
+            }
+            LazyColumn(
+                modifier = listModifier,
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (uiState.entries.isNotEmpty()) {
+                    item {
+                        HistoryRangeSelector(
+                            selected = uiState.range,
+                            onSelect = onRangeChange,
+                        )
+                    }
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Trend", style = MaterialTheme.typography.titleMedium)
+                                if (uiState.trend.isNotEmpty()) {
+                                    LineChart(
+                                        points = uiState.trend,
+                                        modifier = Modifier.padding(top = 12.dp),
+                                    )
+                                } else {
+                                    Text(
+                                        "No entries in this range.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 12.dp),
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (uiState.entries.isEmpty()) {
-                item {
-                    Text(
-                        "No entries yet. Tap Add entry to log your first ${type.name.lowercase()}.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 32.dp),
-                    )
-                }
-            } else {
-                item {
-                    Text(
-                        "History",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                items(uiState.entries, key = { it.metric.id }) { entry ->
-                    EntryRow(entry = entry, onDelete = { onDeleteEntry(entry) })
-                    HorizontalDivider()
+                if (uiState.entries.isEmpty()) {
+                    item {
+                        Text(
+                            "No entries yet. Tap Add entry to log your first ${type.name.lowercase()}.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 32.dp),
+                        )
+                    }
+                } else {
+                    item {
+                        Text(
+                            "History",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    items(uiState.entries, key = { it.metric.id }) { entry ->
+                        EntryRow(entry = entry, onDelete = { onDeleteEntry(entry) })
+                        HorizontalDivider()
+                    }
                 }
             }
         }

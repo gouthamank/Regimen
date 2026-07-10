@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -30,13 +31,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,10 +49,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
 import kotlinx.coroutines.launch
 
@@ -102,12 +108,16 @@ fun SessionDetailScreen(
     var showDelete by remember { mutableStateOf(false) }
     var showSaveAsRoutine by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = { Text(uiState.title.ifEmpty { "Session" }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -158,6 +168,7 @@ fun SessionDetailScreen(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
@@ -171,17 +182,31 @@ fun SessionDetailScreen(
             return@Scaffold
         }
 
-        LazyColumn(
+        // BookOrExpanded caps and centers the card list at the same 600dp breakpoint as
+        // Onboarding/Routines; Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            item { SessionSummaryCard(uiState) }
+            val listModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
+            } else {
+                Modifier.fillMaxSize()
+            }
+            LazyColumn(
+                modifier = listModifier,
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item { SessionSummaryCard(uiState) }
 
-            items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
-                ExerciseCard(exercise)
+                items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
+                    ExerciseCard(exercise)
+                }
             }
         }
     }

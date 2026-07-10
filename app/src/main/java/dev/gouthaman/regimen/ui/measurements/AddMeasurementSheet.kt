@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -65,15 +67,25 @@ fun AddMeasurementSheet(
     val canSave = parsedValue != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        // Title is pinned above the form, Save is pinned below it (via ColumnScope.weight on the
+        // form fields, fill = false so a short form doesn't force the sheet to full height) —
+        // rather than one plain Column with everything including Save, so that in compact
+        // landscape the form scrolls internally instead of pushing Save off the bottom of the
+        // sheet with nothing left to scroll it back into view.
+        Text(
+            "Add measurement",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+        )
+
         Column(
             modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Add measurement", style = MaterialTheme.typography.titleLarge)
-
             // Type picker (locked when opened for a specific type).
             if (fixedTypeId == null) {
                 ExposedDropdownMenuBox(
@@ -130,14 +142,17 @@ fun AddMeasurementSheet(
                     Text(dateFormatter.format(dateMillis))
                 }
             }
+        }
 
-            Button(
-                onClick = { onSave(selectedType.id, dateMillis, parsedValue!!) },
-                enabled = canSave,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Save")
-            }
+        Button(
+            onClick = { onSave(selectedType.id, dateMillis, parsedValue!!) },
+            enabled = canSave,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp, top = 16.dp),
+        ) {
+            Text("Save")
         }
     }
 

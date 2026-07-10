@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,11 +29,12 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,11 +46,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 
 @Composable
 fun RoutineEditorScreen(
@@ -104,6 +111,7 @@ fun RoutineEditorScreen(
     modifier: Modifier = Modifier,
 ) {
     var showPicker by remember { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     // Expands from the tapped Routines row when editing, or from the "New routine" FAB when
     // creating (see RoutinesScreen's RoutineCard / FAB) via the shared-bounds container transform.
@@ -119,11 +127,12 @@ fun RoutineEditorScreen(
                 rememberSharedContentState(key = transitionKey),
                 animatedVisibilityScope = animatedVisibilityScope,
             )
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
     }
     Scaffold(
         modifier = containerModifier,
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = { Text(if (uiState.isEditing) "Edit routine" else "New routine") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -138,9 +147,11 @@ fun RoutineEditorScreen(
                         )
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
+        val windowInfo = LocalRegimenWindowInfo.current
         val listState = rememberLazyListState()
         // Exactly one leading item (the name field) sits above the exercise list in this
         // LazyColumn, so a dragged item's *global* index (what DragDropState tracks, matched
@@ -173,66 +184,81 @@ fun RoutineEditorScreen(
             }
         }
 
-        LazyColumn(
-            state = listState,
+        // BookOrExpanded caps and centers the form at the same 600dp breakpoint Onboarding uses
+        // for its own content; Compact/Tabletop stay full-bleed (a scrollable form, no fixed
+        // hinge-adjacent controls to protect, so Tabletop needs no special split).
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            item {
-                OutlinedTextField(
-                    value = uiState.name,
-                    onValueChange = onNameChange,
-                    singleLine = true,
-                    label = { Text("Routine name") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            val listModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
+            } else {
+                Modifier.fillMaxSize()
             }
-
-            if (working.isEmpty()) {
+            LazyColumn(
+                state = listState,
+                modifier = listModifier,
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 item {
-                    Text(
-                        "Add strength exercises to build this routine.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    OutlinedTextField(
+                        value = uiState.name,
+                        onValueChange = onNameChange,
+                        singleLine = true,
+                        label = { Text("Routine name") },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-            }
 
-            itemsIndexed(working, key = { _, e -> e.exerciseId }) { index, exercise ->
-                val globalIndex = index + leadingItems
-                val dragging = exercise.exerciseId == dragState.draggingItemKey
-                val itemModifier = if (dragging) {
-                    Modifier
-                        .zIndex(1f)
-                        .graphicsLayer { translationY = dragState.draggingItemOffset }
-                } else {
-                    Modifier.animateItem()
+                if (working.isEmpty()) {
+                    item {
+                        Text(
+                            "Add strength exercises to build this routine.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                ExerciseEditorCard(
-                    exercise = exercise,
-                    elevated = dragging,
-                    restStep = restStep,
-                    onRemove = { onRemove(index) },
-                    dragHandleModifier = Modifier.dragHandle(dragState, globalIndex) {
-                        onReorder(working.map { it.exerciseId })
-                    },
-                    onSetsChange = { onSetsChange(index, it) },
-                    onRepsChange = { onRepsChange(index, it) },
-                    onRestChange = { onRestChange(index, it) },
-                    modifier = itemModifier,
-                )
-            }
 
-            item {
-                OutlinedButton(
-                    onClick = { showPicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
+                itemsIndexed(working, key = { _, e -> e.exerciseId }) { index, exercise ->
+                    val globalIndex = index + leadingItems
+                    val dragging = exercise.exerciseId == dragState.draggingItemKey
+                    val itemModifier = if (dragging) {
+                        Modifier
+                            .zIndex(1f)
+                            .graphicsLayer { translationY = dragState.draggingItemOffset }
+                    } else {
+                        Modifier.animateItem()
+                    }
+                    ExerciseEditorCard(
+                        exercise = exercise,
+                        elevated = dragging,
+                        restStep = restStep,
+                        onRemove = { onRemove(index) },
+                        dragHandleModifier = Modifier.dragHandle(dragState, globalIndex) {
+                            onReorder(working.map { it.exerciseId })
+                        },
+                        onSetsChange = { onSetsChange(index, it) },
+                        onRepsChange = { onRepsChange(index, it) },
+                        onRestChange = { onRestChange(index, it) },
+                        modifier = itemModifier,
+                    )
+                }
+
+                item {
+                    OutlinedButton(
+                        onClick = { showPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
+                    }
                 }
             }
         }
@@ -294,33 +320,61 @@ private fun ExerciseEditorCard(
                     Icon(Icons.Filled.Close, contentDescription = "Remove")
                 }
             }
-            // Data entries split across two rows (Sets+Reps, then Rest) instead of cramming all
-            // three steppers into one — each gets more breathing room.
-            Row(
+            // Three steppers need ~420dp to sit comfortably in one row; below that (a narrow
+            // phone card) they're split across two rows (Sets+Reps, then Rest) instead, so each
+            // still gets room to breathe. Measured per-card rather than keyed off posture, since
+            // a phone in landscape can already be wide enough on its own.
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp, start = 24.dp, end = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                Stepper(
-                    "Sets", exercise.targetSets.toString(),
-                    onDec = { onSetsChange(exercise.targetSets - 1) },
-                    onInc = { onSetsChange(exercise.targetSets + 1) })
-                Stepper(
-                    "Reps", exercise.targetReps.toString(),
-                    onDec = { onRepsChange(exercise.targetReps - 1) },
-                    onInc = { onRepsChange(exercise.targetReps + 1) })
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, start = 24.dp, end = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                Stepper(
-                    "Rest", formatRest(exercise.targetRestSec),
-                    onDec = { onRestChange(exercise.targetRestSec - restStep) },
-                    onInc = { onRestChange(exercise.targetRestSec + restStep) })
+                if (maxWidth >= 420.dp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        Stepper(
+                            "Sets", exercise.targetSets.toString(),
+                            onDec = { onSetsChange(exercise.targetSets - 1) },
+                            onInc = { onSetsChange(exercise.targetSets + 1) })
+                        Stepper(
+                            "Reps", exercise.targetReps.toString(),
+                            onDec = { onRepsChange(exercise.targetReps - 1) },
+                            onInc = { onRepsChange(exercise.targetReps + 1) })
+                        Stepper(
+                            "Rest", formatRest(exercise.targetRestSec),
+                            onDec = { onRestChange(exercise.targetRestSec - restStep) },
+                            onInc = { onRestChange(exercise.targetRestSec + restStep) })
+                    }
+                } else {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                        ) {
+                            Stepper(
+                                "Sets", exercise.targetSets.toString(),
+                                onDec = { onSetsChange(exercise.targetSets - 1) },
+                                onInc = { onSetsChange(exercise.targetSets + 1) })
+                            Stepper(
+                                "Reps", exercise.targetReps.toString(),
+                                onDec = { onRepsChange(exercise.targetReps - 1) },
+                                onInc = { onRepsChange(exercise.targetReps + 1) })
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Stepper(
+                                "Rest", formatRest(exercise.targetRestSec),
+                                onDec = { onRestChange(exercise.targetRestSec - restStep) },
+                                onInc = { onRestChange(exercise.targetRestSec + restStep) })
+                        }
+                    }
+                }
             }
         }
     }

@@ -3,7 +3,6 @@ package dev.gouthaman.regimen.ui.routines
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,6 +55,11 @@ fun ExercisePickerSheet(
     val visible = exercises.filter { it.matchesSearch(query) || it.id in selected }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = modifier) {
+        // Header and footer are pinned outside the scrollable list (via ColumnScope.weight on the
+        // list, fill = false so a short list doesn't force the sheet to full height) rather than
+        // one plain Column with a fixed heightIn cap on the list — in compact landscape the header
+        // + list-cap + footer together could exceed the sheet's actual available height, pushing
+        // the Save button off-screen with nothing left to scroll it into view.
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             Text("Add exercises", style = MaterialTheme.typography.titleLarge)
 
@@ -76,35 +80,39 @@ fun ExercisePickerSheet(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable(onClick = onCreateCustom),
             )
+        }
 
-            LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
-                items(visible, key = { it.id }) { exercise ->
-                    val checked = exercise.id in selected
-                    ListItem(
-                        headlineContent = { Text(exercise.name) },
-                        supportingContent = {
-                            Text("${exercise.muscleGroup.label()} · ${exercise.equipment.label()}")
-                        },
-                        leadingContent = {
-                            Checkbox(checked = checked, onCheckedChange = null)
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable {
-                            if (checked) selected.remove(exercise.id) else selected.add(exercise.id)
-                        },
-                    )
-                }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .padding(horizontal = 16.dp),
+        ) {
+            items(visible, key = { it.id }) { exercise ->
+                val checked = exercise.id in selected
+                ListItem(
+                    headlineContent = { Text(exercise.name) },
+                    supportingContent = {
+                        Text("${exercise.muscleGroup.label()} · ${exercise.equipment.label()}")
+                    },
+                    leadingContent = {
+                        Checkbox(checked = checked, onCheckedChange = null)
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable {
+                        if (checked) selected.remove(exercise.id) else selected.add(exercise.id)
+                    },
+                )
             }
+        }
 
-            Button(
-                onClick = { onConfirm(selected.toList()) },
-                enabled = selected.isNotEmpty(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-            ) {
-                Text(if (selected.isEmpty()) "Save" else "Save (${selected.size})")
-            }
+        Button(
+            onClick = { onConfirm(selected.toList()) },
+            enabled = selected.isNotEmpty(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Text(if (selected.isEmpty()) "Save" else "Save (${selected.size})")
         }
     }
 }

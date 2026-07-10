@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -20,19 +21,24 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.WeekCount
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
 import dev.gouthaman.regimen.ui.components.LineChart
 import java.time.format.DateTimeFormatter
@@ -61,61 +67,83 @@ fun ProgressScreen(
     onRangeChange: (HistoryRange) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = { Text("Progress") }) },
+        modifier = modifier
+            .fillMaxSize()
+            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
+        topBar = {
+            MediumTopAppBar(title = { Text("Progress") }, scrollBehavior = scrollBehavior)
+        },
     ) { innerPadding ->
-        LazyColumn(
+        // BookOrExpanded caps and centers the list at the same 600dp breakpoint as
+        // Onboarding/Routines/History; Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 16.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            item {
-                ListItem(
-                    headlineContent = { Text("Body measurements") },
-                    supportingContent = { Text("Bodyweight and custom measurement trends") },
-                    leadingContent = { Icon(Icons.Filled.Straighten, contentDescription = null) },
-                    trailingContent = {
-                        Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null
-                        )
-                    },
-                    modifier = Modifier.clickable(onClick = onOpenMeasurements),
-                )
-                HorizontalDivider()
+            val listModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
+            } else {
+                Modifier.fillMaxSize()
             }
-
-            if (uiState.loaded && uiState.isEmpty) {
-                item { EmptyProgress() }
-            }
-
-            if (uiState.hasFrequency) {
+            LazyColumn(
+                modifier = listModifier,
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
                 item {
-                    SectionHeader("Workout frequency")
-                    HistoryRangeSelector(
-                        selected = uiState.range,
-                        onSelect = onRangeChange,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                    FrequencyCard(uiState)
-                }
-            }
-
-            if (uiState.hasRecords) {
-                item { SectionHeader("Personal records") }
-                items(uiState.personalRecords, key = { it.exerciseId }) { pr ->
                     ListItem(
-                        headlineContent = { Text(pr.exerciseName) },
+                        headlineContent = { Text("Body measurements") },
+                        supportingContent = { Text("Bodyweight and custom measurement trends") },
+                        leadingContent = {
+                            Icon(Icons.Filled.Straighten, contentDescription = null)
+                        },
                         trailingContent = {
-                            Text(
-                                pr.valueLabel,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null
                             )
                         },
+                        modifier = Modifier.clickable(onClick = onOpenMeasurements),
                     )
+                    HorizontalDivider()
+                }
+
+                if (uiState.loaded && uiState.isEmpty) {
+                    item { EmptyProgress() }
+                }
+
+                if (uiState.hasFrequency) {
+                    item {
+                        SectionHeader("Workout frequency")
+                        HistoryRangeSelector(
+                            selected = uiState.range,
+                            onSelect = onRangeChange,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                        FrequencyCard(uiState)
+                    }
+                }
+
+                if (uiState.hasRecords) {
+                    item { SectionHeader("Personal records") }
+                    items(uiState.personalRecords, key = { it.exerciseId }) { pr ->
+                        ListItem(
+                            headlineContent = { Text(pr.exerciseName) },
+                            trailingContent = {
+                                Text(
+                                    pr.valueLabel,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }

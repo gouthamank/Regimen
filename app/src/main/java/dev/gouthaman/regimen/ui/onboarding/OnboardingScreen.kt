@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.data.prefs.UserPreferences
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
@@ -129,7 +130,7 @@ fun OnboardingScreen(
             ) {
                 LinearOnboardingLayout(
                     modifier = Modifier
-                        .widthIn(max = 600.dp)
+                        .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
                         .fillMaxHeight()
                         .padding(24.dp),
                     pagerState = pagerState,

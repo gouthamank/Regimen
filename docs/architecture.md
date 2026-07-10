@@ -222,6 +222,14 @@ Rolled out **screen-by-screen**, not all at once. Shared infra lives in
   once in `MainActivity.setContent`, wrapping both the Onboarding gate and `RegimenApp`, so
   any descendant screen can read `LocalRegimenWindowInfo.current` without nav-arg plumbing.
 
+**Convention:** every screen's `BookOrExpanded` width cap uses
+`WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp` (from `androidx.window.core.layout`) rather
+than a hardcoded `600.dp` literal — it's the same breakpoint `classify()` uses to promote a
+window to `BookOrExpanded` in the first place, not an arbitrary number. Other per-screen
+magic numbers (e.g. Home's `480.dp`/`960.dp` dashboard caps, Routine Editor's `420.dp` stepper
+row threshold) are legitimately screen-specific and have no shared-library constant to
+reference instead — those stay as commented literals.
+
 Dependencies (versions pinned directly in `libs.versions.toml`; the first two don't ship in
 the Compose BOM, the third tracks `material3`'s own version in lockstep):
 `androidx.window:window:1.5.1`, `androidx.compose.material3.adaptive:adaptive:1.2.0`,
@@ -237,6 +245,13 @@ of the rollout; kept as its own named mapping function as a seam for a future ov
 the library but deliberately not used — out of scope: desktop-class widths aren't a target,
 only foldable/book posture is, and Google's own default logic doesn't auto-select a drawer
 either (only ever Bar or Rail).
+
+`navigationSuiteColors` pins `navigationRailContainerColor` to
+`MaterialTheme.colorScheme.surfaceContainer` — `NavigationRail`'s own default is
+`colorScheme.surface`, while `NavigationBar` and a collapsed `MediumTopAppBar` both default to
+`surfaceContainer`. Without the override, the rail (BookOrExpanded) looked visually inconsistent
+with the bar (Compact/Tabletop) and the collapsed top bars added across Routines/History/
+Progress/Settings.
 
 Rollout checklist (update as each screen is adapted):
 
@@ -258,18 +273,47 @@ Rollout checklist (update as each screen is adapted):
     Also added empty states for the frequency/bodyweight charts instead of hiding them (text
     only for frequency, text + a "Log bodyweight" CTA into Body Measurements for bodyweight).
     Confirmed on-device.
-[ ] Routines (S4) / Routine Editor
-[ ] History (S5) / Session Detail
-[ ] Progress (S6) / Body Measurements (S8)
-[ ] Settings (S9)
-[ ] Exercise Library / Exercise Detail
-[ ] Active Workout (S13) / Workout Summary (S15)
+[✓] Routines (S2) / Routine Editor (S3) — both capped at 600dp and centered on BookOrExpanded
+    (list-detail split rejected — see docs/todo-foldable-rollout.md); Compact/Tabletop
+    unchanged. Routine Editor's Sets/Reps/Rest steppers now measure per-card width via
+    `BoxWithConstraints` (single row at ≥420dp, else the original two-row split) rather than
+    keying off posture. Confirmed on-device.
+[✓] History (S4) / Session Detail (S5) — both capped at 600dp and centered on BookOrExpanded
+    (History's 7-column month grid needed this most, to keep day cells a reasonable tap-target
+    size); Compact/Tabletop unchanged. Confirmed on-device.
+[✓] Progress (S6) / Body Measurements (S8) — all three capped at 600dp and centered on
+    BookOrExpanded (same `LazyColumn`-of-cards shape as Session Detail/Routine Editor);
+    Compact/Tabletop unchanged. Measurements List's empty state uses the 480dp cap, matching
+    Home/Routines. Add Measurement Entry sheet (S8a) not width-capped — got the
+    compact-landscape scroll fix instead (see below), same as Exercise Picker (S16).
+    Confirmed on-device.
+[✓] Settings (S9) — capped at 600dp and centered on BookOrExpanded, same as
+    Onboarding/Routines/History/Progress; Compact/Tabletop unchanged. Top app bar's
+    collapse-on-scroll behavior is unaffected (lives on the Scaffold's modifier, outside the
+    capped content). Confirmed on-device.
+[✓] Exercise Library (S10) / Exercise Detail (S11) — both capped at 600dp and centered on
+    BookOrExpanded, same as the rest of the rollout; Compact/Tabletop unchanged. Add/Edit Custom
+    Exercise (S12) needed no change — already safe against the modal-sheet compact-landscape
+    bug. Confirmed on-device.
+[ ] Active Workout (S13) / Rest Timer (S14, embedded in it) — held for its own pass, see build
+    order below. Everything else in the rollout is done.
+[✓] Workout Summary (S15) — capped at 600dp and centered on BookOrExpanded, same as the rest of
+    the rollout; Compact/Tabletop unchanged. Switched to `MediumTopAppBar` +
+    `exitUntilCollapsedScrollBehavior()` for consistency with other detail/recap screens.
+    Confirmed on-device.
+[✓] Exercise Picker (S16) — no width cap needed (same reasoning as S8a above); already safe
+    against the modal-sheet compact-landscape bug via the pinned-header/scroll-body/pinned-footer
+    fix. Reused as-is by Active Workout once that screen lands.
 ```
 
-Routines and Exercise Library/Detail are the likely candidates for a true list-detail split
-via `androidx.compose.material3.adaptive:adaptive-layout`'s `ListDetailPaneScaffold` when
-their turn comes — a separate artifact/decision from the shared infra above, which Onboarding
-does not use (it has no list/detail shape).
+Exercise Library/Detail remains a candidate for a true list-detail split via
+`androidx.compose.material3.adaptive:adaptive-layout`'s `ListDetailPaneScaffold` when its turn
+comes — a separate artifact/decision from the shared infra above, which Onboarding does not use
+(it has no list/detail shape). Routines was also considered but rejected in favor of the
+simpler width-cap pattern (see rollout checklist above and
+`docs/todo-foldable-rollout.md`) — a real pane split would've meant reworking the List/Editor
+nav structure and dropping the existing container-transform shared-element animation between
+them.
 
 ---
 

@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -19,10 +22,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -40,6 +45,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -69,43 +77,65 @@ fun HistoryScreen(
     var month by rememberSaveable { mutableStateOf(YearMonth.now()) }
     // A day tapped that has more than one session — surfaces a picker dialog.
     var pickerDay by remember { mutableStateOf<List<DaySession>?>(null) }
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = { Text("History") }) },
+        modifier = modifier
+            .fillMaxSize()
+            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
+        topBar = {
+            MediumTopAppBar(title = { Text("History") }, scrollBehavior = scrollBehavior)
+        },
     ) { innerPadding ->
-        Column(
+        // BookOrExpanded caps and centers the calendar at the same 600dp breakpoint as
+        // Onboarding/Routines — a 7-column grid stretched full-bleed on a wide window would
+        // blow up each day cell far beyond a useful tap target. Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            MonthHeader(
-                month = month,
-                canGoNext = month.isBefore(YearMonth.now()),
-                onPrev = { month = month.minusMonths(1) },
-                onNext = { month = month.plusMonths(1) },
-            )
-            WeekdayHeader()
-            MonthGrid(
-                month = month,
-                sessionsByDay = uiState.sessionsByDay,
-                onDayClick = { sessions ->
-                    if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
-                    else pickerDay = sessions
-                },
-            )
-
-            if (uiState.loaded && uiState.isEmpty) {
-                Text(
-                    "No workouts logged yet. Finished sessions will appear here on the day you did them.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 32.dp),
+            val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxWidth()
+            } else {
+                Modifier.fillMaxWidth()
+            }
+            Column(
+                modifier = contentModifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+            ) {
+                MonthHeader(
+                    month = month,
+                    canGoNext = month.isBefore(YearMonth.now()),
+                    onPrev = { month = month.minusMonths(1) },
+                    onNext = { month = month.plusMonths(1) },
                 )
+                WeekdayHeader()
+                MonthGrid(
+                    month = month,
+                    sessionsByDay = uiState.sessionsByDay,
+                    onDayClick = { sessions ->
+                        if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
+                        else pickerDay = sessions
+                    },
+                )
+
+                if (uiState.loaded && uiState.isEmpty) {
+                    Text(
+                        "No workouts logged yet. Finished sessions will appear here on the day you did them.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 32.dp),
+                    )
+                }
             }
         }
     }

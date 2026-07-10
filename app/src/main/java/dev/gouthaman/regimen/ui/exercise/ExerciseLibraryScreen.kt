@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -57,10 +58,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.data.local.entity.Exercise
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -108,6 +112,7 @@ fun ExerciseLibraryScreen(
 ) {
     val filters = uiState.filters
     var showFilterSheet by remember { mutableStateOf(false) }
+    val windowInfo = LocalRegimenWindowInfo.current
 
     // Each entry pairs a chip label with the toggle that clears it — lets the active-filter
     // row and the "clear all" action share one list instead of four parallel branches.
@@ -161,36 +166,48 @@ fun ExerciseLibraryScreen(
             }
         },
     ) { innerPadding ->
-        Column(
+        // BookOrExpanded caps and centers content at the same 600dp breakpoint as
+        // Onboarding/Routines/History/Progress/Settings; Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            if (activeFilters.isNotEmpty()) {
-                ActiveFiltersRow(activeFilters)
-            }
-
-            if (uiState.exercises.isEmpty()) {
-                EmptyState(
-                    hasActiveFilters = activeFilters.isNotEmpty() || filters.query.isNotEmpty(),
-                    onClearAll = {
-                        onQueryChange("")
-                        activeFilters.forEach { (_, clear) -> clear() }
-                    },
-                )
+            val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(uiState.exercises, key = { it.id }) { exercise ->
-                        ExerciseRow(
-                            exercise = exercise,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            onClick = { onExerciseClick(exercise.id) },
-                        )
+                Modifier.fillMaxSize()
+            }
+            Column(modifier = contentModifier) {
+                if (activeFilters.isNotEmpty()) {
+                    ActiveFiltersRow(activeFilters)
+                }
+
+                if (uiState.exercises.isEmpty()) {
+                    EmptyState(
+                        hasActiveFilters = activeFilters.isNotEmpty() || filters.query.isNotEmpty(),
+                        onClearAll = {
+                            onQueryChange("")
+                            activeFilters.forEach { (_, clear) -> clear() }
+                        },
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(uiState.exercises, key = { it.id }) { exercise ->
+                            ExerciseRow(
+                                exercise = exercise,
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                onClick = { onExerciseClick(exercise.id) },
+                            )
+                        }
                     }
                 }
             }

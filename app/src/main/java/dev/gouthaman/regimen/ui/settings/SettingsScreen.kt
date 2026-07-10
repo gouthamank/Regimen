@@ -2,10 +2,12 @@ package dev.gouthaman.regimen.ui.settings
 
 import android.os.Build
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,15 +33,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.data.prefs.UserPreferences
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import kotlin.math.roundToInt
 
 /** Bounds for the rest-timer default slider (seconds). */
@@ -81,80 +87,100 @@ fun SettingsScreen(
     onOpenExerciseLibrary: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val windowInfo = LocalRegimenWindowInfo.current
     Scaffold(
         modifier = modifier
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = { MediumTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
     ) { innerPadding ->
-        Column(
+        // BookOrExpanded caps and centers the settings list at the same 600dp breakpoint as
+        // Onboarding/Routines/History/Progress; Compact/Tabletop unchanged.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            SectionHeader("Preferences")
-
-            SettingRow(headline = "Weight unit") {
-                UnitSystemSelector(prefs.weightUnit, onWeightUnitChange, weightLabels = true)
+            val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxSize()
+            } else {
+                Modifier.fillMaxSize()
             }
+            Column(
+                modifier = contentModifier.verticalScroll(rememberScrollState()),
+            ) {
+                SectionHeader("Preferences")
 
-            SettingRow(headline = "Distance unit") {
-                UnitSystemSelector(prefs.distanceUnit, onDistanceUnitChange, weightLabels = false)
+                SettingRow(headline = "Weight unit") {
+                    UnitSystemSelector(prefs.weightUnit, onWeightUnitChange, weightLabels = true)
+                }
+
+                SettingRow(headline = "Distance unit") {
+                    UnitSystemSelector(
+                        prefs.distanceUnit,
+                        onDistanceUnitChange,
+                        weightLabels = false,
+                    )
+                }
+
+                SettingRow(headline = "Theme") {
+                    ThemeModeSelector(prefs.themeMode, onThemeModeChange)
+                }
+
+                val dynamicAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                ListItem(
+                    headlineContent = { Text("Dynamic color") },
+                    supportingContent = {
+                        Text(
+                            if (dynamicAvailable) "Use colors from your wallpaper"
+                            else "Requires Android 12 or newer",
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = prefs.dynamicColor && dynamicAvailable,
+                            onCheckedChange = onDynamicColorChange,
+                            enabled = dynamicAvailable,
+                        )
+                    },
+                )
+
+                RestTimerRow(prefs.restDefaultSec, onRestDefaultChange)
+
+                ListItem(
+                    headlineContent = { Text("Rest timer sound") },
+                    supportingContent = {
+                        Text("Chime when a rest period ends (vibration always on)")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = prefs.restChimeEnabled,
+                            onCheckedChange = onRestChimeEnabledChange,
+                        )
+                    },
+                )
+
+                HorizontalDivider()
+                SectionHeader("Library & data")
+
+                NavRow(
+                    headline = "Exercise library",
+                    supporting = "Browse and add exercises",
+                    icon = Icons.Filled.FitnessCenter,
+                    enabled = true,
+                    onClick = onOpenExerciseLibrary,
+                )
+                NavRow(
+                    headline = "Export data",
+                    supporting = "JSON backup — planned",
+                    icon = Icons.Filled.Upload,
+                    enabled = false,
+                    onClick = {},
+                )
             }
-
-            SettingRow(headline = "Theme") {
-                ThemeModeSelector(prefs.themeMode, onThemeModeChange)
-            }
-
-            val dynamicAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ListItem(
-                headlineContent = { Text("Dynamic color") },
-                supportingContent = {
-                    Text(
-                        if (dynamicAvailable) "Use colors from your wallpaper"
-                        else "Requires Android 12 or newer",
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = prefs.dynamicColor && dynamicAvailable,
-                        onCheckedChange = onDynamicColorChange,
-                        enabled = dynamicAvailable,
-                    )
-                },
-            )
-
-            RestTimerRow(prefs.restDefaultSec, onRestDefaultChange)
-
-            ListItem(
-                headlineContent = { Text("Rest timer sound") },
-                supportingContent = { Text("Chime when a rest period ends (vibration always on)") },
-                trailingContent = {
-                    Switch(
-                        checked = prefs.restChimeEnabled,
-                        onCheckedChange = onRestChimeEnabledChange,
-                    )
-                },
-            )
-
-            HorizontalDivider()
-            SectionHeader("Library & data")
-
-            NavRow(
-                headline = "Exercise library",
-                supporting = "Browse and add exercises",
-                icon = Icons.Filled.FitnessCenter,
-                enabled = true,
-                onClick = onOpenExerciseLibrary,
-            )
-            NavRow(
-                headline = "Export data",
-                supporting = "JSON backup — planned",
-                icon = Icons.Filled.Upload,
-                enabled = false,
-                onClick = {},
-            )
         }
     }
 }

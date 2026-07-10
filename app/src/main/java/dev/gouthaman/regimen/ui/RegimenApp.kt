@@ -22,13 +22,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,8 +69,17 @@ fun RegimenApp(
     // It's set eagerly at the point of intent (see onNavigateToTab below, passed to every
     // navigateToTab call site) and the destination-changed listener below only fills in the cases
     // that aren't an explicit tab switch (cold start, popping back up to a tab's own root).
-    var activeTabRoute by remember { mutableStateOf<Any?>(null) }
-    val onNavigateToTab: (Any) -> Unit = { route -> activeTabRoute = route }
+    //
+    // Saved as an index into topLevelDestinations (rememberSaveable, not remember) rather than the
+    // route object itself — a plain `remember` was lost on rotation (which recreates the Activity),
+    // so after rotating while on a non-top-level screen like Session Detail, this reset to null and
+    // no tab stayed highlighted. The destination-changed listener's immediate callback on re-adding
+    // only matches top-level destinations directly, so it couldn't recover the value either.
+    var activeTabIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    val activeTabRoute: Any? = activeTabIndex?.let { topLevelDestinations.getOrNull(it)?.route }
+    val onNavigateToTab: (Any) -> Unit = { route ->
+        activeTabIndex = topLevelDestinations.indexOfFirst { it.route == route }.takeIf { it >= 0 }
+    }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -81,9 +91,9 @@ fun RegimenApp(
     DisposableEffect(navController) {
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
             val matched =
-                topLevelDestinations.firstOrNull { destination.hasRoute(it.route::class) }
-            if (matched != null) {
-                activeTabRoute = matched.route
+                topLevelDestinations.indexOfFirst { destination.hasRoute(it.route::class) }
+            if (matched >= 0) {
+                activeTabIndex = matched
             }
         }
         navController.addOnDestinationChangedListener(listener)
@@ -92,6 +102,14 @@ fun RegimenApp(
 
     NavigationSuiteScaffold(
         layoutType = windowInfo.posture.toNavigationSuiteType(),
+        // NavigationRail defaults to colorScheme.surface, while NavigationBar defaults to
+        // colorScheme.surfaceContainer — the same tone a MediumTopAppBar collapses to on scroll.
+        // Pinned to surfaceContainer here so the rail always matches that tone too, instead of
+        // only the bottom bar (Compact/Tabletop) matching it while the rail (BookOrExpanded)
+        // looks different.
+        navigationSuiteColors = NavigationSuiteDefaults.colors(
+            navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
         navigationSuiteItems = {
             topLevelDestinations.forEach { dest ->
                 val selected = activeTabRoute == dest.route
