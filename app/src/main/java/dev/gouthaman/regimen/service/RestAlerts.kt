@@ -11,6 +11,7 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.gouthaman.regimen.R
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -72,7 +73,7 @@ class RestAlerts @Inject constructor(
     private fun notifyDone(chimeEnabled: Boolean) {
         val channelId = if (chimeEnabled) CHANNEL_ID else CHANNEL_ID_SILENT
         val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Rest complete")
             .setContentText("Time for your next set.")
             .setAutoCancel(true)

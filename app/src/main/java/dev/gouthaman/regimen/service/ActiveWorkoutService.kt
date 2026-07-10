@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.gouthaman.regimen.MainActivity
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.Workout
 import dev.gouthaman.regimen.di.ApplicationScope
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
@@ -132,7 +133,7 @@ class ActiveWorkoutService : Service() {
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Workout in progress")
             .setContentIntent(contentIntent)
             .setOngoing(true)
