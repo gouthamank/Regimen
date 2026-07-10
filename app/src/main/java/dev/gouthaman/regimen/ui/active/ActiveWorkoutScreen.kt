@@ -34,12 +34,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -67,13 +69,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -92,6 +95,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -99,12 +103,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.data.local.entity.CardioEntry
 import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.util.UnitConverter
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
 import dev.gouthaman.regimen.ui.routines.ExercisePickerSheet
 import kotlinx.coroutines.delay
@@ -210,6 +217,8 @@ fun ActiveWorkoutScreen(
     var showFinishConfirm by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
     val isEditing = uiState.isEditingPastSession
+    val windowInfo = LocalRegimenWindowInfo.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     // Session timer: elapsed derives from startTime, so it survives rotation / process death.
     // Not relevant while re-editing a past session — there's no live session to time.
@@ -229,9 +238,11 @@ fun ActiveWorkoutScreen(
     }.coerceAtLeast(0)
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = { Text(uiState.title.ifEmpty { "Workout" }) },
                 navigationIcon = {
                     IconButton(onClick = { showDiscard = true }) {
@@ -241,6 +252,7 @@ fun ActiveWorkoutScreen(
                         )
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
@@ -254,90 +266,109 @@ fun ActiveWorkoutScreen(
             return@Scaffold
         }
 
+        // BookOrExpanded caps and centers content at the same 600dp breakpoint as every other
+        // LazyColumn-of-cards screen (Routine Editor, Session Detail, Measurement Detail);
+        // Compact/Tabletop unchanged full-bleed. The floating toolbar is capped together with
+        // the list (same inner Box) so it doesn't stretch wider than the content above it, same
+        // convention as RegimenNavHost + WorkoutInProgressBanner in the app shell. No
+        // Onboarding-style above/below-hinge split needed for Tabletop: the toolbar is already
+        // anchored to the absolute bottom edge regardless of content, same reasoning that already
+        // justified not splitting the bottom nav bar for Tabletop (RegimenApp.kt) — set-entry
+        // rows live inside the scrollable list, not fixed against the hinge.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                // Extra bottom inset so the last item can scroll clear of the floating toolbar
-                // instead of sitting underneath it.
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 16.dp,
-                    bottom = 96.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (uiState.exercises.isEmpty()) {
+            val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                Modifier
+                    .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                    .fillMaxHeight()
+            } else {
+                Modifier.fillMaxSize()
+            }
+            Box(modifier = contentModifier) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    // Extra bottom inset so the last item can scroll clear of the floating toolbar
+                    // instead of sitting underneath it.
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 16.dp,
+                        bottom = 96.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (uiState.exercises.isEmpty()) {
+                        item {
+                            Text(
+                                "No exercises yet. Add one to start logging.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 24.dp),
+                            )
+                        }
+                    }
+
+                    items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
+                        ExerciseCard(
+                            exercise = exercise,
+                            weightUnit = uiState.weightUnit,
+                            distanceUnit = uiState.distanceUnit,
+                            onUpdateSet = onUpdateSet,
+                            onAddSet = onAddSet,
+                            onDeleteSet = onDeleteSet,
+                            onToggleSkip = onToggleSkip,
+                            onUpdateCardio = onUpdateCardio,
+                            onStartRest = onStartRest,
+                            showRestTimer = !isEditing,
+                            // Animates a newly-added exercise's appearance (and would animate
+                            // reordering/removal too, though neither happens here today).
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+
                     item {
-                        Text(
-                            "No exercises yet. Add one to start logging.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 24.dp),
+                        OutlinedButton(
+                            onClick = { showPicker = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = null)
+                            Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+
+                    item {
+                        var note by remember(uiState.note) { mutableStateOf(uiState.note) }
+                        OutlinedTextField(
+                            value = note,
+                            onValueChange = {
+                                note = it
+                                onUpdateNote(it)
+                            },
+                            label = { Text("Session note") },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
 
-                items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
-                    ExerciseCard(
-                        exercise = exercise,
-                        weightUnit = uiState.weightUnit,
-                        distanceUnit = uiState.distanceUnit,
-                        onUpdateSet = onUpdateSet,
-                        onAddSet = onAddSet,
-                        onDeleteSet = onDeleteSet,
-                        onToggleSkip = onToggleSkip,
-                        onUpdateCardio = onUpdateCardio,
-                        onStartRest = onStartRest,
-                        showRestTimer = !isEditing,
-                        // Animates a newly-added exercise's appearance (and would animate
-                        // reordering/removal too, though neither happens here today).
-                        modifier = Modifier.animateItem(),
+                if (uiState.loaded && !uiState.notFound) {
+                    ActiveWorkoutToolbar(
+                        isEditing = isEditing,
+                        isPaused = uiState.isPaused,
+                        elapsed = elapsed,
+                        onPause = onPause,
+                        onResume = onResume,
+                        onFinish = { if (isEditing) onFinish() else showFinishConfirm = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .height(64.dp),
                     )
                 }
-
-                item {
-                    OutlinedButton(
-                        onClick = { showPicker = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null)
-                        Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
-                    }
-                }
-
-                item {
-                    var note by remember(uiState.note) { mutableStateOf(uiState.note) }
-                    OutlinedTextField(
-                        value = note,
-                        onValueChange = {
-                            note = it
-                            onUpdateNote(it)
-                        },
-                        label = { Text("Session note") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            if (uiState.loaded && !uiState.notFound) {
-                ActiveWorkoutToolbar(
-                    isEditing = isEditing,
-                    isPaused = uiState.isPaused,
-                    elapsed = elapsed,
-                    onPause = onPause,
-                    onResume = onResume,
-                    onFinish = { if (isEditing) onFinish() else showFinishConfirm = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
-                        .height(64.dp),
-                )
             }
         }
     }
