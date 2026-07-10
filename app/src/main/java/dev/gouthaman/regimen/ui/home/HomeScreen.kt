@@ -226,8 +226,11 @@ private fun MonthSummarySection(uiState: HomeUiState) {
 }
 
 // Workout-frequency trend, fixed to the last 4 weeks (no range selector — that's Progress's job).
+// Hidden entirely when there's been no activity in the window (matches BodyweightSection below) —
+// otherwise a brand-new user sees a "flat" chart with no cue that it's actually all zeros.
 @Composable
 private fun WorkoutFrequencySection(uiState: HomeUiState) {
+    if (uiState.workoutFrequency.all { it == 0 }) return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Workout frequency", style = MaterialTheme.typography.titleMedium)
@@ -239,6 +242,7 @@ private fun WorkoutFrequencySection(uiState: HomeUiState) {
             LineChart(
                 points = uiState.workoutFrequency.map { it.toFloat() },
                 modifier = Modifier.padding(top = 12.dp),
+                zeroBaseline = true,
             )
         }
     }

@@ -132,6 +132,8 @@ private fun SectionHeader(text: String) {
 }
 
 private val weekLabelFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
+private val weekLabelFormatterWithYear =
+    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 
 @Composable
 private fun FrequencyCard(uiState: ProgressUiState) {
@@ -154,17 +156,23 @@ private fun FrequencyCard(uiState: ProgressUiState) {
             LineChart(
                 points = uiState.frequency.map { it.count.toFloat() },
                 modifier = Modifier.padding(top = 16.dp),
+                zeroBaseline = true,
             )
-            WeekAxis(uiState.frequency)
+            WeekAxis(uiState.frequency, uiState.range)
         }
     }
 }
 
 /** Oldest and newest week-start labels bracketing the chart. */
 @Composable
-private fun WeekAxis(frequency: List<WeekCount>) {
+private fun WeekAxis(frequency: List<WeekCount>, range: HistoryRange) {
     val first = frequency.firstOrNull()?.weekStart ?: return
     val last = frequency.lastOrNull()?.weekStart ?: return
+    val formatter = if (range == HistoryRange.ONE_YEAR || range == HistoryRange.ALL) {
+        weekLabelFormatterWithYear
+    } else {
+        weekLabelFormatter
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -173,8 +181,8 @@ private fun WeekAxis(frequency: List<WeekCount>) {
     ) {
         val style = MaterialTheme.typography.labelSmall
         val color = MaterialTheme.colorScheme.onSurfaceVariant
-        Text(first.format(weekLabelFormatter), style = style, color = color)
-        Text(last.format(weekLabelFormatter), style = style, color = color)
+        Text(first.format(formatter), style = style, color = color)
+        Text(last.format(formatter), style = style, color = color)
     }
 }
 
