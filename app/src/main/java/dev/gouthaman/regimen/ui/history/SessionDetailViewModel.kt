@@ -13,7 +13,6 @@ import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
-import dev.gouthaman.regimen.domain.usecase.ReopenWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.RepeatWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
 import dev.gouthaman.regimen.ui.navigation.SessionDetailRoute
@@ -63,7 +62,6 @@ class SessionDetailViewModel @Inject constructor(
     private val saveAsRoutineUseCase: SaveWorkoutAsRoutineUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
     private val repeatWorkoutUseCase: RepeatWorkoutUseCase,
-    private val reopenWorkoutUseCase: ReopenWorkoutUseCase,
 ) : ViewModel() {
 
     private val workoutId = savedStateHandle.toRoute<SessionDetailRoute>().workoutId
@@ -72,10 +70,6 @@ class SessionDetailViewModel @Inject constructor(
     // Workout id to open in Active Workout (from Repeat/Edit).
     private val openActiveWorkout = Channel<Long>(Channel.BUFFERED)
     val openWorkout: Flow<Long> = openActiveWorkout.receiveAsFlow()
-
-    // One-shot user messages (e.g. the edit guard).
-    private val messages = Channel<String>(Channel.BUFFERED)
-    val message: Flow<String> = messages.receiveAsFlow()
 
     val uiState: StateFlow<SessionDetailUiState> = combine(
         observeWorkout(workoutId),
@@ -140,15 +134,13 @@ class SessionDetailViewModel @Inject constructor(
         }
     }
 
-    /** Reopen this finished session for editing. Blocked while another workout is in progress. */
+    /**
+     * Reopen this finished session for editing. Not gated on another workout being in progress —
+     * editing historical data doesn't touch the timer/in-progress state at all (see
+     * ActiveWorkoutViewModel.isEditingPastSession), so it doesn't conflict with a genuinely live
+     * workout running elsewhere.
+     */
     fun edit() {
-        viewModelScope.launch {
-            if (getInProgressWorkoutId() != null) {
-                messages.send("Finish your active workout first.")
-                return@launch
-            }
-            reopenWorkoutUseCase(workoutId)
-            openActiveWorkout.send(workoutId)
-        }
+        viewModelScope.launch { openActiveWorkout.send(workoutId) }
     }
 }

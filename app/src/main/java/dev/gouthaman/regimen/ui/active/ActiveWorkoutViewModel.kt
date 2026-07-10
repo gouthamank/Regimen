@@ -151,7 +151,11 @@ class ActiveWorkoutViewModel @Inject constructor(
                 pausedAt = workout.workout.pausedAt,
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 finished = workout.workout.endTime != null,
-                isEditingPastSession = workout.workout.preEditEndTime != null,
+                // A workout that already has an endTime when opened is being reopened for
+                // editing (see SessionDetailViewModel.edit(), which no longer touches endTime at
+                // all) rather than a genuinely live one — a fresh workout starts with
+                // endTime == null and stays that way until FinishWorkoutUseCase runs.
+                isEditingPastSession = workout.workout.endTime != null,
                 exercises = workout.exercises
                     .sortedBy { it.workoutExercise.position }
                     .map { we ->

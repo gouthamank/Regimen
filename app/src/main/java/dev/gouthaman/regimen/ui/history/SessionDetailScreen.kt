@@ -73,9 +73,6 @@ fun SessionDetailScreen(
     LaunchedEffect(Unit) {
         viewModel.openWorkout.collect { onOpenActiveWorkout(it) }
     }
-    LaunchedEffect(Unit) {
-        viewModel.message.collect { snackbarHostState.showSnackbar(it) }
-    }
 
     SessionDetailScreen(
         uiState = uiState,

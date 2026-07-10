@@ -40,6 +40,11 @@ android {
     }
 }
 
+ksp {
+    // Room schema history, for real migrations (see data/local/migration/Migrations.kt).
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

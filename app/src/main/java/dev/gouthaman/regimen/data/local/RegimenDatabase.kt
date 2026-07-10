@@ -29,8 +29,8 @@ import dev.gouthaman.regimen.data.local.entity.WorkoutExercise
         MeasurementType::class,
         BodyMetric::class,
     ],
-    version = 4,
-    exportSchema = false,
+    version = 5,
+    exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class RegimenDatabase : RoomDatabase() {

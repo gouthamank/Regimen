@@ -124,16 +124,13 @@ fun ActiveWorkoutScreen(
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
 
-    // Set when the user explicitly cancels an edit (below), so the finished-flag effect doesn't
-    // also fire onFinished (which would send them to the Workout Summary screen instead of just
-    // closing back out — cancelling an edit restores the original endTime the same way finishing
-    // does, so uiState.finished flips true either way).
-    var cancellingEdit by remember { mutableStateOf(false) }
-
     // Navigate reactively off the observed workout state, so ending/discarding from the notification
-    // (not just the in-app buttons) moves the screen too. Guarded so each fires once.
-    LaunchedEffect(uiState.finished) {
-        if (uiState.finished && !cancellingEdit) onFinished(viewModel.workoutId)
+    // (not just the in-app buttons) moves the screen too. Only for a genuinely live workout —
+    // editing a past session never changes endTime at all (see isEditingPastSession), so it would
+    // already be "finished" the instant it's opened; Done/Cancel-edit navigate directly instead
+    // (below), bypassing this reactive path entirely.
+    LaunchedEffect(uiState.finished, uiState.isEditingPastSession) {
+        if (uiState.finished && !uiState.isEditingPastSession) onFinished(viewModel.workoutId)
     }
     LaunchedEffect(uiState.loaded, uiState.notFound) {
         if (uiState.loaded && uiState.notFound) onDiscarded()
@@ -169,16 +166,17 @@ fun ActiveWorkoutScreen(
         onStopRest = viewModel::stopRest,
         onPause = viewModel::pause,
         onResume = viewModel::resume,
-        // Finish/discard only flip the workout state; the LaunchedEffects above handle navigation.
-        onFinish = viewModel::finish,
-        onDiscard = viewModel::discard,
-        // Cancel-edit restores the session to its original finished state (same write finish()
-        // does when re-editing) but navigates straight back instead of to Workout Summary.
-        onCancelEdit = {
-            cancellingEdit = true
-            viewModel.finish()
-            onDiscarded()
+        // Discard only flips the workout state; the LaunchedEffect above handles navigation.
+        // Finish is edit-aware: a live workout still goes through finishWorkoutUseCase and the
+        // reactive LaunchedEffect above; an edit never touched endTime, so there's nothing to
+        // write — just navigate to the summary directly.
+        onFinish = {
+            if (uiState.isEditingPastSession) onFinished(viewModel.workoutId) else viewModel.finish()
         },
+        onDiscard = viewModel::discard,
+        // Cancel-edit never wrote anything (editing doesn't touch endTime), so there's nothing to
+        // restore — just navigate straight back instead of to Workout Summary.
+        onCancelEdit = onDiscarded,
         onCreateCustomExercise = onCreateCustomExercise,
         modifier = modifier,
     )
