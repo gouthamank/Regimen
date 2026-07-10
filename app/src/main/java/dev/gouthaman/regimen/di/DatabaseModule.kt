@@ -12,6 +12,7 @@ import dev.gouthaman.regimen.data.local.dao.ExerciseDao
 import dev.gouthaman.regimen.data.local.dao.MeasurementDao
 import dev.gouthaman.regimen.data.local.dao.RoutineDao
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
+import dev.gouthaman.regimen.data.local.migration.MIGRATION_4_5
 import javax.inject.Singleton
 
 @Module
@@ -22,8 +23,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): RegimenDatabase =
         Room.databaseBuilder(context, RegimenDatabase::class.java, RegimenDatabase.NAME)
-            // Pre-release: no hand-written migrations — recreate the DB on any schema change.
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(MIGRATION_4_5)
             .build()
 
     @Provides

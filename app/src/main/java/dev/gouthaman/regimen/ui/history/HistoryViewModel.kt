@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -19,7 +20,7 @@ data class DaySession(
     val workoutId: Long,
     val title: String,
     val startMillis: Long,
-)
+) : Serializable
 
 data class HistoryUiState(
     /** Local calendar day → the sessions completed that day (earliest first). */

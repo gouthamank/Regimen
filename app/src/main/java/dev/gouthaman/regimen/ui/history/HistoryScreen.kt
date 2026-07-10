@@ -30,7 +30,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,8 +74,11 @@ fun HistoryScreen(
     // and back — composable<Route> disposes this screen while Session Detail is on top, and a
     // plain remember would reset back to the current month on return.
     var month by rememberSaveable { mutableStateOf(YearMonth.now()) }
-    // A day tapped that has more than one session — surfaces a picker dialog.
-    var pickerDay by remember { mutableStateOf<List<DaySession>?>(null) }
+    // A day tapped that has more than one session — surfaces a picker dialog. Saveable across
+    // rotation: DaySession is Serializable and this is stored as an ArrayList explicitly, since
+    // Bundle-backed rememberSaveable needs the list container itself to be Serializable too, not
+    // just its elements.
+    var pickerDay by rememberSaveable { mutableStateOf<ArrayList<DaySession>?>(null) }
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -121,7 +123,7 @@ fun HistoryScreen(
                     sessionsByDay = uiState.sessionsByDay,
                     onDayClick = { sessions ->
                         if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
-                        else pickerDay = sessions
+                        else pickerDay = ArrayList(sessions)
                     },
                 )
 

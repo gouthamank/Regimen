@@ -48,7 +48,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,7 +111,7 @@ fun ExerciseLibraryScreen(
     modifier: Modifier = Modifier,
 ) {
     val filters = uiState.filters
-    var showFilterSheet by remember { mutableStateOf(false) }
+    var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val windowInfo = LocalRegimenWindowInfo.current
 
     // Each entry pairs a chip label with the toggle that clears it — lets the active-filter

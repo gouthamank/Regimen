@@ -47,6 +47,7 @@ import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.navigation.ActiveWorkoutRoute
+import dev.gouthaman.regimen.ui.navigation.HomeRoute
 import dev.gouthaman.regimen.ui.navigation.RegimenNavHost
 import dev.gouthaman.regimen.ui.navigation.TopLevelDestination
 import dev.gouthaman.regimen.ui.navigation.WorkoutSummaryRoute
@@ -141,9 +142,14 @@ fun RegimenApp(
             if (activeWorkoutId != null && !inWorkoutFlow) {
                 WorkoutInProgressBanner(
                     onResume = {
-                        navController.navigate(ActiveWorkoutRoute(activeWorkoutId)) {
-                            launchSingleTop = true
-                        }
+                        // Active Workout is documented as Home's child exclusively (see the nav
+                        // map in RegimenNavHost.kt) — anchor Resume there regardless of which tab
+                        // it's tapped from, rather than pushing onto whichever tab happens to be
+                        // current. Whatever tab you were on is saved (not lost), same as tapping
+                        // a different tab in the bar/rail would do.
+                        onNavigateToTab(HomeRoute)
+                        navController.navigateToTab(HomeRoute)
+                        navController.navigate(ActiveWorkoutRoute(activeWorkoutId))
                     },
                 )
             }
@@ -157,32 +163,38 @@ fun RegimenApp(
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            when (windowInfo.posture) {
-                // Both of these keep the bottom NavigationBar (phone-like chrome), but the
-                // window behind it isn't guaranteed to be phone-narrow: Tabletop in particular
-                // can be genuinely wide — confirmed via a half-opened, 90°-hinge AVD state that
-                // landed here at ~852dp wide — since isTabletop overrides the width-based Rail
-                // decision. Cap and center content in both cases rather than stretching it
-                // edge-to-edge under nav chrome that still reads as a phone bar. The cap is the
-                // same Medium-width breakpoint classify() itself uses to decide "promote to
-                // BookOrExpanded" (androidx.window.core.layout.WindowSizeClass), not an
-                // arbitrary number — a normal phone is already narrower than this, so it's a
-                // no-op for the common Compact case.
-                RegimenPosture.Compact, RegimenPosture.Tabletop -> Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
-                            .fillMaxHeight(),
-                        content = navHostAndBanner,
-                    )
+            // navHostAndBanner (everything inside RegimenNavHost, i.e. every screen) must be
+            // composed from a single stable call site regardless of posture. A `when` that
+            // previously called it from two different branches (bare vs. wrapped in Box/Column)
+            // tore down and recomposed the whole nav-host subtree whenever posture crossed
+            // branches, orphaning/restoring-stale every rememberSaveable underneath — the actual
+            // cause of sheets spuriously closing/reopening when rotating in and out of Tabletop
+            // (see "Modal/dialog dismissed on rotation fix" below). Only the width-cap Modifier
+            // value varies by posture now, not the composable structure.
+            //
+            // Both Compact and Tabletop keep the bottom NavigationBar (phone-like chrome), but the
+            // window behind it isn't guaranteed to be phone-narrow: Tabletop in particular can be
+            // genuinely wide — confirmed via a half-opened, 90°-hinge AVD state that landed here at
+            // ~852dp wide — since isTabletop overrides the width-based Rail decision. Cap and
+            // center content in both cases rather than stretching it edge-to-edge under nav chrome
+            // that still reads as a phone bar. The cap is the same Medium-width breakpoint
+            // classify() itself uses to decide "promote to BookOrExpanded"
+            // (androidx.window.core.layout.WindowSizeClass), not an arbitrary number — a normal
+            // phone is already narrower than this, so it's a no-op for the common Compact case.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                val widthCapModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                    Modifier.fillMaxHeight()
+                } else {
+                    Modifier
+                        .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
+                        .fillMaxHeight()
                 }
-
-                RegimenPosture.BookOrExpanded -> navHostAndBanner()
+                Column(modifier = widthCapModifier, content = navHostAndBanner)
             }
         }
     }

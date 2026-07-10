@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,8 +88,8 @@ fun MeasurementsScreen(
     weightUnit: dev.gouthaman.regimen.domain.model.UnitSystem,
     modifier: Modifier = Modifier,
 ) {
-    var showAddType by remember { mutableStateOf(false) }
-    var showAddEntry by remember { mutableStateOf(false) }
+    var showAddType by rememberSaveable { mutableStateOf(false) }
+    var showAddEntry by rememberSaveable { mutableStateOf(false) }
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
