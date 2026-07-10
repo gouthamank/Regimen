@@ -55,11 +55,10 @@ fun ExercisePickerSheet(
     val visible = exercises.filter { it.matchesSearch(query) || it.id in selected }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = modifier) {
-        // Header and footer are pinned outside the scrollable list (via ColumnScope.weight on the
-        // list, fill = false so a short list doesn't force the sheet to full height) rather than
-        // one plain Column with a fixed heightIn cap on the list — in compact landscape the header
-        // + list-cap + footer together could exceed the sheet's actual available height, pushing
-        // the Save button off-screen with nothing left to scroll it into view.
+        // List gets weight(1f, fill = false) so header/footer stay pinned outside it without
+        // forcing full sheet height — a fixed heightIn cap instead could let header + list-cap +
+        // footer exceed the sheet's available height, pushing Save off-screen with nothing left
+        // to scroll it back into view.
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             Text("Add exercises", style = MaterialTheme.typography.titleLarge)
 

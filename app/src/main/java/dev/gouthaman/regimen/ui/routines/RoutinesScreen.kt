@@ -114,8 +114,8 @@ fun RoutinesScreen(
         },
     ) { innerPadding ->
         // BookOrExpanded caps and centers content, same 600dp breakpoint as Onboarding/the nav
-        // shell; Compact/Tabletop stay full-bleed. This is a flat list, not the two-column
-        // dashboard shape Home uses, so a single wider column reads better than a grid.
+        // shell; Compact/Tabletop stay full-bleed. Flat list, not Home's two-column dashboard,
+        // so a single wider column reads better than a grid.
         Box(
             modifier = Modifier
                 .fillMaxSize()

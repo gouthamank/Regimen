@@ -88,10 +88,9 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     var showStartSheet by remember { mutableStateOf(false) }
-    // enterAlwaysScrollBehavior (not exitUntilCollapsed, used elsewhere) — this bar should
-    // retract off-screen entirely on scroll-down and slide back in on the first scroll-up, rather
-    // than shrinking to a still-visible collapsed row like the MediumTopAppBars used on the
-    // detail/nested screens.
+    // enterAlwaysScrollBehavior, not exitUntilCollapsed (used elsewhere) — this bar retracts fully
+    // off-screen on scroll-down and slides back on scroll-up, rather than shrinking to a collapsed
+    // row like the MediumTopAppBars on detail screens.
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
@@ -108,9 +107,9 @@ fun HomeScreen(
         when {
             !uiState.loaded -> Unit
             !uiState.hasRoutines -> {
-                // Its own centered Box (not sharing the loaded state's top-anchored, scrollable
-                // Column) — that's the only way to vertically center this content, since a plain
-                // Column inside verticalScroll can't distribute leftover space via Arrangement.
+                // Its own centered Box, not the loaded state's scrollable Column — a Column inside
+                // verticalScroll can't distribute leftover space via Arrangement, so that's the
+                // only way to vertically center this.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -119,8 +118,7 @@ fun HomeScreen(
                 ) {
                     EmptyHome(
                         onCreateRoutine = onCreateRoutine,
-                        // A single line of text + a button doesn't need the full width of a wide
-                        // pane — cap it like Onboarding's text-only content does.
+                        // A line of text + button doesn't need a wide pane's full width — cap it like Onboarding's text-only content.
                         modifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
                             Modifier.widthIn(max = 480.dp)
                         } else {
@@ -265,8 +263,7 @@ private fun StartWorkoutSheet(
     }
 }
 
-// "This week" as individually styled tiles (a per-stat tile each, plus a dedicated streak tile)
-// rather than one card, for a livelier dashboard.
+// "This week" as individually styled tiles (per-stat + a streak tile) rather than one card, for a livelier dashboard.
 @Composable
 private fun WeekSummarySection(uiState: HomeUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -302,9 +299,8 @@ private fun MonthSummarySection(uiState: HomeUiState) {
 }
 
 // Workout-frequency trend, fixed to the last 4 weeks (no range selector — that's Progress's job).
-// Empty state (no activity in the window) stays minimal — a line of text, no chart, no CTA
-// (there's no single action that fixes "no workouts yet" beyond what the Start Workout button
-// above already offers).
+// Empty state stays minimal (text only, no chart/CTA) since nothing beyond the Start Workout
+// button above fixes "no workouts yet".
 @Composable
 private fun WorkoutFrequencySection(uiState: HomeUiState) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -440,8 +436,7 @@ private fun StreakTile(weeks: Int) {
     }
 }
 
-// Weeks roll up to months (4 weeks) once the streak is a month or longer, then to
-// years once it's a year or longer (12 months), so long streaks stay readable.
+// Weeks roll up to months (4wk) then years (12mo) once the streak is that long, so long streaks stay readable.
 private fun formatStreak(weeks: Int): String = when {
     weeks < 4 -> "$weeks-week streak"
     weeks < 48 -> "${weeks / 4}-month streak"

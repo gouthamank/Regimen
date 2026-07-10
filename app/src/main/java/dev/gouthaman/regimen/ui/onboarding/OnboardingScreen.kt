@@ -152,8 +152,8 @@ fun OnboardingScreen(
     }
 }
 
-/** Compact and book/expanded postures share this single-column arrangement; only the outer
- *  modifier (full-bleed vs. width-capped and centered) differs between them. */
+/** Compact and book/expanded postures share this single-column layout; only the outer modifier
+ *  (full-bleed vs. width-capped and centered) differs between them. */
 @Composable
 private fun LinearOnboardingLayout(
     modifier: Modifier,

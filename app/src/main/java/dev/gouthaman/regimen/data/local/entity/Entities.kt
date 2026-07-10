@@ -53,7 +53,7 @@ data class RoutineExercise(
     val targetSets: Int,
     val targetReps: Int,
     val targetRestSec: Int,
-    // Reserved for future superset grouping (v2) — kept nullable so it can be added without migration pain.
+    // Reserved for future superset grouping (v2); nullable now to avoid a migration later.
     val supersetGroupId: Long? = null,
 )
 
@@ -76,8 +76,8 @@ data class Workout(
     val endTime: Long? = null,
     val note: String? = null,
     val routineId: Long? = null,
-    // Session pause (S13). Non-null pausedAt = currently paused (value = when it began);
-    // accumulatedPausedMs = total paused time so far. Excluded from the session timer & duration.
+    // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
+    // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
 )

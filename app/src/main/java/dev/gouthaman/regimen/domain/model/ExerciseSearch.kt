@@ -4,8 +4,8 @@ import dev.gouthaman.regimen.data.local.entity.Exercise
 
 /**
  * True if [query] matches this exercise's name, or its type/muscle-group/equipment tags — so
- * e.g. searching "cardio" surfaces all cardio exercises, not just ones with "cardio" in the name.
- * Shared by the Exercise Library search and the Exercise Picker sheet.
+ * searching "cardio" surfaces all cardio exercises, not just name matches. Shared by the
+ * Exercise Library search and the Exercise Picker sheet.
  */
 fun Exercise.matchesSearch(query: String): Boolean {
     if (query.isBlank()) return true

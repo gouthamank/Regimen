@@ -23,8 +23,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-        // Hold the system splash until preferences are read from disk, so we never flash onboarding
-        // at an already-onboarded user or render before the theme is known.
+        // Hold the splash until prefs load, so we never flash onboarding at an already-onboarded
+        // user or render before the theme is known.
         splashScreen.setKeepOnScreenCondition { !viewModel.uiState.value.loaded }
 
         enableEdgeToEdge()

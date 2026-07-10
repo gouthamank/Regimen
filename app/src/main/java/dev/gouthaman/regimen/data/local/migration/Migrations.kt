@@ -3,11 +3,10 @@ package dev.gouthaman.regimen.data.local.migration
 import androidx.room.migration.Migration
 
 /**
- * v4 -> v5: drops `workouts.preEditEndTime` (removed from [dev.gouthaman.regimen.data.local.entity.Workout] —
- * editing a past session no longer touches `endTime`/`preEditEndTime` at all, see
- * ActiveWorkoutViewModel.isEditingPastSession). SQLite's `ALTER TABLE ... DROP COLUMN` isn't
- * reliably available across the SQLite versions Android ships, so this rebuilds the table:
- * create the new shape, copy the surviving columns over, drop the old table, rename.
+ * v4 -> v5: drops `workouts.preEditEndTime` (unused now — editing a past session no longer
+ * touches `endTime`/`preEditEndTime`, see ActiveWorkoutViewModel.isEditingPastSession).
+ * `ALTER TABLE ... DROP COLUMN` isn't reliable across Android's SQLite versions, so this
+ * rebuilds the table instead: new shape, copy surviving columns, drop old, rename.
  */
 val MIGRATION_4_5 = Migration(4, 5) { db ->
     db.execSQL(

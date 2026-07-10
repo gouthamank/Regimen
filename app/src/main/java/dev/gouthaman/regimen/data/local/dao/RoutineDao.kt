@@ -35,8 +35,7 @@ interface RoutineDao {
     @Query("SELECT position FROM routines WHERE id = :id")
     suspend fun positionOf(id: Long): Int?
 
-    /** Whether an exercise appears in any routine — deleting it would cascade-delete those
-     * rows, so this gates exercise deletion. */
+    /** True if any routine references this exercise; used to block deletion (cascade risk). */
     @Query("SELECT EXISTS(SELECT 1 FROM routine_exercises WHERE exerciseId = :exerciseId)")
     suspend fun isExerciseUsedInAnyRoutine(exerciseId: Long): Boolean
 

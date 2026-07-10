@@ -61,7 +61,7 @@ data class HomeUiState(
     val bodyweightTrend: List<Float> = emptyList(),
     /** Most recent bodyweight entry formatted for display, e.g. "72 kg"; blank if none logged. */
     val bodyweightLatestLabel: String = "",
-    /** A workout is already running — Start Workout should resume it via the banner, not launch
+    /** A workout is already running — Start Workout resumes it via the banner instead of launching
      * a fresh pick-a-routine flow. */
     val hasWorkoutInProgress: Boolean = false,
     val loaded: Boolean = false,
@@ -87,8 +87,8 @@ class HomeViewModel @Inject constructor(
     private val startedWorkouts = Channel<Long>(Channel.BUFFERED)
     val startedWorkout: Flow<Long> = startedWorkouts.receiveAsFlow()
 
-    // Bodyweight is the built-in measurement type; resolved dynamically since it's a seeded row,
-    // not a fixed id. No bodyweight type yet (fresh install, seed not applied) -> empty trend.
+    // Bodyweight is the built-in measurement type, resolved dynamically since it's a seeded row,
+    // not a fixed id — no type yet (fresh install) means an empty trend.
     private val bodyweightTrend: Flow<List<Float>> = combine(
         observeMeasurementTypes(),
         observePreferences(),
@@ -107,8 +107,8 @@ class HomeViewModel @Inject constructor(
         }
 
     /**
-     * Opens the active workout: resumes the one already in progress if there is one (single-active —
-     * avoids orphaning a session), otherwise starts a new one from [routineId] (null = freeform).
+     * Opens the active workout: resumes one already in progress (single-active — avoids
+     * orphaning a session), or starts a new one from [routineId] (null = freeform).
      */
     fun startWorkout(routineId: Long?) {
         viewModelScope.launch {

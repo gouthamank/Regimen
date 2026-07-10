@@ -69,8 +69,8 @@ interface WorkoutDao {
     )
     fun observePersonalRecords(): Flow<List<PersonalRecordRow>>
 
-    /** Most reps in a single set per exercise, for sets logged with no weight (bodyweight) —
-     * the PR definition for exercises that never store [SetEntry.weightKg]. */
+    /** Best reps per exercise for sets logged without weight (bodyweight) — PR definition
+     * when [SetEntry.weightKg] is never stored. */
     @Query(
         "SELECT we.exerciseId AS exerciseId, MAX(se.reps) AS bestReps FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
@@ -81,8 +81,8 @@ interface WorkoutDao {
     )
     fun observeBestReps(): Flow<List<RepsRecordRow>>
 
-    /** Most recently logged set for an exercise, from any finished workout — source for prefill
-     * when adding an exercise ad hoc (outside a routine's own history-based prefill). */
+    /** Most recent logged set for an exercise, from any finished workout — prefill source
+     * when adding it ad hoc, outside a routine's own history-based prefill. */
     @Query(
         "SELECT se.* FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
@@ -92,8 +92,7 @@ interface WorkoutDao {
     )
     suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry?
 
-    /** Every finished session that logged this exercise, most recent first — source for
-     * Exercise Detail's History section. */
+    /** Every finished session that logged this exercise, most recent first — source for Exercise Detail's History section. */
     @Transaction
     @Query(
         "SELECT we.*, w.startTime AS startTime FROM workout_exercises we " +
@@ -103,8 +102,7 @@ interface WorkoutDao {
     )
     fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>>
 
-    /** Whether an exercise appears in any workout (active or finished) — deleting it would
-     * cascade-delete those rows, so this gates exercise deletion. */
+    /** True if any workout references this exercise (active or finished); blocks deletion (cascade risk). */
     @Query("SELECT EXISTS(SELECT 1 FROM workout_exercises WHERE exerciseId = :exerciseId)")
     suspend fun isExerciseUsedInAnyWorkout(exerciseId: Long): Boolean
 

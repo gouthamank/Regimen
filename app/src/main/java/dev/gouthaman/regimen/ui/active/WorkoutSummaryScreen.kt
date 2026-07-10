@@ -92,9 +92,6 @@ fun WorkoutSummaryScreen(
             return@Scaffold
         }
 
-        // BookOrExpanded caps and centers content at the same 600dp breakpoint as
-        // Onboarding/Routines/History/Progress/Settings/Exercise Library; Compact/Tabletop
-        // unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

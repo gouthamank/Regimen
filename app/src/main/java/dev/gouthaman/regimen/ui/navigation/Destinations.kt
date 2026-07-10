@@ -70,11 +70,10 @@ val topLevelDestinations = listOf(
 )
 
 /**
- * Navigates to a top-level (bottom-tab) [route] exactly as tapping it in the bottom bar would:
- * saves/restores each tab's own back stack rather than pushing a new instance on top. Shared by
- * the bottom bar itself and any in-screen shortcut that should act like switching tabs (e.g.
- * Home's empty-state "Create your first routine" going to the Routines tab instead of pushing
- * the Routine Editor).
+ * Navigates to a top-level (bottom-tab) [route] exactly like tapping it in the bottom bar: saves/
+ * restores each tab's back stack instead of pushing a new instance. Shared by the bottom bar and
+ * any in-screen shortcut that should act like a tab switch (e.g. Home's empty-state "Create your
+ * first routine" → Routines tab, not the Routine Editor).
  */
 fun NavHostController.navigateToTab(route: Any) {
     navigate(route) {

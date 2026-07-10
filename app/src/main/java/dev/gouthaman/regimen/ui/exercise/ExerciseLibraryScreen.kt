@@ -114,8 +114,7 @@ fun ExerciseLibraryScreen(
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val windowInfo = LocalRegimenWindowInfo.current
 
-    // Each entry pairs a chip label with the toggle that clears it — lets the active-filter
-    // row and the "clear all" action share one list instead of four parallel branches.
+    // Pairs a chip label with the toggle that clears it, so the filter row and "clear all" share one list instead of four branches.
     val activeFilters = buildList<Pair<String, () -> Unit>> {
         filters.type?.let { type -> add(type.label() to { onToggleType(type) }) }
         filters.muscleGroup?.let { mg -> add(mg.label() to { onToggleMuscleGroup(mg) }) }
@@ -166,8 +165,6 @@ fun ExerciseLibraryScreen(
             }
         },
     ) { innerPadding ->
-        // BookOrExpanded caps and centers content at the same 600dp breakpoint as
-        // Onboarding/Routines/History/Progress/Settings; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

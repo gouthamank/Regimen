@@ -81,8 +81,8 @@ data class ActiveWorkoutUiState(
     val accumulatedPausedMs: Long = 0,
     /** True once the workout has an end time — finished here or via the notification's End action. */
     val finished: Boolean = false,
-    /** True while re-editing a previously finished session (via Session Detail's "Edit"). No
-     * live session timer runs in this mode — see [dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen]. */
+    /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs
+     * in this mode — see [dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen]. */
     val isEditingPastSession: Boolean = false,
     val loaded: Boolean = false,
     val notFound: Boolean = false,
@@ -151,10 +151,9 @@ class ActiveWorkoutViewModel @Inject constructor(
                 pausedAt = workout.workout.pausedAt,
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 finished = workout.workout.endTime != null,
-                // A workout that already has an endTime when opened is being reopened for
-                // editing (see SessionDetailViewModel.edit(), which no longer touches endTime at
-                // all) rather than a genuinely live one — a fresh workout starts with
-                // endTime == null and stays that way until FinishWorkoutUseCase runs.
+                // A workout with endTime already set is being reopened for editing (see
+                // SessionDetailViewModel.edit(), which never touches endTime), not a genuinely
+                // live one — a fresh workout starts with endTime == null until FinishWorkoutUseCase runs.
                 isEditingPastSession = workout.workout.endTime != null,
                 exercises = workout.exercises
                     .sortedBy { it.workoutExercise.position }
@@ -196,9 +195,9 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun resume() = viewModelScope.launch { resumeWorkoutUseCase(workoutId) }
 
-    // Terminal actions run on the app scope, not viewModelScope: navigating away pops this screen
-    // and clears the ViewModel, which would cancel the write mid-flight (leaving the workout stuck
-    // in-progress). The app scope outlives the screen, so the finish/discard write always lands.
+    // Terminal actions run on the app scope, not viewModelScope — navigating away clears the
+    // ViewModel, which would cancel the write mid-flight and leave the workout stuck in-progress.
+    // The app scope outlives the screen, so the write always lands.
     fun finish() = appScope.launch { finishWorkoutUseCase(workoutId) }
 
     fun discard() = appScope.launch { cancelWorkoutUseCase(workoutId) }
@@ -242,9 +241,9 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch { upsertSet(target.copy(isComplete = true)) }
     }
 
-    /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s). Only shifts the deadline — the
-     * progress bar's max (totalSec) stays put so the bar reflects remaining time, not duration —
-     * and is capped so remaining time can't exceed the original totalSec (bar can't overfill). */
+    /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s). Only shifts the deadline; totalSec
+     * (the bar's max) stays fixed so it reflects remaining time, not duration, and is capped so
+     * remaining time can't exceed totalSec (bar can't overfill). */
     fun addRestTime(deltaSec: Int) {
         val current = _rest.value ?: return
         val now = System.currentTimeMillis()

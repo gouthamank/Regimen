@@ -89,11 +89,10 @@ fun RegimenNavHost(
     // popping reverses it) instead of the platform's abrupt default cross-fade.
     val transitionSpec = tween<Float>(220)
 
-    // SharedTransitionLayout hosts the row-expand container transforms used by Exercise Library ->
-    // Exercise Detail, Measurements -> Measurement Detail, and Routines -> Routine Editor (row or
-    // "New routine" FAB): each destination's root expands from the tapped row/FAB instead of
-    // sliding in like every other destination. See exerciseRowTransitionKey /
-    // measurementRowTransitionKey / routineRowTransitionKey / routineCreateFabTransitionKey.
+    // SharedTransitionLayout hosts the row-expand container transforms for Exercise Library ->
+    // Detail, Measurements -> Measurement Detail, and Routines -> Routine Editor (row or "New
+    // routine" FAB): each destination expands from the tapped row/FAB instead of sliding in. See
+    // exerciseRowTransitionKey / measurementRowTransitionKey / routineRowTransitionKey / routineCreateFabTransitionKey.
     SharedTransitionLayout(modifier = modifier) {
         val sharedTransitionScope = this
         NavHost(
@@ -125,8 +124,7 @@ fun RegimenNavHost(
         ) {
             composable<HomeRoute> {
                 HomeScreen(
-                    // The empty-state CTA switches to the Routines tab (where routine creation
-                    // actually lives) rather than pushing the editor directly from Home.
+                    // The empty-state CTA switches to the Routines tab (where routine creation lives) rather than pushing the editor directly from Home.
                     onCreateRoutine = {
                         onNavigateToTab(RoutinesRoute)
                         navController.navigateToTab(RoutinesRoute)
@@ -226,10 +224,9 @@ fun RegimenNavHost(
                 )
             }
             dialog<EditExerciseRoute>(
-                // A real dialog destination: unlike composable<Route>, this does NOT replace or
-                // dispose whichever screen launched it (Library, Detail, Active Workout, Routine
-                // Editor) — that screen stays genuinely composed and visible underneath, exactly
-                // like it would with no navigation involved at all. The content itself is a plain
+                // A real dialog destination: unlike composable<Route>, it does NOT replace/dispose
+                // the screen that launched it (Library, Detail, Active Workout, Routine Editor) —
+                // that screen stays composed and visible underneath. Content is a plain
                 // ModalBottomSheet (same as StartWorkoutSheet/FilterSheet elsewhere).
                 dialogProperties = DialogProperties(usePlatformDefaultWidth = false),
             ) {

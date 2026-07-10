@@ -77,8 +77,6 @@ fun ProgressScreen(
             MediumTopAppBar(title = { Text("Progress") }, scrollBehavior = scrollBehavior)
         },
     ) { innerPadding ->
-        // BookOrExpanded caps and centers the list at the same 600dp breakpoint as
-        // Onboarding/Routines/History; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

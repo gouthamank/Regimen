@@ -144,10 +144,9 @@ fun MeasurementDetailScreen(
             )
         },
         floatingActionButton = {
-            // Stay mounted through the brief pre-load frame (type == null, loaded == false) rather
-            // than only appearing once the type resolves — otherwise this shared-element-tagged FAB
-            // isn't part of the tree when the entry transition starts and just pops in instead of
-            // animating in anchored. Only truly hide it for the (rare) genuine not-found case.
+            // Stay mounted through the pre-load frame (type == null, loaded == false) — otherwise
+            // this shared-element FAB isn't in the tree when the entry transition starts and just
+            // pops in instead of animating in anchored. Hidden only for the genuine not-found case.
             if (!uiState.loaded || type != null) {
                 with(sharedTransitionScope) {
                     ExtendedFloatingActionButton(
@@ -175,8 +174,6 @@ fun MeasurementDetailScreen(
             return@Scaffold
         }
 
-        // BookOrExpanded caps and centers the list at the same 600dp breakpoint as
-        // Onboarding/Routines/History/Progress; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

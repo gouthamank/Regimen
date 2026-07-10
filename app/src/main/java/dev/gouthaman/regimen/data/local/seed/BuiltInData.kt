@@ -29,7 +29,6 @@ object BuiltInData {
         Exercise(name = name, type = type, muscleGroup = mg, equipment = eq, isCustom = false)
 
     val exercises: List<Exercise> = listOf(
-        // Chest
         ex("Barbell Bench Press", CHEST, BARBELL),
         ex("Incline Barbell Bench Press", CHEST, BARBELL),
         ex("Dumbbell Bench Press", CHEST, DUMBBELL),
@@ -40,7 +39,6 @@ object BuiltInData {
         ex("Pec Deck", CHEST, MACHINE),
         ex("Push-Up", CHEST, BODYWEIGHT),
         ex("Dip", CHEST, BODYWEIGHT),
-        // Back
         ex("Deadlift", BACK, BARBELL),
         ex("Barbell Row", BACK, BARBELL),
         ex("Pull-Up", BACK, BODYWEIGHT),
@@ -51,7 +49,6 @@ object BuiltInData {
         ex("T-Bar Row", BACK, BARBELL),
         ex("Face Pull", BACK, CABLE),
         ex("Back Extension", BACK, BODYWEIGHT),
-        // Shoulders
         ex("Overhead Press", SHOULDERS, BARBELL),
         ex("Dumbbell Shoulder Press", SHOULDERS, DUMBBELL),
         ex("Arnold Press", SHOULDERS, DUMBBELL),
@@ -60,7 +57,6 @@ object BuiltInData {
         ex("Rear Delt Fly", SHOULDERS, DUMBBELL),
         ex("Shoulder Press Machine", SHOULDERS, MACHINE),
         ex("Upright Row", SHOULDERS, BARBELL),
-        // Arms
         ex("Barbell Curl", ARMS, BARBELL),
         ex("Dumbbell Curl", ARMS, DUMBBELL),
         ex("Hammer Curl", ARMS, DUMBBELL),
@@ -71,7 +67,6 @@ object BuiltInData {
         ex("Skull Crusher", ARMS, BARBELL),
         ex("Close-Grip Bench Press", ARMS, BARBELL),
         ex("Triceps Dip", ARMS, BODYWEIGHT),
-        // Legs
         ex("Back Squat", LEGS, BARBELL),
         ex("Front Squat", LEGS, BARBELL),
         ex("Leg Press", LEGS, MACHINE),
@@ -83,18 +78,15 @@ object BuiltInData {
         ex("Calf Raise", LEGS, MACHINE),
         ex("Hip Thrust", LEGS, BARBELL),
         ex("Goblet Squat", LEGS, KETTLEBELL),
-        // Core
         ex("Plank", CORE, BODYWEIGHT),
         ex("Hanging Leg Raise", CORE, BODYWEIGHT),
         ex("Cable Crunch", CORE, CABLE),
         ex("Russian Twist", CORE, BODYWEIGHT),
         ex("Ab Wheel Rollout", CORE, BODYWEIGHT),
         ex("Sit-Up", CORE, BODYWEIGHT),
-        // Full body
         ex("Kettlebell Swing", FULL_BODY, KETTLEBELL),
         ex("Clean and Press", FULL_BODY, BARBELL),
         ex("Burpee", FULL_BODY, BODYWEIGHT),
-        // Cardio (session-only)
         ex("Treadmill Run", MuscleGroup.CARDIO, CARDIO_MACHINE, CARDIO),
         ex("Outdoor Run", MuscleGroup.CARDIO, BODYWEIGHT, CARDIO),
         ex("Cycling", MuscleGroup.CARDIO, CARDIO_MACHINE, CARDIO),

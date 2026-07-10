@@ -129,8 +129,6 @@ fun MeasurementsScreen(
             }
         },
     ) { innerPadding ->
-        // BookOrExpanded caps and centers the list/empty state at the same 600dp/480dp
-        // breakpoints as Routines; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

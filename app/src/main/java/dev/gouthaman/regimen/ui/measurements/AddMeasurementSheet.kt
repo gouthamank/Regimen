@@ -67,11 +67,9 @@ fun AddMeasurementSheet(
     val canSave = parsedValue != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        // Title is pinned above the form, Save is pinned below it (via ColumnScope.weight on the
-        // form fields, fill = false so a short form doesn't force the sheet to full height) —
-        // rather than one plain Column with everything including Save, so that in compact
-        // landscape the form scrolls internally instead of pushing Save off the bottom of the
-        // sheet with nothing left to scroll it back into view.
+        // Form fields get weight(1f, fill = false) so Save stays pinned below without forcing
+        // full sheet height — in compact landscape the form scrolls internally instead of pushing
+        // Save off-screen with nothing left to scroll it back into view.
         Text(
             "Add measurement",
             style = MaterialTheme.typography.titleLarge,
@@ -86,7 +84,6 @@ fun AddMeasurementSheet(
                 .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Type picker (locked when opened for a specific type).
             if (fixedTypeId == null) {
                 ExposedDropdownMenuBox(
                     expanded = typeMenuExpanded,

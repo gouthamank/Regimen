@@ -154,17 +154,16 @@ fun RoutineEditorScreen(
     ) { innerPadding ->
         val windowInfo = LocalRegimenWindowInfo.current
         val listState = rememberLazyListState()
-        // Exactly one leading item (the name field) sits above the exercise list in this
-        // LazyColumn, so a dragged item's *global* index (what DragDropState tracks, matched
-        // against LazyListState's layout info) is always the exercise's local index + 1. The
-        // empty-state text item never coexists with actual exercises, so it doesn't affect this.
+        // Exactly one leading item (the name field) sits above the exercise list, so a dragged
+        // item's *global* index (what DragDropState tracks against LazyListState's layout info)
+        // is always the exercise's local index + 1. The empty-state text item never coexists with
+        // actual exercises, so it doesn't affect this.
         val leadingItems = 1
 
         // Working copy the drag reorders in place, synchronously — swaps go straight here, not
         // through the ViewModel per-swap, which lagged a frame behind the LazyColumn's layout and
-        // made the drag look like it stalled the moment two items swapped. Re-synced from the
-        // source whenever it changes and we're not mid-drag; the final order is committed to the
-        // ViewModel once, on drop.
+        // made the drag look stalled the moment two items swapped. Re-synced from the source when
+        // it changes and we're not mid-drag; final order is committed to the ViewModel once, on drop.
         val working = remember { mutableStateListOf<EditorExercise>() }
         val dragState = rememberDragDropState(
             listState,
@@ -185,9 +184,8 @@ fun RoutineEditorScreen(
             }
         }
 
-        // BookOrExpanded caps and centers the form at the same 600dp breakpoint Onboarding uses
-        // for its own content; Compact/Tabletop stay full-bleed (a scrollable form, no fixed
-        // hinge-adjacent controls to protect, so Tabletop needs no special split).
+        // BookOrExpanded caps and centers the form at the same 600dp breakpoint Onboarding uses;
+        // Compact/Tabletop stay full-bleed (scrollable form, no hinge-adjacent controls to protect).
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -321,10 +319,9 @@ private fun ExerciseEditorCard(
                     Icon(Icons.Filled.Close, contentDescription = "Remove")
                 }
             }
-            // Three steppers need ~420dp to sit comfortably in one row; below that (a narrow
-            // phone card) they're split across two rows (Sets+Reps, then Rest) instead, so each
-            // still gets room to breathe. Measured per-card rather than keyed off posture, since
-            // a phone in landscape can already be wide enough on its own.
+            // Three steppers need ~420dp to sit comfortably in one row; below that they split
+            // across two rows (Sets+Reps, then Rest) instead. Measured per-card rather than keyed
+            // off posture, since a phone in landscape can already be wide enough on its own.
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()

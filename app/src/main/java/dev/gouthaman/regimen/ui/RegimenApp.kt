@@ -62,20 +62,18 @@ fun RegimenApp(
     val inProgressWorkoutId by viewModel.inProgressWorkoutId.collectAsStateWithLifecycle()
     val windowInfo = LocalRegimenWindowInfo.current
 
-    // Tracks which bottom tab should stay highlighted. All routes live in a single flat NavHost
-    // (no per-tab nested graphs), so a pushed detail screen (e.g. Session Detail) has no graph-level
-    // tie back to the tab it was opened from. Switching tabs away and back restores that tab's saved
-    // stack via restoreState, which can land on the detail screen rather than the tab root itself —
-    // so this can't be inferred purely from whichever destination the restore happens to resolve to.
-    // It's set eagerly at the point of intent (see onNavigateToTab below, passed to every
-    // navigateToTab call site) and the destination-changed listener below only fills in the cases
-    // that aren't an explicit tab switch (cold start, popping back up to a tab's own root).
+    // Tracks which bottom tab stays highlighted. Routes live in one flat NavHost (no per-tab
+    // nested graphs), so a pushed detail screen (e.g. Session Detail) has no graph-level tie back
+    // to its tab — and restoreState can land back on that detail screen rather than the tab root,
+    // so this can't be inferred from the resolved destination alone. Set eagerly at the point of
+    // intent (see onNavigateToTab / navigateToTab call sites); the listener below only fills in
+    // non-explicit cases (cold start, popping back to a tab's own root).
     //
-    // Saved as an index into topLevelDestinations (rememberSaveable, not remember) rather than the
-    // route object itself — a plain `remember` was lost on rotation (which recreates the Activity),
-    // so after rotating while on a non-top-level screen like Session Detail, this reset to null and
-    // no tab stayed highlighted. The destination-changed listener's immediate callback on re-adding
-    // only matches top-level destinations directly, so it couldn't recover the value either.
+    // Saved as an index into topLevelDestinations via rememberSaveable, not remember or the route
+    // object itself — plain `remember` was lost on rotation (Activity recreation), resetting this
+    // to null with no tab highlighted after rotating on a non-top-level screen like Session
+    // Detail. The listener's immediate re-add callback only matches top-level destinations
+    // directly, so it couldn't recover the value either.
     var activeTabIndex by rememberSaveable { mutableStateOf<Int?>(null) }
     val activeTabRoute: Any? = activeTabIndex?.let { topLevelDestinations.getOrNull(it)?.route }
     val onNavigateToTab: (Any) -> Unit = { route ->
@@ -103,11 +101,9 @@ fun RegimenApp(
 
     NavigationSuiteScaffold(
         layoutType = windowInfo.posture.toNavigationSuiteType(),
-        // NavigationRail defaults to colorScheme.surface, while NavigationBar defaults to
-        // colorScheme.surfaceContainer — the same tone a MediumTopAppBar collapses to on scroll.
-        // Pinned to surfaceContainer here so the rail always matches that tone too, instead of
-        // only the bottom bar (Compact/Tabletop) matching it while the rail (BookOrExpanded)
-        // looks different.
+        // NavigationRail defaults to colorScheme.surface, NavigationBar to surfaceContainer — the
+        // same tone a MediumTopAppBar collapses to on scroll. Pinned to surfaceContainer here so
+        // the rail (BookOrExpanded) matches that tone too, not just the bottom bar (Compact/Tabletop).
         navigationSuiteColors = NavigationSuiteDefaults.colors(
             navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
@@ -130,23 +126,21 @@ fun RegimenApp(
             }
         },
     ) {
-        // The resume banner sits directly below RegimenNavHost regardless of whether
-        // NavigationSuiteScaffold is rendering a bottom bar or a side rail — same "docked next
-        // to navigation" convention as a mini-player, just adjacent to whichever nav UI is active.
-        // Grouped with RegimenNavHost as one unit so both get the same width treatment below —
-        // a capped/centered NavHost with a full-bleed banner underneath looked inconsistent,
-        // the banner visibly wider than the content above it.
+        // Resume banner sits directly below RegimenNavHost regardless of bottom bar vs. side rail
+        // — same "docked next to navigation" convention as a mini-player. Grouped with
+        // RegimenNavHost as one unit so both get the same width treatment below; otherwise a
+        // capped/centered NavHost with a full-bleed banner looked inconsistent, banner visibly
+        // wider than the content above it.
         val activeWorkoutId = inProgressWorkoutId
         val navHostAndBanner: @Composable ColumnScope.() -> Unit = {
             RegimenNavHost(navController, Modifier.weight(1f), onNavigateToTab)
             if (activeWorkoutId != null && !inWorkoutFlow) {
                 WorkoutInProgressBanner(
                     onResume = {
-                        // Active Workout is documented as Home's child exclusively (see the nav
-                        // map in RegimenNavHost.kt) — anchor Resume there regardless of which tab
-                        // it's tapped from, rather than pushing onto whichever tab happens to be
-                        // current. Whatever tab you were on is saved (not lost), same as tapping
-                        // a different tab in the bar/rail would do.
+                        // Active Workout is Home's child exclusively (see the nav map in
+                        // RegimenNavHost.kt) — Resume always anchors there regardless of which tab
+                        // it's tapped from, not whichever tab is current. The tab you were on is
+                        // saved, not lost, same as tapping a different tab in the bar/rail.
                         onNavigateToTab(HomeRoute)
                         navController.navigateToTab(HomeRoute)
                         navController.navigate(ActiveWorkoutRoute(activeWorkoutId))
@@ -156,31 +150,30 @@ fun RegimenApp(
         }
 
         // NavigationSuiteScaffold doesn't pad the content pane for the bottom system-bar inset
-        // itself (only the nav bar/rail/drawer consume insets for themselves), so this pane
-        // does it directly — otherwise the banner sits flush against the gesture-nav area.
+        // (only the nav bar/rail/drawer consume insets for themselves), so this pane does it
+        // directly — otherwise the banner sits flush against the gesture-nav area.
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            // navHostAndBanner (everything inside RegimenNavHost, i.e. every screen) must be
-            // composed from a single stable call site regardless of posture. A `when` that
-            // previously called it from two different branches (bare vs. wrapped in Box/Column)
-            // tore down and recomposed the whole nav-host subtree whenever posture crossed
-            // branches, orphaning/restoring-stale every rememberSaveable underneath — the actual
-            // cause of sheets spuriously closing/reopening when rotating in and out of Tabletop
-            // (see "Modal/dialog dismissed on rotation fix" below). Only the width-cap Modifier
-            // value varies by posture now, not the composable structure.
+            // navHostAndBanner (everything inside RegimenNavHost) must be composed from one
+            // stable call site regardless of posture. A `when` previously calling it from two
+            // branches (bare vs. wrapped in Box/Column) tore down and recomposed the whole
+            // nav-host subtree on every posture change, orphaning/restoring-stale every
+            // rememberSaveable underneath — the actual cause of sheets spuriously
+            // closing/reopening when rotating in and out of Tabletop (see "Modal/dialog dismissed
+            // on rotation fix" below). Only the width-cap Modifier value varies by posture now,
+            // not the composable structure.
             //
-            // Both Compact and Tabletop keep the bottom NavigationBar (phone-like chrome), but the
-            // window behind it isn't guaranteed to be phone-narrow: Tabletop in particular can be
-            // genuinely wide — confirmed via a half-opened, 90°-hinge AVD state that landed here at
-            // ~852dp wide — since isTabletop overrides the width-based Rail decision. Cap and
-            // center content in both cases rather than stretching it edge-to-edge under nav chrome
-            // that still reads as a phone bar. The cap is the same Medium-width breakpoint
-            // classify() itself uses to decide "promote to BookOrExpanded"
-            // (androidx.window.core.layout.WindowSizeClass), not an arbitrary number — a normal
-            // phone is already narrower than this, so it's a no-op for the common Compact case.
+            // Compact and Tabletop both keep the bottom NavigationBar, but the window behind it
+            // isn't guaranteed phone-narrow: Tabletop can be genuinely wide (confirmed via a
+            // half-opened, 90°-hinge AVD state at ~852dp) since isTabletop overrides the
+            // width-based Rail decision. Cap and center content in both cases rather than
+            // stretching edge-to-edge under phone-like chrome. The cap is the same Medium-width
+            // breakpoint classify() uses to decide "promote to BookOrExpanded"
+            // (androidx.window.core.layout.WindowSizeClass) — not arbitrary, and a no-op for the
+            // common Compact case since a normal phone is already narrower than this.
             Box(
                 modifier = Modifier
                     .weight(1f)

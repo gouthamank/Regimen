@@ -70,14 +70,13 @@ fun HistoryScreen(
     onOpenSession: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Saveable (not just remember) so the visible month survives navigating to a session's detail
-    // and back — composable<Route> disposes this screen while Session Detail is on top, and a
-    // plain remember would reset back to the current month on return.
+    // Saveable (not remember) so the visible month survives navigating to a session's detail and
+    // back — composable<Route> disposes this screen while Session Detail is on top, and remember
+    // would reset to the current month on return.
     var month by rememberSaveable { mutableStateOf(YearMonth.now()) }
-    // A day tapped that has more than one session — surfaces a picker dialog. Saveable across
-    // rotation: DaySession is Serializable and this is stored as an ArrayList explicitly, since
-    // Bundle-backed rememberSaveable needs the list container itself to be Serializable too, not
-    // just its elements.
+    // A day tapped with more than one session surfaces a picker dialog. Stored as an explicit
+    // ArrayList since Bundle-backed rememberSaveable needs the list container itself to be
+    // Serializable too, not just its elements (DaySession is Serializable).
     var pickerDay by rememberSaveable { mutableStateOf<ArrayList<DaySession>?>(null) }
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -263,8 +262,7 @@ private fun DayCell(
     sessions: List<DaySession>,
     onClick: (List<DaySession>) -> Unit,
 ) {
-    // Future dates can't have a logged session yet — dim them so it reads as not-yet-available
-    // rather than just an empty day.
+    // Future dates can't have a logged session yet — dim them so they read as not-yet-available, not just empty.
     val hasWorkout = sessions.isNotEmpty() && !isFuture
     var cell = Modifier
         .padding(4.dp)
@@ -276,9 +274,9 @@ private fun DayCell(
         isToday -> cell.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
         else -> cell
     }
-    // Always a clickable node (enabled = hasWorkout) rather than only adding the modifier when
-    // enabled — that's how Compose exposes a proper disabled state to accessibility services
-    // (TalkBack announces it as disabled) instead of the node just silently not existing.
+    // Always clickable (enabled = hasWorkout) rather than conditionally adding the modifier — that's
+    // how Compose exposes a proper disabled state to accessibility services (TalkBack), instead
+    // of the node silently not existing.
     cell = cell
         .clickable(
             enabled = hasWorkout,

@@ -131,11 +131,9 @@ fun ActiveWorkoutScreen(
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
 
-    // Navigate reactively off the observed workout state, so ending/discarding from the notification
-    // (not just the in-app buttons) moves the screen too. Only for a genuinely live workout —
-    // editing a past session never changes endTime at all (see isEditingPastSession), so it would
-    // already be "finished" the instant it's opened; Done/Cancel-edit navigate directly instead
-    // (below), bypassing this reactive path entirely.
+    // Navigates off the observed workout state, so ending/discarding via the notification (not
+    // just in-app buttons) also moves the screen. Skipped while editing a past session — endTime
+    // never changes there (isEditingPastSession), so Done/Cancel-edit navigate directly instead (below).
     LaunchedEffect(uiState.finished, uiState.isEditingPastSession) {
         if (uiState.finished && !uiState.isEditingPastSession) onFinished(viewModel.workoutId)
     }
@@ -173,16 +171,15 @@ fun ActiveWorkoutScreen(
         onStopRest = viewModel::stopRest,
         onPause = viewModel::pause,
         onResume = viewModel::resume,
-        // Discard only flips the workout state; the LaunchedEffect above handles navigation.
-        // Finish is edit-aware: a live workout still goes through finishWorkoutUseCase and the
-        // reactive LaunchedEffect above; an edit never touched endTime, so there's nothing to
-        // write — just navigate to the summary directly.
+        // Discard only flips state; the LaunchedEffect above navigates. Finish is edit-aware: a
+        // live workout goes through finishWorkoutUseCase + that same LaunchedEffect; an edit
+        // never touched endTime, so it just navigates to the summary directly.
         onFinish = {
             if (uiState.isEditingPastSession) onFinished(viewModel.workoutId) else viewModel.finish()
         },
         onDiscard = viewModel::discard,
-        // Cancel-edit never wrote anything (editing doesn't touch endTime), so there's nothing to
-        // restore — just navigate straight back instead of to Workout Summary.
+        // Cancel-edit wrote nothing (editing doesn't touch endTime), so it navigates straight
+        // back rather than to Workout Summary.
         onCancelEdit = onDiscarded,
         onCreateCustomExercise = onCreateCustomExercise,
         modifier = modifier,
@@ -220,8 +217,7 @@ fun ActiveWorkoutScreen(
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    // Session timer: elapsed derives from startTime, so it survives rotation / process death.
-    // Not relevant while re-editing a past session — there's no live session to time.
+    // Elapsed derives from startTime (survives rotation/process death); unused while re-editing a past session.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(uiState.startTime, isEditing) {
         if (isEditing) return@LaunchedEffect
@@ -266,15 +262,12 @@ fun ActiveWorkoutScreen(
             return@Scaffold
         }
 
-        // BookOrExpanded caps and centers content at the same 600dp breakpoint as every other
-        // LazyColumn-of-cards screen (Routine Editor, Session Detail, Measurement Detail);
-        // Compact/Tabletop unchanged full-bleed. The floating toolbar is capped together with
-        // the list (same inner Box) so it doesn't stretch wider than the content above it, same
-        // convention as RegimenNavHost + WorkoutInProgressBanner in the app shell. No
-        // Onboarding-style above/below-hinge split needed for Tabletop: the toolbar is already
-        // anchored to the absolute bottom edge regardless of content, same reasoning that already
-        // justified not splitting the bottom nav bar for Tabletop (RegimenApp.kt) — set-entry
-        // rows live inside the scrollable list, not fixed against the hinge.
+        // BookOrExpanded caps and centers content at the same 600dp breakpoint as other
+        // LazyColumn-of-cards screens (Routine Editor, Session Detail, Measurement Detail);
+        // Compact/Tabletop stay full-bleed. The floating toolbar shares this inner Box so it's
+        // capped with the list, same convention as RegimenNavHost + WorkoutInProgressBanner. No
+        // Onboarding-style hinge split for Tabletop: the toolbar anchors to the bottom edge
+        // regardless of content, same reasoning as the bottom nav bar in RegimenApp.kt.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -291,8 +284,7 @@ fun ActiveWorkoutScreen(
             Box(modifier = contentModifier) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    // Extra bottom inset so the last item can scroll clear of the floating toolbar
-                    // instead of sitting underneath it.
+                    // Extra bottom inset so the last item clears the floating toolbar instead of sitting under it.
                     contentPadding = PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
@@ -324,8 +316,7 @@ fun ActiveWorkoutScreen(
                             onUpdateCardio = onUpdateCardio,
                             onStartRest = onStartRest,
                             showRestTimer = !isEditing,
-                            // Animates a newly-added exercise's appearance (and would animate
-                            // reordering/removal too, though neither happens here today).
+                            // Animates a newly-added exercise's appearance (also reorder/removal, though neither happens here yet).
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -456,14 +447,12 @@ fun ActiveWorkoutScreen(
 private val ToolbarShape = RoundedCornerShape(percent = 50)
 
 /**
- * The session's prominent controls (elapsed timer, Pause/Resume, Finish), pulled out of the top
- * bar into their own toolbar so the top bar stays to just the title. Built as a plain [Surface]-
- * style pill (shadow + clip + fill) rather than the alpha `HorizontalFloatingToolbar` API — same
- * building blocks a FAB uses, which is what reads correctly in dark theme. Tinted with the
- * theme's primary color (darker while paused, as a status cue). Pausing/resuming animates the
- * color with a ripple-style circular reveal plus a small scale "pop", so the state flip reads as
- * a distinct event rather than an abrupt cut. Collapses to just a status label + Done while
- * editing a past session (no live timer/pause makes sense there).
+ * The session's prominent controls (timer, Pause/Resume, Finish), pulled out of the top bar so it
+ * stays title-only. A plain [Surface] pill (shadow+clip+fill), not the alpha
+ * `HorizontalFloatingToolbar` API — same building blocks as a FAB, which reads correctly in dark
+ * theme. Tinted with the primary color (darker while paused). Pause/resume animates a
+ * ripple-style circular reveal + scale pop so the flip reads as a distinct event. Collapses to a
+ * status label + Done while editing a past session.
  */
 @Composable
 private fun ActiveWorkoutToolbar(
@@ -476,20 +465,17 @@ private fun ActiveWorkoutToolbar(
     modifier: Modifier = Modifier,
 ) {
     val primary = MaterialTheme.colorScheme.primary
-    // A lighter darken than a literal "paused = dark" read (0.35 was too heavy) — enough to cue
-    // a status change without losing the toolbar's contrast against the background.
+    // Lighter darken than a literal "paused = dark" look (0.35 was too heavy) — cues status without killing contrast.
     val targetColor = if (isPaused) lerp(primary, Color.Black, 0.18f) else primary
     val contentColor = MaterialTheme.colorScheme.onPrimary
 
-    // The base fill continuously cross-fades to the target over the same duration as the reveal
-    // circle below, so there's no discrete "cutover" moment to race against the circle finishing
-    // — a manual cutover (baseColor flipped in a coroutine right as the circle hits full radius)
-    // was landing a frame early/late and flickering the old color for an instant.
+    // Base fill cross-fades to target over the same duration as the reveal circle below, avoiding
+    // a discrete cutover to race against — a manual cutover (flipping baseColor in a coroutine at
+    // full radius) landed a frame early/late and flickered.
     val baseColor by animateColorAsState(targetValue = targetColor, animationSpec = tween(420))
     val revealProgress = remember { Animatable(1f) }
     val scale = remember { Animatable(1f) }
-    // Skip the reveal/pop on first composition (opening the screen) — only animate on an actual
-    // pause/resume flip.
+    // Skips the reveal/pop on first composition (screen open) — only animates on an actual pause/resume flip.
     var initialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPaused) {
@@ -499,8 +485,7 @@ private fun ActiveWorkoutToolbar(
         }
         revealProgress.snapTo(0f)
         scale.snapTo(0.94f)
-        // Both run independently of each other and of the baseColor cross-fade above — all three
-        // are driven by the same tween/spring durations so they land together.
+        // Runs independently of the baseColor cross-fade above; same tween/spring durations so all three land together.
         launch { revealProgress.animateTo(1f, animationSpec = tween(420)) }
         scale.animateTo(
             1f,
@@ -511,8 +496,7 @@ private fun ActiveWorkoutToolbar(
         )
     }
 
-    // "Live" cues while the timer is actually counting: a breathing dot + background glow (slow,
-    // ambient) — frozen/solid when paused.
+    // "Live" cues while counting: breathing dot + ambient glow; frozen/solid when paused.
     val isRunning = !isEditing && !isPaused
     val breathe by rememberInfiniteTransition(label = "timerBreathe").animateFloat(
         initialValue = 0f,
@@ -531,9 +515,8 @@ private fun ActiveWorkoutToolbar(
                 .shadow(elevation = 8.dp, shape = ToolbarShape)
                 .clip(ToolbarShape)
                 .let {
-                    // Tapping anywhere on the pill defers to Pause/Resume too (mini-player
-                    // pattern) — not available while editing a past session, and the Finish
-                    // button's own click still takes precedence since it's a nested target.
+                    // Tapping anywhere on the pill also triggers Pause/Resume (mini-player pattern) — disabled
+                    // while editing; Finish's own click still wins as the nested target.
                     if (isEditing) it else it.clickable(
                         onClick = { if (isPaused) onResume() else onPause() },
                     )
@@ -541,8 +524,7 @@ private fun ActiveWorkoutToolbar(
                 .background(baseColor)
                 .drawBehind {
                     if (isRunning) {
-                        // Ambient "breathing" glow — reinforces the timer is live without
-                        // competing with the reveal/pop that marks an actual pause/resume flip.
+                        // Ambient "breathing" glow signals the timer is live without competing with the pause/resume reveal/pop.
                         drawRect(color = contentColor.copy(alpha = 0.1f * breathe))
                     }
                     if (revealProgress.value < 1f) {
@@ -550,8 +532,7 @@ private fun ActiveWorkoutToolbar(
                         drawCircle(
                             color = targetColor,
                             radius = revealProgress.value * maxRadius,
-                            // Roughly where the Pause/Resume button sits, so the reveal reads as
-                            // originating from the control that was tapped.
+                            // Roughly where Pause/Resume sits, so the reveal reads as originating from the tapped control.
                             center = Offset(size.width * 0.82f, size.height / 2f),
                         )
                     }
@@ -651,8 +632,7 @@ private fun ExerciseCard(
     showRestTimer: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    // Cross-fades the container tint on skip/unskip instead of an instant color cut, same
-    // duration as the toolbar's pause/resume tint cross-fade above.
+    // Cross-fades the container tint on skip/unskip (no instant cut), same duration as the toolbar's pause/resume tint fade.
     val containerColor by animateColorAsState(
         targetValue = if (exercise.isSkipped) {
             MaterialTheme.colorScheme.surfaceVariant
@@ -699,9 +679,8 @@ private fun ExerciseCard(
                 }
             }
 
-            // Cross-fades between the "Skipped" label and the sets/cardio body, resizing the
-            // card smoothly instead of an abrupt height jump — the two bodies are very different
-            // heights (one line vs. a full set list).
+            // Cross-fades "Skipped" label vs sets/cardio body, resizing smoothly instead of an abrupt height
+            // jump — bodies differ a lot in height (one line vs. full set list).
             AnimatedContent(
                 targetState = exercise.isSkipped,
                 transitionSpec = {
@@ -775,10 +754,10 @@ private fun ExerciseCard(
 }
 
 /**
- * Wraps [SetRow] with an enter animation for newly-added sets and a delayed exit for deletion —
- * [AnimatedVisibility]'s exit transition needs the composable to stay in the tree for its
- * duration, so the real [onDelete] callback (which removes the set from the backing list) fires
- * only after the shrink/fade finishes, matching [SetRowExitDurationMs].
+ * Wraps [SetRow] with an enter animation for new sets and a delayed exit for deletion — the real
+ * [onDelete] (which removes the set from the backing list) fires only after the shrink/fade
+ * finishes, since [AnimatedVisibility] needs the composable to stay mounted for its exit
+ * duration ([SetRowExitDurationMs]).
  */
 @Composable
 private fun AnimatedSetRow(
@@ -824,9 +803,9 @@ private fun SetRow(
     onUpdate: (SetEntry) -> Unit,
     onDelete: () -> Unit,
 ) {
-    // All fields are local, seeded once per set id, so incoming flow emissions don't clobber a
-    // field mid-edit. Every write rebuilds the whole entry from local state, so editing one field
-    // never reverts another that hasn't round-tripped through Room yet.
+    // Fields are local, seeded once per set id, so flow emissions don't clobber a field mid-edit.
+    // Every write rebuilds the entry from local state, so editing one field can't revert another
+    // not yet round-tripped through Room.
     var weight by remember(set.id) {
         mutableStateOf(set.weightKg?.let {
             UnitConverter.formatValue(
@@ -839,8 +818,7 @@ private fun SetRow(
     }
     var reps by remember(set.id) { mutableStateOf(set.reps?.toString() ?: "") }
     var complete by remember(set.id) { mutableStateOf(set.isComplete) }
-    // Reflect externally-driven completion (e.g. rest-timer auto-tick) without re-seeding the
-    // numeric fields, which must stay as the user typed them.
+    // Reflects externally-driven completion (rest-timer auto-tick) without re-seeding the numeric fields the user typed.
     LaunchedEffect(set.isComplete) { complete = set.isComplete }
 
     fun push() = onUpdate(

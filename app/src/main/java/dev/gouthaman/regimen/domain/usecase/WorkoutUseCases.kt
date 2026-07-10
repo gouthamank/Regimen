@@ -145,9 +145,9 @@ class ObserveExerciseHistoryUseCase @Inject constructor(
 }
 
 /**
- * Starts a new workout modelled on [sourceWorkoutId] ("Repeat"): from its routine (exercises
- * prefilled from the most recent session) if it had one, else a freeform clone of its exercises
- * with the source's logged numbers prefilled. Returns the new workout id, or null if gone.
+ * Starts a new workout modelled on [sourceWorkoutId] ("Repeat"): from its routine (prefilled from
+ * the most recent session) if it had one, else a freeform clone with the source's logged numbers.
+ * Returns the new workout id, or null if gone.
  */
 class RepeatWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
@@ -197,10 +197,9 @@ class DeleteWorkoutUseCase @Inject constructor(
 }
 
 /**
- * Creates a new routine from a past session's strength exercises (cardio is session-only and
- * excluded). Target sets = the number of sets logged; target reps = the most common logged rep
- * count; rest defaults to [defaultRestSec]. Returns the new routine id, or null if the session has
- * no strength exercises to save.
+ * Creates a routine from a past session's strength exercises (cardio excluded, session-only).
+ * Target sets = sets logged; target reps = most common logged rep count; rest = [defaultRestSec].
+ * Returns the new routine id, or null if no strength exercises to save.
  */
 class SaveWorkoutAsRoutineUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
@@ -225,8 +224,8 @@ class SaveWorkoutAsRoutineUseCase @Inject constructor(
     }
 }
 
-// ── Active-workout editing (S13). Each write persists immediately so the session survives
-// process death / rotation without an explicit save step. ──────────────────────────────
+// Active-workout editing (S13): each write persists immediately so the session survives process
+// death/rotation without an explicit save step.
 
 /** Inserts or updates a single logged set (weight/reps/complete). */
 class UpsertSetUseCase @Inject constructor(
@@ -287,9 +286,8 @@ class AddExercisesToWorkoutUseCase @Inject constructor(
                 WorkoutExercise(workoutId = workoutId, exerciseId = exId, position = position)
             )
             if (exercise.type == ExerciseType.STRENGTH) {
-                // Prefill from this exercise's own most recent logged set (any past workout),
-                // same as routine-based prefill in StartWorkoutUseCase, just keyed by exercise
-                // instead of by routine slot.
+                // Prefill from this exercise's own most recent logged set (any past workout) —
+                // same idea as StartWorkoutUseCase's prefill, keyed by exercise instead of slot.
                 val lastSet = workoutRepo.getMostRecentSetForExercise(exId)
                 workoutRepo.upsertSet(
                     SetEntry(

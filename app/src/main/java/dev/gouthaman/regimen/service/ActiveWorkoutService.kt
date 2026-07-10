@@ -35,10 +35,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Foreground service backing an active workout (S13). Keeps the process alive while a workout is
- * in progress and shows a persistent notification with a running (pause-aware) timer plus
- * Pause/Resume and End actions. Started/stopped by [ActiveWorkoutServiceController] tracking the
- * in-progress workout. Survives process death via START_STICKY (the workout itself lives in Room).
+ * Foreground service backing an active workout (S13): keeps the process alive with a persistent,
+ * pause-aware timer notification (Pause/Resume/End actions). Started/stopped by
+ * [ActiveWorkoutServiceController]. Survives process death via START_STICKY (the workout itself
+ * lives in Room).
  */
 @AndroidEntryPoint
 class ActiveWorkoutService : Service() {
@@ -80,7 +80,6 @@ class ActiveWorkoutService : Service() {
             .flatMapLatest { id -> if (id == null) flowOf(null) else observeWorkout(id) }
             .onEach { workout ->
                 if (workout == null || workout.workout.endTime != null) {
-                    // No live workout — leave the foreground and stop.
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 } else {
@@ -95,8 +94,8 @@ class ActiveWorkoutService : Service() {
         // Satisfy the 5s startForeground requirement immediately on (re)start.
         startForegroundCompat(buildNotification(null))
 
-        // Resolve the workout id fresh from the DB (rather than a cross-thread cached field) so
-        // notification actions act on the real current session reliably.
+        // Resolve the workout id fresh from the DB (not a cached field) so notification actions
+        // act on the real current session.
         val action = intent?.action
         if (action != null) {
             appScope.launch {

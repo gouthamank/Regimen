@@ -16,10 +16,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * User-facing settings. Weight/distance are stored canonically; [weightUnit]/[distanceUnit]
- * are display-only.
- */
+/** User-facing settings; weight/distance are stored canonically, [weightUnit]/[distanceUnit] are display-only. */
 data class UserPreferences(
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
@@ -37,8 +34,7 @@ class PreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
-        // Legacy single-axis unit preference; kept read-only as a migration fallback for
-        // WEIGHT_UNIT/DISTANCE_UNIT below.
+        // Legacy single-axis unit pref; read-only migration fallback for WEIGHT_UNIT/DISTANCE_UNIT below.
         val UNIT = stringPreferencesKey("unit_system")
         val WEIGHT_UNIT = stringPreferencesKey("weight_unit")
         val DISTANCE_UNIT = stringPreferencesKey("distance_unit")

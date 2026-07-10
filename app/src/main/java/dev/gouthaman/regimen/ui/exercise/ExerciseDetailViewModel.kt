@@ -75,8 +75,7 @@ class ExerciseDetailViewModel @Inject constructor(
         val isStrength = exercise?.type == ExerciseType.STRENGTH
         val history = historySessions.mapNotNull { session ->
             val entryLabels = if (isStrength) {
-                // Only sets that were actually completed with a value logged count — a blank or
-                // skipped placeholder set (no weight, no reps) isn't a real record.
+                // Only sets completed with a value logged count — a blank/skipped placeholder set (no weight, no reps) isn't a real record.
                 session.sets
                     .filter { it.isComplete && (it.weightKg != null || it.reps != null) }
                     .sortedBy { it.setNumber }

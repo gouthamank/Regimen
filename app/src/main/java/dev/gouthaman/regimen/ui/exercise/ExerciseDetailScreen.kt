@@ -59,8 +59,8 @@ fun ExerciseDetailScreen(
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
     val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
 
-    // Deletion is refused if the exercise is still in use (see DeleteExerciseUseCase), so only
-    // navigate back once it's actually gone rather than unconditionally on tapping "Delete".
+    // Deletion is refused if the exercise is still in use (DeleteExerciseUseCase), so navigate
+    // back only once it's actually gone, not just on tapping "Delete".
     LaunchedEffect(deleted) { if (deleted) onBack() }
 
     ExerciseDetailScreen(
@@ -129,8 +129,6 @@ fun ExerciseDetailScreen(
             )
         },
     ) { innerPadding ->
-        // BookOrExpanded caps and centers content at the same 600dp breakpoint as
-        // Onboarding/Routines/History/Progress/Settings; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -155,7 +153,7 @@ fun ExerciseDetailScreen(
                     )
 
                     uiState.loaded -> NotFound()
-                    else -> {} // initial loading — nothing to show yet
+                    else -> {}
                 }
             }
         }

@@ -179,8 +179,6 @@ fun SessionDetailScreen(
             return@Scaffold
         }
 
-        // BookOrExpanded caps and centers the card list at the same 600dp breakpoint as
-        // Onboarding/Routines; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

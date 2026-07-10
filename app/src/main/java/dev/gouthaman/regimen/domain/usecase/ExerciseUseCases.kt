@@ -57,16 +57,16 @@ class UpdateExerciseUseCase @Inject constructor(
     suspend operator fun invoke(exercise: Exercise) = repo.update(exercise)
 }
 
-/** Result of attempting to delete an exercise: either it went through, or it's still
- * referenced somewhere and was refused (deleting it would otherwise cascade-delete those rows). */
+/** Result of a delete attempt: either it succeeded, or it's still referenced somewhere and was
+ * refused (would otherwise cascade-delete those rows). */
 sealed interface DeleteExerciseResult {
     data object Deleted : DeleteExerciseResult
     data class InUse(val inRoutines: Boolean, val inWorkouts: Boolean) : DeleteExerciseResult
 }
 
-/** Deletes an exercise (custom only in v1), refusing if it's referenced by any routine or any
- * workout (active or finished/historical) — those rows all cascade-delete on the Exercise's FK,
- * which would otherwise silently erase routine slots and logged history. */
+/** Deletes an exercise (custom only in v1), refusing if referenced by any routine or workout
+ * (active or historical) — those rows cascade-delete on the Exercise FK, which would otherwise
+ * silently erase routine slots and logged history. */
 class DeleteExerciseUseCase @Inject constructor(
     private val repo: ExerciseRepository,
     private val workoutRepo: WorkoutRepository,

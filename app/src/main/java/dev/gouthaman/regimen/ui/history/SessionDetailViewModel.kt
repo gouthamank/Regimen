@@ -135,10 +135,9 @@ class SessionDetailViewModel @Inject constructor(
     }
 
     /**
-     * Reopen this finished session for editing. Not gated on another workout being in progress —
-     * editing historical data doesn't touch the timer/in-progress state at all (see
-     * ActiveWorkoutViewModel.isEditingPastSession), so it doesn't conflict with a genuinely live
-     * workout running elsewhere.
+     * Reopen this finished session for editing. Not gated on another workout in progress — editing
+     * historical data never touches timer/in-progress state (see
+     * ActiveWorkoutViewModel.isEditingPastSession), so it can't conflict with a genuinely live workout.
      */
     fun edit() {
         viewModelScope.launch { openActiveWorkout.send(workoutId) }

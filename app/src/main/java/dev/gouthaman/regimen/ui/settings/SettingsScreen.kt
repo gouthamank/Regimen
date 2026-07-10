@@ -94,8 +94,6 @@ fun SettingsScreen(
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = { MediumTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
     ) { innerPadding ->
-        // BookOrExpanded caps and centers the settings list at the same 600dp breakpoint as
-        // Onboarding/Routines/History/Progress; Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()

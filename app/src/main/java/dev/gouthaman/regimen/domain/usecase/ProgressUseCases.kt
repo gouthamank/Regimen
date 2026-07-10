@@ -16,8 +16,8 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
-/** PR list: heaviest weight per exercise (or, for bodyweight exercises with no logged weight,
- * most reps in a single set), resolved with exercise names, heaviest/highest first. */
+/** PR list: heaviest weight per exercise, or (bodyweight, no logged weight) most reps in a
+ * set — resolved with exercise names, heaviest/highest first. */
 class GetPersonalRecordsUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val exerciseRepo: ExerciseRepository,

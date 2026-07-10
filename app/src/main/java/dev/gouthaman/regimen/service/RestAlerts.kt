@@ -16,19 +16,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Fires the rest-complete alert (S14): vibration + the user's default notification sound + a
- * system notification. Vibration and sound need no runtime permission; the notification renders
- * on Android < 13 always, and on 13+ once POST_NOTIFICATIONS is granted (wired in Phase 3).
+ * Fires the rest-complete alert (S14): vibration + default notification sound + a system
+ * notification. Vibration/sound need no runtime permission; the notification shows on Android
+ * <13 always, and 13+ once POST_NOTIFICATIONS is granted (wired in Phase 3).
  */
 @Singleton
 class RestAlerts @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     init {
-        // Two channels, not one: on Android 8+ notification sound is a *channel* property, not a
-        // per-notification one, so gating just our manual playChime() call left the channel's own
-        // default sound still playing regardless of the preference. notifyDone() picks whichever
-        // channel matches chimeEnabled.
+        // Two channels, not one: on Android 8+ notification sound is a channel property, not
+        // per-notification, so gating playChime() alone left the channel's default sound playing
+        // regardless of the preference. notifyDone() picks the channel matching chimeEnabled.
         val manager = context.getSystemService(NotificationManager::class.java)
         val soundChannel = NotificationChannel(
             CHANNEL_ID,

@@ -92,12 +92,10 @@ class DragDropState internal constructor(
         if (target != null) {
             // No offset recalibration here — draggingItemInitialOffset stays fixed at the value
             // captured once in onDragStart. draggingItemOffset's formula (initial position + total
-            // raw finger delta - the item's current reported offset) already self-corrects as
-            // layout catches up, regardless of how many swaps land in between; recalibrating here
-            // on every match compounded incorrectly when several matches got processed against
-            // the same stale layout snapshot (touch-move events arriving faster than
-            // recomposition/relayout), which is what made the dragged item rocket far past where
-            // the finger actually was.
+            // raw finger delta - item's current reported offset) already self-corrects as layout
+            // catches up, regardless of swap count; recalibrating on every match compounded
+            // incorrectly when several matches hit the same stale layout snapshot (touch-move
+            // outpacing recomposition/relayout), rocketing the dragged item past the finger.
             onMove(draggingItem.key, target.key)
         } else {
             // Near a viewport edge with nowhere to swap → autoscroll to reveal more.

@@ -50,8 +50,8 @@ class GetHomeSummaryUseCase @Inject constructor(
         val volumeMonth = thisMonthWorkouts.sumOf { w -> w.loggedVolumeKg() }
         val durationMonth = thisMonthWorkouts.sumOf { w -> w.durationMillis() }
 
-        // Consecutive weeks with >=1 workout, ending at the current week. The current
-        // (in-progress) week is allowed to be empty without breaking the streak.
+        // Consecutive weeks with >=1 workout, ending at the current week; the current
+        // (in-progress) week may be empty without breaking the streak.
         var streak = 0
         var cursor = thisWeek
         if ((countsByWeek[cursor] ?: 0) == 0) cursor = cursor.minusWeeks(1)
