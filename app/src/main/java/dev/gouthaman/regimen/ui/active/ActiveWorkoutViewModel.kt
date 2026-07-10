@@ -10,6 +10,7 @@ import dev.gouthaman.regimen.data.local.entity.Exercise
 import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.data.local.entity.WorkoutExercise
 import dev.gouthaman.regimen.di.ApplicationScope
+import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.usecase.AddExercisesToWorkoutUseCase
@@ -22,7 +23,6 @@ import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.PauseWorkoutUseCase
-import dev.gouthaman.regimen.domain.usecase.RemoveWorkoutExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ResumeWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
@@ -48,6 +48,7 @@ data class ActiveExercise(
     val workoutExercise: WorkoutExercise,
     val name: String,
     val isStrength: Boolean,
+    val equipment: Equipment,
     val isSkipped: Boolean,
     val sets: List<SetEntry>,
     val cardio: CardioEntry?,
@@ -99,7 +100,6 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val addSetUseCase: AddSetUseCase,
     private val deleteSetUseCase: DeleteSetUseCase,
     private val toggleSkipUseCase: ToggleSkipExerciseUseCase,
-    private val removeExerciseUseCase: RemoveWorkoutExerciseUseCase,
     private val addExercisesUseCase: AddExercisesToWorkoutUseCase,
     private val upsertCardio: UpsertCardioUseCase,
     private val updateNoteUseCase: UpdateWorkoutNoteUseCase,
@@ -158,6 +158,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                             workoutExercise = we.workoutExercise,
                             name = we.exercise.name,
                             isStrength = we.exercise.type == ExerciseType.STRENGTH,
+                            equipment = we.exercise.equipment,
                             isSkipped = we.workoutExercise.isSkipped,
                             sets = we.sets.sortedBy { it.setNumber },
                             cardio = we.cardio.firstOrNull(),
@@ -178,9 +179,6 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun toggleSkip(exercise: WorkoutExercise) =
         viewModelScope.launch { toggleSkipUseCase(exercise) }
-
-    fun removeExercise(exercise: WorkoutExercise) =
-        viewModelScope.launch { removeExerciseUseCase(exercise) }
 
     fun addExercises(ids: List<Long>) =
         viewModelScope.launch { addExercisesUseCase(workoutId, ids) }

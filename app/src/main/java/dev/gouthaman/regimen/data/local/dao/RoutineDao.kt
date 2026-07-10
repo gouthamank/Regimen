@@ -35,6 +35,11 @@ interface RoutineDao {
     @Query("SELECT position FROM routines WHERE id = :id")
     suspend fun positionOf(id: Long): Int?
 
+    /** Whether an exercise appears in any routine — deleting it would cascade-delete those
+     * rows, so this gates exercise deletion. */
+    @Query("SELECT EXISTS(SELECT 1 FROM routine_exercises WHERE exerciseId = :exerciseId)")
+    suspend fun isExerciseUsedInAnyRoutine(exerciseId: Long): Boolean
+
     @Query("UPDATE routines SET position = :position WHERE id = :id")
     suspend fun updatePosition(id: Long, position: Int)
 

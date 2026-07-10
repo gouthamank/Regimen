@@ -49,6 +49,24 @@ data class PersonalRecordRow(
     val bestWeightKg: Double,
 )
 
+/** Aggregate result: most reps in a single set, for exercises logged without a weight
+ * (bodyweight) — the PR definition when there's no [PersonalRecordRow]. */
+data class RepsRecordRow(
+    val exerciseId: Long,
+    val bestReps: Int,
+)
+
+/** One finished session's log of a specific exercise — the session's date plus just that
+ * exercise's own sets/cardio (not the whole workout). Source for Exercise Detail's History. */
+data class ExerciseHistorySession(
+    @Embedded val workoutExercise: WorkoutExercise,
+    val startTime: Long,
+    @Relation(parentColumn = "id", entityColumn = "workoutExerciseId")
+    val sets: List<SetEntry>,
+    @Relation(parentColumn = "id", entityColumn = "workoutExerciseId")
+    val cardio: List<CardioEntry>,
+)
+
 /** A body metric with its measurement type resolved. */
 data class BodyMetricWithType(
     @Embedded val metric: BodyMetric,

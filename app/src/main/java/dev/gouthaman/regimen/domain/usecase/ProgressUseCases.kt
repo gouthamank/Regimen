@@ -16,18 +16,31 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
-/** PR list: heaviest weight per exercise, resolved with exercise names, heaviest first. */
+/** PR list: heaviest weight per exercise (or, for bodyweight exercises with no logged weight,
+ * most reps in a single set), resolved with exercise names, heaviest/highest first. */
 class GetPersonalRecordsUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val exerciseRepo: ExerciseRepository,
 ) {
     operator fun invoke(): Flow<List<PersonalRecord>> =
-        combine(workoutRepo.observePersonalRecords(), exerciseRepo.observeAll()) { prs, exercises ->
+        combine(
+            workoutRepo.observePersonalRecords(),
+            workoutRepo.observeBestReps(),
+            exerciseRepo.observeAll(),
+        ) { weightPrs, repsPrs, exercises ->
             val byId = exercises.associateBy { it.id }
-            prs.mapNotNull { row ->
+            val weightRecords = weightPrs.mapNotNull { row ->
                 val ex = byId[row.exerciseId] ?: return@mapNotNull null
-                PersonalRecord(ex.id, ex.name, row.bestWeightKg)
-            }.sortedByDescending { it.bestWeightKg }
+                PersonalRecord(ex.id, ex.name, bestWeightKg = row.bestWeightKg)
+            }
+            val repsRecords = repsPrs.mapNotNull { row ->
+                val ex = byId[row.exerciseId] ?: return@mapNotNull null
+                PersonalRecord(ex.id, ex.name, bestReps = row.bestReps)
+            }
+            (weightRecords + repsRecords).sortedWith(
+                compareByDescending<PersonalRecord> { it.bestWeightKg ?: -1.0 }
+                    .thenByDescending { it.bestReps ?: -1 }
+            )
         }
 }
 

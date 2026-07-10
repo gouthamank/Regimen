@@ -2,7 +2,9 @@ package dev.gouthaman.regimen.data.repository
 
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
 import dev.gouthaman.regimen.data.local.entity.CardioEntry
+import dev.gouthaman.regimen.data.local.entity.ExerciseHistorySession
 import dev.gouthaman.regimen.data.local.entity.PersonalRecordRow
+import dev.gouthaman.regimen.data.local.entity.RepsRecordRow
 import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.data.local.entity.Workout
 import dev.gouthaman.regimen.data.local.entity.WorkoutExercise
@@ -23,11 +25,19 @@ class WorkoutRepository @Inject constructor(
     fun observeInProgressId(): Flow<Long?> = dao.observeInProgressId()
     fun observeBestWeight(exerciseId: Long): Flow<Double?> = dao.observeBestWeight(exerciseId)
     fun observePersonalRecords(): Flow<List<PersonalRecordRow>> = dao.observePersonalRecords()
+    fun observeBestReps(): Flow<List<RepsRecordRow>> = dao.observeBestReps()
+    fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
+        dao.observeExerciseHistory(exerciseId)
 
     suspend fun getInProgress(): WorkoutWithDetails? = dao.getInProgressWorkout()
     suspend fun getWorkout(id: Long): WorkoutWithDetails? = dao.getWorkoutWithDetails(id)
     suspend fun getMostRecentForRoutine(routineId: Long): WorkoutWithDetails? =
         dao.getMostRecentCompletedForRoutine(routineId)
+    suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry? =
+        dao.getMostRecentSetForExercise(exerciseId)
+
+    suspend fun isExerciseUsed(exerciseId: Long): Boolean =
+        dao.isExerciseUsedInAnyWorkout(exerciseId)
 
     suspend fun createWorkout(startTime: Long, routineId: Long?): Long =
         dao.insertWorkout(Workout(startTime = startTime, routineId = routineId))

@@ -20,11 +20,12 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** One personal record ready for display: exercise name + formatted heaviest weight. */
+/** One personal record ready for display: exercise name + formatted heaviest weight (or, for a
+ * bodyweight exercise with no logged weight, best reps). */
 data class PersonalRecordItem(
     val exerciseId: Long,
     val exerciseName: String,
-    val weightLabel: String,
+    val valueLabel: String,
 )
 
 data class ProgressUiState(
@@ -70,14 +71,15 @@ class ProgressViewModel @Inject constructor(
                 PersonalRecordItem(
                     exerciseId = pr.exerciseId,
                     exerciseName = pr.exerciseName,
-                    weightLabel = "${
-                        UnitConverter.formatValue(
-                            UnitConverter.kgToDisplay(
-                                pr.bestWeightKg,
-                                system
+                    valueLabel = when {
+                        pr.bestWeightKg != null -> "${
+                            UnitConverter.formatValue(
+                                UnitConverter.kgToDisplay(pr.bestWeightKg, system)
                             )
-                        )
-                    } ${UnitConverter.weightLabel(system)}",
+                        } ${UnitConverter.weightLabel(system)}"
+
+                        else -> "${pr.bestReps} reps"
+                    },
                 )
             },
             loaded = true,

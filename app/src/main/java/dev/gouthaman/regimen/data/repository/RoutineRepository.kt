@@ -17,6 +17,8 @@ class RoutineRepository @Inject constructor(
     fun observeRoutine(id: Long): Flow<RoutineWithExercises?> = dao.observeRoutine(id)
     fun observeCount(): Flow<Int> = dao.observeCount()
     suspend fun getRoutine(id: Long): RoutineWithExercises? = dao.getRoutineWithExercises(id)
+    suspend fun isExerciseUsed(exerciseId: Long): Boolean =
+        dao.isExerciseUsedInAnyRoutine(exerciseId)
 
     /** Create or update a routine and its exercise list in one shot. Returns the routine id. */
     suspend fun saveRoutine(

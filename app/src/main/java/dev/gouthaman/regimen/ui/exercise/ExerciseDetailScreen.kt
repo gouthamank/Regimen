@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,16 +48,22 @@ fun ExerciseDetailScreen(
     viewModel: ExerciseDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val deleted by viewModel.deleted.collectAsStateWithLifecycle()
+    val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
+
+    // Deletion is refused if the exercise is still in use (see DeleteExerciseUseCase), so only
+    // navigate back once it's actually gone rather than unconditionally on tapping "Delete".
+    LaunchedEffect(deleted) { if (deleted) onBack() }
+
     ExerciseDetailScreen(
         uiState = uiState,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onEdit = onEdit,
-        onDelete = {
-            viewModel.deleteCurrent()
-            onBack()
-        },
+        onDelete = viewModel::deleteCurrent,
+        deleteBlockedMessage = deleteBlockedMessage,
+        onDismissDeleteBlocked = viewModel::dismissDeleteBlockedMessage,
         modifier = modifier,
     )
 }
@@ -70,6 +77,8 @@ fun ExerciseDetailScreen(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onDelete: () -> Unit,
+    deleteBlockedMessage: String? = null,
+    onDismissDeleteBlocked: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -115,7 +124,11 @@ fun ExerciseDetailScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             when {
-                exercise != null -> ExerciseDetailContent(exercise, uiState.prLabel)
+                exercise != null -> ExerciseDetailContent(
+                    exercise,
+                    uiState.prLabel,
+                    uiState.history
+                )
                 uiState.loaded -> NotFound()
                 else -> {} // initial loading — nothing to show yet
             }
@@ -138,10 +151,25 @@ fun ExerciseDetailScreen(
             },
         )
     }
+
+    if (deleteBlockedMessage != null) {
+        AlertDialog(
+            onDismissRequest = onDismissDeleteBlocked,
+            title = { Text("Can't delete") },
+            text = { Text(deleteBlockedMessage) },
+            confirmButton = {
+                TextButton(onClick = onDismissDeleteBlocked) { Text("OK") }
+            },
+        )
+    }
 }
 
 @Composable
-private fun ExerciseDetailContent(exercise: Exercise, prLabel: String?) {
+private fun ExerciseDetailContent(
+    exercise: Exercise,
+    prLabel: String?,
+    history: List<ExerciseHistoryItem>,
+) {
     ListItem(
         headlineContent = { Text("Type") },
         trailingContent = { Text(exercise.type.label()) },
@@ -172,12 +200,21 @@ private fun ExerciseDetailContent(exercise: Exercise, prLabel: String?) {
 
     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
     SectionHeader("History")
-    Text(
-        text = "Per-session history will appear here once you log workouts.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-    )
+    if (history.isEmpty()) {
+        Text(
+            text = "No sessions logged yet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+    } else {
+        history.forEach { item ->
+            ListItem(
+                headlineContent = { Text(item.dateLabel) },
+                supportingContent = { Text(item.entryLabels.joinToString(" · ")) },
+            )
+        }
+    }
 }
 
 @Composable

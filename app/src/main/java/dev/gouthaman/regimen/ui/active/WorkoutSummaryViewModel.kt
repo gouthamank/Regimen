@@ -62,14 +62,27 @@ class WorkoutSummaryViewModel @Inject constructor(
             val completedSets = workout.exercises.flatMap { it.sets }.filter { it.isComplete }
             val volumeKg = completedSets.sumOf { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
 
-            val overallBest = prs.associate { it.exerciseId to it.bestWeightKg }
+            val overallBestWeight = prs.mapNotNull { pr ->
+                pr.bestWeightKg?.let { pr.exerciseId to it }
+            }.toMap()
+            val overallBestReps = prs.mapNotNull { pr ->
+                pr.bestReps?.let { pr.exerciseId to it }
+            }.toMap()
             val prsHit = workout.exercises
                 .filter { it.exercise.type == ExerciseType.STRENGTH }
                 .mapNotNull { we ->
-                    val sessionBest =
-                        we.sets.filter { it.isComplete }.mapNotNull { it.weightKg }.maxOrNull()
-                    val best = overallBest[we.exercise.id]
-                    if (sessionBest != null && best != null && sessionBest >= best) we.exercise.name else null
+                    val completedSets = we.sets.filter { it.isComplete }
+                    val sessionBestWeight = completedSets.mapNotNull { it.weightKg }.maxOrNull()
+                    val bestWeight = overallBestWeight[we.exercise.id]
+                    val hitWeightPr =
+                        sessionBestWeight != null && bestWeight != null && sessionBestWeight >= bestWeight
+
+                    val sessionBestReps = completedSets.mapNotNull { it.reps }.maxOrNull()
+                    val bestReps = overallBestReps[we.exercise.id]
+                    val hitRepsPr =
+                        sessionBestReps != null && bestReps != null && sessionBestReps >= bestReps
+
+                    if (hitWeightPr || hitRepsPr) we.exercise.name else null
                 }
                 .distinct()
 

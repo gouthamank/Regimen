@@ -28,20 +28,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -81,8 +80,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.gouthaman.regimen.data.local.entity.CardioEntry
 import dev.gouthaman.regimen.data.local.entity.SetEntry
+import dev.gouthaman.regimen.domain.model.Equipment
+import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.util.UnitConverter
+import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
 import dev.gouthaman.regimen.ui.routines.ExercisePickerSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -138,7 +140,6 @@ fun ActiveWorkoutScreen(
         onAddSet = viewModel::addSet,
         onDeleteSet = viewModel::deleteSet,
         onToggleSkip = viewModel::toggleSkip,
-        onRemoveExercise = viewModel::removeExercise,
         onAddExercises = viewModel::addExercises,
         onUpdateCardio = viewModel::updateCardio,
         onUpdateNote = viewModel::updateNote,
@@ -172,7 +173,6 @@ fun ActiveWorkoutScreen(
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
     onToggleSkip: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
-    onRemoveExercise: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
     onAddExercises: (List<Long>) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onUpdateNote: (String) -> Unit,
@@ -271,7 +271,6 @@ fun ActiveWorkoutScreen(
                         onAddSet = onAddSet,
                         onDeleteSet = onDeleteSet,
                         onToggleSkip = onToggleSkip,
-                        onRemoveExercise = onRemoveExercise,
                         onUpdateCardio = onUpdateCardio,
                         onStartRest = onStartRest,
                         showRestTimer = !isEditing,
@@ -523,12 +522,10 @@ private fun ExerciseCard(
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
     onToggleSkip: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
-    onRemoveExercise: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (Long, Int) -> Unit,
     showRestTimer: Boolean = true,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = if (exercise.isSkipped) {
@@ -539,34 +536,22 @@ private fun ExerciseCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                ExerciseIcon(
+                    type = if (exercise.isStrength) ExerciseType.STRENGTH else ExerciseType.CARDIO,
+                    equipment = exercise.equipment,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
                 Text(
                     exercise.name,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "Exercise options")
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        if (exercise.isStrength) {
-                            DropdownMenuItem(
-                                text = { Text(if (exercise.isSkipped) "Include" else "Skip") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onToggleSkip(exercise.workoutExercise)
-                                },
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Remove") },
-                            onClick = {
-                                menuExpanded = false
-                                onRemoveExercise(exercise.workoutExercise)
-                            },
+                if (exercise.isStrength) {
+                    IconButton(onClick = { onToggleSkip(exercise.workoutExercise) }) {
+                        Icon(
+                            if (exercise.isSkipped) Icons.Filled.AddCircleOutline
+                            else Icons.Filled.RemoveCircleOutline,
+                            contentDescription = if (exercise.isSkipped) "Include" else "Skip",
                         )
                     }
                 }
@@ -585,6 +570,7 @@ private fun ExerciseCard(
                         SetRow(
                             set = set,
                             weightUnit = weightUnit,
+                            isBodyweight = exercise.equipment == Equipment.BODYWEIGHT,
                             onUpdate = onUpdateSet,
                             onDelete = { onDeleteSet(set) },
                         )
@@ -636,6 +622,7 @@ private fun ExerciseCard(
 private fun SetRow(
     set: SetEntry,
     weightUnit: UnitSystem,
+    isBodyweight: Boolean,
     onUpdate: (SetEntry) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -660,7 +647,9 @@ private fun SetRow(
 
     fun push() = onUpdate(
         set.copy(
-            weightKg = weight.toDoubleOrNull()?.let { UnitConverter.displayToKg(it, weightUnit) },
+            weightKg = if (isBodyweight) null else {
+                weight.toDoubleOrNull()?.let { UnitConverter.displayToKg(it, weightUnit) }
+            },
             reps = reps.toIntOrNull(),
             isComplete = complete,
         )
@@ -679,14 +668,16 @@ private fun SetRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(20.dp),
         )
-        OutlinedTextField(
-            value = weight,
-            onValueChange = { weight = it; push() },
-            label = { Text(UnitConverter.weightLabel(weightUnit)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f),
-        )
+        if (!isBodyweight) {
+            OutlinedTextField(
+                value = weight,
+                onValueChange = { weight = it; push() },
+                label = { Text(UnitConverter.weightLabel(weightUnit)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+        }
         OutlinedTextField(
             value = reps,
             onValueChange = { reps = it; push() },

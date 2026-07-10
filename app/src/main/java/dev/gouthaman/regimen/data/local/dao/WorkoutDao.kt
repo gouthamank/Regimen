@@ -8,7 +8,9 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import dev.gouthaman.regimen.data.local.entity.CardioEntry
+import dev.gouthaman.regimen.data.local.entity.ExerciseHistorySession
 import dev.gouthaman.regimen.data.local.entity.PersonalRecordRow
+import dev.gouthaman.regimen.data.local.entity.RepsRecordRow
 import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.data.local.entity.Workout
 import dev.gouthaman.regimen.data.local.entity.WorkoutExercise
@@ -66,6 +68,45 @@ interface WorkoutDao {
                 "GROUP BY we.exerciseId"
     )
     fun observePersonalRecords(): Flow<List<PersonalRecordRow>>
+
+    /** Most reps in a single set per exercise, for sets logged with no weight (bodyweight) —
+     * the PR definition for exercises that never store [SetEntry.weightKg]. */
+    @Query(
+        "SELECT we.exerciseId AS exerciseId, MAX(se.reps) AS bestReps FROM set_entries se " +
+                "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.endTime IS NOT NULL AND se.isComplete = 1 AND se.weightKg IS NULL " +
+                "AND se.reps IS NOT NULL " +
+                "GROUP BY we.exerciseId"
+    )
+    fun observeBestReps(): Flow<List<RepsRecordRow>>
+
+    /** Most recently logged set for an exercise, from any finished workout — source for prefill
+     * when adding an exercise ad hoc (outside a routine's own history-based prefill). */
+    @Query(
+        "SELECT se.* FROM set_entries se " +
+                "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL " +
+                "ORDER BY w.startTime DESC, se.setNumber DESC LIMIT 1"
+    )
+    suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry?
+
+    /** Every finished session that logged this exercise, most recent first — source for
+     * Exercise Detail's History section. */
+    @Transaction
+    @Query(
+        "SELECT we.*, w.startTime AS startTime FROM workout_exercises we " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL " +
+                "ORDER BY w.startTime DESC"
+    )
+    fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>>
+
+    /** Whether an exercise appears in any workout (active or finished) — deleting it would
+     * cascade-delete those rows, so this gates exercise deletion. */
+    @Query("SELECT EXISTS(SELECT 1 FROM workout_exercises WHERE exerciseId = :exerciseId)")
+    suspend fun isExerciseUsedInAnyWorkout(exerciseId: Long): Boolean
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkout(workout: Workout): Long

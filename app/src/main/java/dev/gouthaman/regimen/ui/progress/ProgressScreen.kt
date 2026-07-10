@@ -110,7 +110,7 @@ fun ProgressScreen(
                         headlineContent = { Text(pr.exerciseName) },
                         trailingContent = {
                             Text(
-                                pr.weightLabel,
+                                pr.valueLabel,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary,
                             )

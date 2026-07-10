@@ -1,6 +1,7 @@
 package dev.gouthaman.regimen.domain.usecase
 
 import dev.gouthaman.regimen.data.local.entity.CardioEntry
+import dev.gouthaman.regimen.data.local.entity.ExerciseHistorySession
 import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.data.local.entity.WorkoutExercise
 import dev.gouthaman.regimen.data.local.entity.WorkoutWithDetails
@@ -137,6 +138,15 @@ class ObserveHistoryUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
     operator fun invoke(): Flow<List<WorkoutWithDetails>> = workoutRepo.observeCompleted()
+}
+
+/** Every finished session that logged a specific exercise, most recent first — used by
+ * Exercise Detail's History section. */
+class ObserveExerciseHistoryUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    operator fun invoke(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
+        workoutRepo.observeExerciseHistory(exerciseId)
 }
 
 /**
@@ -281,14 +291,6 @@ class ToggleSkipExerciseUseCase @Inject constructor(
     }
 }
 
-class RemoveWorkoutExerciseUseCase @Inject constructor(
-    private val workoutRepo: WorkoutRepository,
-) {
-    suspend operator fun invoke(exercise: WorkoutExercise) {
-        workoutRepo.removeExercise(exercise)
-    }
-}
-
 /**
  * Appends the chosen exercises to an in-progress workout (after existing ones). Strength gets one
  * blank set to log into; cardio gets one blank bout. Cardio is session-only (never in routines).
@@ -306,7 +308,18 @@ class AddExercisesToWorkoutUseCase @Inject constructor(
                 WorkoutExercise(workoutId = workoutId, exerciseId = exId, position = position)
             )
             if (exercise.type == ExerciseType.STRENGTH) {
-                workoutRepo.upsertSet(SetEntry(workoutExerciseId = weId, setNumber = 1))
+                // Prefill from this exercise's own most recent logged set (any past workout),
+                // same as routine-based prefill in StartWorkoutUseCase, just keyed by exercise
+                // instead of by routine slot.
+                val lastSet = workoutRepo.getMostRecentSetForExercise(exId)
+                workoutRepo.upsertSet(
+                    SetEntry(
+                        workoutExerciseId = weId,
+                        setNumber = 1,
+                        weightKg = lastSet?.weightKg,
+                        reps = lastSet?.reps,
+                    )
+                )
             } else {
                 workoutRepo.upsertCardio(CardioEntry(workoutExerciseId = weId, durationSec = 0))
             }
