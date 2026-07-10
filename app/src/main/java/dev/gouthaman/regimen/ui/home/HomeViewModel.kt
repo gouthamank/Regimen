@@ -4,19 +4,28 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
+import dev.gouthaman.regimen.domain.model.HistoryRange
+import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
+import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.ui.history.SessionFormat
+import dev.gouthaman.regimen.ui.measurements.MeasurementFormat
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -45,6 +54,12 @@ data class HomeUiState(
     val quickStart: List<QuickStartRoutine> = emptyList(),
     /** All routines (recency-ordered) for the "Start a workout" chooser. */
     val routines: List<QuickStartRoutine> = emptyList(),
+    /** Workouts per week, oldest first — fixed to the last 4 weeks. */
+    val workoutFrequency: List<Int> = emptyList(),
+    /** Bodyweight entries in the last 4 weeks, oldest first, in display units. */
+    val bodyweightTrend: List<Float> = emptyList(),
+    /** Most recent bodyweight entry formatted for display, e.g. "72 kg"; blank if none logged. */
+    val bodyweightLatestLabel: String = "",
     val loaded: Boolean = false,
 )
 
@@ -56,6 +71,9 @@ class HomeViewModel @Inject constructor(
     observeRoutines: ObserveRoutinesUseCase,
     observeHistory: ObserveHistoryUseCase,
     observePreferences: ObservePreferencesUseCase,
+    getWorkoutFrequency: GetWorkoutFrequencyUseCase,
+    observeMeasurementTypes: ObserveMeasurementTypesUseCase,
+    observeMeasurements: ObserveMeasurementsUseCase,
     private val startWorkoutUseCase: StartWorkoutUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
 ) : ViewModel() {
@@ -63,6 +81,25 @@ class HomeViewModel @Inject constructor(
     // In-progress workout ids to navigate to (one-shot; buffered so the event isn't lost).
     private val startedWorkouts = Channel<Long>(Channel.BUFFERED)
     val startedWorkout: Flow<Long> = startedWorkouts.receiveAsFlow()
+
+    // Bodyweight is the built-in measurement type; resolved dynamically since it's a seeded row,
+    // not a fixed id. No bodyweight type yet (fresh install, seed not applied) -> empty trend.
+    private val bodyweightTrend: Flow<List<Float>> = combine(
+        observeMeasurementTypes(),
+        observePreferences(),
+    ) { types, prefs -> types.firstOrNull { it.isBuiltIn } to prefs.weightUnit }
+        .flatMapLatest { (type, unit) ->
+            if (type == null) {
+                flowOf(emptyList())
+            } else {
+                observeMeasurements(type.id).map { metrics ->
+                    val cutoff = HistoryRange.FOUR_WEEKS.cutoffMillis()!!
+                    metrics.filter { it.date >= cutoff }
+                        .sortedBy { it.date }
+                        .map { MeasurementFormat.toDisplay(type, it.value, unit).toFloat() }
+                }
+            }
+        }
 
     /**
      * Opens the active workout: resumes the one already in progress if there is one (single-active —
@@ -80,7 +117,11 @@ class HomeViewModel @Inject constructor(
         observeRoutines(),
         observeHistory(),
         observePreferences(),
-    ) { summary, routines, history, prefs ->
+        combine(
+            getWorkoutFrequency(HistoryRange.FOUR_WEEKS),
+            bodyweightTrend,
+        ) { frequency, trend -> frequency to trend },
+    ) { summary, routines, history, prefs, (frequency, weightTrend) ->
         val system = prefs.weightUnit
 
         // Order quick-start chips by most-recently-used routine, then by manual position.
@@ -123,6 +164,11 @@ class HomeViewModel @Inject constructor(
             timeLabelMonth = SessionFormat.duration(0L, summary.durationMillisThisMonth),
             quickStart = orderedRoutines.take(MAX_QUICK_START),
             routines = orderedRoutines,
+            workoutFrequency = frequency.map { it.count },
+            bodyweightTrend = weightTrend,
+            bodyweightLatestLabel = weightTrend.lastOrNull()?.let {
+                "${UnitConverter.formatValue(it.toDouble())} ${UnitConverter.weightLabel(system)}"
+            } ?: "",
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())

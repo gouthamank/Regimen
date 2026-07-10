@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.gouthaman.regimen.ui.components.LineChart
 
 @Composable
 fun HomeScreen(
@@ -132,6 +133,8 @@ fun HomeScreen(
 
                     WeekSummarySection(uiState)
                     MonthSummarySection(uiState)
+                    WorkoutFrequencySection(uiState)
+                    BodyweightSection(uiState)
 
                 }
             }
@@ -218,6 +221,54 @@ private fun MonthSummarySection(uiState: HomeUiState) {
             StatTile("Workouts", uiState.workoutsThisMonth.toString(), Modifier.weight(1f))
             StatTile("Volume", uiState.volumeLabelMonth, Modifier.weight(1f))
             StatTile("Time", uiState.timeLabelMonth, Modifier.weight(1f))
+        }
+    }
+}
+
+// Workout-frequency trend, fixed to the last 4 weeks (no range selector — that's Progress's job).
+@Composable
+private fun WorkoutFrequencySection(uiState: HomeUiState) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Workout frequency", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Last 4 weeks",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LineChart(
+                points = uiState.workoutFrequency.map { it.toFloat() },
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+    }
+}
+
+// Bodyweight trend, fixed to the last 4 weeks. Hidden entirely until the user has logged at
+// least one bodyweight entry (empty states stay minimal — no chart, no placeholder).
+@Composable
+private fun BodyweightSection(uiState: HomeUiState) {
+    if (uiState.bodyweightTrend.isEmpty()) return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Bodyweight", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    uiState.bodyweightLatestLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                "Last 4 weeks",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LineChart(points = uiState.bodyweightTrend, modifier = Modifier.padding(top = 12.dp))
         }
     }
 }
