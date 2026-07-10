@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,23 +47,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
+import dev.gouthaman.regimen.ui.adaptive.RegimenWindowInfo
 import dev.gouthaman.regimen.ui.components.LineChart
 
 @Composable
 fun HomeScreen(
     onCreateRoutine: () -> Unit,
     onOpenActiveWorkout: (Long) -> Unit,
+    onOpenMeasurements: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val windowInfo = LocalRegimenWindowInfo.current
     LaunchedEffect(Unit) {
         viewModel.startedWorkout.collect { onOpenActiveWorkout(it) }
     }
     HomeScreen(
         uiState = uiState,
+        windowInfo = windowInfo,
         onStartWorkout = viewModel::startWorkout,
         onCreateRoutine = onCreateRoutine,
+        onOpenMeasurements = onOpenMeasurements,
         modifier = modifier,
     )
 }
@@ -71,8 +79,10 @@ fun HomeScreen(
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
+    windowInfo: RegimenWindowInfo,
     onStartWorkout: (Long?) -> Unit,
     onCreateRoutine: () -> Unit,
+    onOpenMeasurements: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showStartSheet by remember { mutableStateOf(false) }
@@ -93,12 +103,58 @@ fun HomeScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    EmptyHome(onCreateRoutine)
+                    EmptyHome(
+                        onCreateRoutine = onCreateRoutine,
+                        // A single line of text + a button doesn't need the full width of a wide
+                        // pane — cap it like Onboarding's text-only content does.
+                        modifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                            Modifier.widthIn(max = 480.dp)
+                        } else {
+                            Modifier
+                        },
+                    )
                 }
             }
 
-            else -> {
-                Column(
+            else -> when (windowInfo.posture) {
+                RegimenPosture.BookOrExpanded -> Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = 960.dp)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        StartWorkoutButton(
+                            onClick = { showStartSheet = true },
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) { WeekSummarySection(uiState) }
+                            Box(modifier = Modifier.weight(1f)) { MonthSummarySection(uiState) }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) { WorkoutFrequencySection(uiState) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                BodyweightSection(uiState, onOpenMeasurements)
+                            }
+                        }
+                    }
+                }
+
+                RegimenPosture.Compact, RegimenPosture.Tabletop -> Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
@@ -106,36 +162,14 @@ fun HomeScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    val startButtonHeight = ButtonDefaults.LargeContainerHeight
-                    ElevatedButton(
+                    StartWorkoutButton(
                         onClick = { showStartSheet = true },
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(top = 4.dp),
-                        contentPadding = ButtonDefaults.contentPaddingFor(
-                            startButtonHeight,
-                            hasStartIcon = true,
-                        ),
-                    ) {
-                        Icon(
-                            Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(startButtonHeight)),
-                        )
-                        Text(
-                            "Start Workout",
-                            modifier = Modifier.padding(
-                                start = ButtonDefaults.iconSpacingFor(startButtonHeight),
-                            ),
-                            style = ButtonDefaults.textStyleFor(startButtonHeight),
-                        )
-                    }
-
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    )
                     WeekSummarySection(uiState)
                     MonthSummarySection(uiState)
                     WorkoutFrequencySection(uiState)
-                    BodyweightSection(uiState)
-
+                    BodyweightSection(uiState, onOpenMeasurements)
                 }
             }
         }
@@ -149,6 +183,27 @@ fun HomeScreen(
                 onStartWorkout(it)
             },
             onDismiss = { showStartSheet = false },
+        )
+    }
+}
+
+@Composable
+private fun StartWorkoutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val startButtonHeight = ButtonDefaults.LargeContainerHeight
+    ElevatedButton(
+        onClick = onClick,
+        modifier = modifier.padding(top = 4.dp),
+        contentPadding = ButtonDefaults.contentPaddingFor(startButtonHeight, hasStartIcon = true),
+    ) {
+        Icon(
+            Icons.Filled.PlayArrow,
+            contentDescription = null,
+            modifier = Modifier.size(ButtonDefaults.iconSizeFor(startButtonHeight)),
+        )
+        Text(
+            "Start Workout",
+            modifier = Modifier.padding(start = ButtonDefaults.iconSpacingFor(startButtonHeight)),
+            style = ButtonDefaults.textStyleFor(startButtonHeight),
         )
     }
 }
@@ -226,33 +281,61 @@ private fun MonthSummarySection(uiState: HomeUiState) {
 }
 
 // Workout-frequency trend, fixed to the last 4 weeks (no range selector — that's Progress's job).
-// Hidden entirely when there's been no activity in the window (matches BodyweightSection below) —
-// otherwise a brand-new user sees a "flat" chart with no cue that it's actually all zeros.
+// Empty state (no activity in the window) stays minimal — a line of text, no chart, no CTA
+// (there's no single action that fixes "no workouts yet" beyond what the Start Workout button
+// above already offers).
 @Composable
 private fun WorkoutFrequencySection(uiState: HomeUiState) {
-    if (uiState.workoutFrequency.all { it == 0 }) return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Workout frequency", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Last 4 weeks",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            LineChart(
-                points = uiState.workoutFrequency.map { it.toFloat() },
-                modifier = Modifier.padding(top = 12.dp),
-                zeroBaseline = true,
-            )
+            if (uiState.workoutFrequency.all { it == 0 }) {
+                Text(
+                    "Finish a workout to start tracking your frequency.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            } else {
+                Text(
+                    "Last 4 weeks",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LineChart(
+                    points = uiState.workoutFrequency.map { it.toFloat() },
+                    modifier = Modifier.padding(top = 12.dp),
+                    zeroBaseline = true,
+                )
+            }
         }
     }
 }
 
-// Bodyweight trend, fixed to the last 4 weeks. Hidden entirely until the user has logged at
-// least one bodyweight entry (empty states stay minimal — no chart, no placeholder).
+// Bodyweight trend, fixed to the last 4 weeks. Empty state (no entries logged yet) gets a
+// single CTA into Body Measurements, since there's a concrete action that fixes it.
 @Composable
-private fun BodyweightSection(uiState: HomeUiState) {
-    if (uiState.bodyweightTrend.isEmpty()) return
+private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Unit) {
+    if (uiState.bodyweightTrend.isEmpty()) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Bodyweight", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Log your bodyweight to see a trend here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Button(
+                    onClick = onOpenMeasurements,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text("Log bodyweight")
+                }
+            }
+        }
+        return
+    }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -349,9 +432,9 @@ private fun formatStreak(weeks: Int): String = when {
 }
 
 @Composable
-private fun EmptyHome(onCreateRoutine: () -> Unit) {
+private fun EmptyHome(onCreateRoutine: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

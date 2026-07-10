@@ -11,6 +11,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.gouthaman.regimen.ui.MainViewModel
 import dev.gouthaman.regimen.ui.RegimenApp
+import dev.gouthaman.regimen.ui.adaptive.ProvideRegimenWindowInfo
 import dev.gouthaman.regimen.ui.onboarding.OnboardingScreen
 import dev.gouthaman.regimen.ui.theme.RegimenTheme
 
@@ -31,11 +32,13 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val prefs = uiState.prefs
             RegimenTheme(themeMode = prefs.themeMode, dynamicColor = prefs.dynamicColor) {
-                when {
-                    // Splash still covers this frame; nothing to draw yet.
-                    !uiState.loaded -> Unit
-                    !prefs.onboarded -> OnboardingScreen()
-                    else -> RegimenApp()
+                ProvideRegimenWindowInfo {
+                    when {
+                        // Splash still covers this frame; nothing to draw yet.
+                        !uiState.loaded -> Unit
+                        !prefs.onboarded -> OnboardingScreen()
+                        else -> RegimenApp()
+                    }
                 }
             }
         }

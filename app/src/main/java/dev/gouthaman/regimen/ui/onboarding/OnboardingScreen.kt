@@ -7,14 +7,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -38,9 +43,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.gouthaman.regimen.data.prefs.UserPreferences
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
+import dev.gouthaman.regimen.ui.adaptive.RegimenWindowInfo
 import kotlinx.coroutines.launch
 
 private const val PAGE_COUNT = 2
+private val PageSpacing = 24.dp
 
 @Composable
 fun OnboardingScreen(
@@ -48,8 +57,10 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
+    val windowInfo = LocalRegimenWindowInfo.current
     OnboardingScreen(
         prefs = prefs,
+        windowInfo = windowInfo,
         onWeightUnitChange = viewModel::setWeightUnit,
         onDistanceUnitChange = viewModel::setDistanceUnit,
         onThemeModeChange = viewModel::setThemeMode,
@@ -62,6 +73,7 @@ fun OnboardingScreen(
 @Composable
 fun OnboardingScreen(
     prefs: UserPreferences,
+    windowInfo: RegimenWindowInfo,
     onWeightUnitChange: (UnitSystem) -> Unit,
     onDistanceUnitChange: (UnitSystem) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
@@ -73,53 +85,160 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     val onLastPage = pagerState.currentPage == PAGE_COUNT - 1
 
+    val pagerContent: @Composable (Int) -> Unit = { page ->
+        when (page) {
+            0 -> UnitsPage(
+                weightUnit = prefs.weightUnit,
+                distanceUnit = prefs.distanceUnit,
+                onWeightUnitChange = onWeightUnitChange,
+                onDistanceUnitChange = onDistanceUnitChange,
+            )
+
+            else -> AppearancePage(
+                themeMode = prefs.themeMode,
+                dynamicColor = prefs.dynamicColor,
+                onThemeModeChange = onThemeModeChange,
+                onDynamicColorChange = onDynamicColorChange,
+            )
+        }
+    }
+    val onNextOrFinish: () -> Unit = {
+        if (onLastPage) onFinish()
+        else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+    }
+
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .padding(24.dp),
-        ) {
-            // Skip is always available, per the spec (onboarding is optional).
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onFinish) { Text("Skip") }
-            }
-
-            HorizontalPager(
-                state = pagerState,
+        when (windowInfo.posture) {
+            RegimenPosture.Compact -> LinearOnboardingLayout(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            ) { page ->
-                when (page) {
-                    0 -> UnitsPage(
-                        weightUnit = prefs.weightUnit,
-                        distanceUnit = prefs.distanceUnit,
-                        onWeightUnitChange = onWeightUnitChange,
-                        onDistanceUnitChange = onDistanceUnitChange,
-                    )
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .padding(24.dp),
+                pagerState = pagerState,
+                pagerContent = pagerContent,
+                onLastPage = onLastPage,
+                onNextOrFinish = onNextOrFinish,
+                onFinish = onFinish,
+            )
 
-                    else -> AppearancePage(
-                        themeMode = prefs.themeMode,
-                        dynamicColor = prefs.dynamicColor,
-                        onThemeModeChange = onThemeModeChange,
-                        onDynamicColorChange = onDynamicColorChange,
-                    )
-                }
-            }
-
-            PagerDots(current = pagerState.currentPage, count = PAGE_COUNT)
-
-            Button(
-                onClick = {
-                    if (onLastPage) onFinish()
-                    else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                },
+            RegimenPosture.BookOrExpanded -> Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .fillMaxSize()
+                    .systemBarsPadding(),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(if (onLastPage) "Get started" else "Next")
+                LinearOnboardingLayout(
+                    modifier = Modifier
+                        .widthIn(max = 600.dp)
+                        .fillMaxHeight()
+                        .padding(24.dp),
+                    pagerState = pagerState,
+                    pagerContent = pagerContent,
+                    onLastPage = onLastPage,
+                    onNextOrFinish = onNextOrFinish,
+                    onFinish = onFinish,
+                )
+            }
+
+            RegimenPosture.Tabletop -> TabletopOnboardingLayout(
+                pagerState = pagerState,
+                pagerContent = pagerContent,
+                onLastPage = onLastPage,
+                onNextOrFinish = onNextOrFinish,
+                onFinish = onFinish,
+            )
+        }
+    }
+}
+
+/** Compact and book/expanded postures share this single-column arrangement; only the outer
+ *  modifier (full-bleed vs. width-capped and centered) differs between them. */
+@Composable
+private fun LinearOnboardingLayout(
+    modifier: Modifier,
+    pagerState: PagerState,
+    pagerContent: @Composable (Int) -> Unit,
+    onLastPage: Boolean,
+    onNextOrFinish: () -> Unit,
+    onFinish: () -> Unit,
+) {
+    Column(modifier = modifier) {
+        // Skip is always available, per the spec (onboarding is optional).
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onFinish) { Text("Skip") }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            pageSpacing = PageSpacing,
+        ) { page -> pagerContent(page) }
+
+        PagerDots(current = pagerState.currentPage, count = PAGE_COUNT)
+
+        Button(
+            onClick = onNextOrFinish,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+        ) {
+            Text(if (onLastPage) "Get started" else "Next")
+        }
+    }
+}
+
+/** Tabletop posture: content lives in the top pane, above the hinge; navigation controls sit
+ *  in the bottom pane, like a laptop keyboard deck, so nothing renders across the hinge. */
+@Composable
+private fun TabletopOnboardingLayout(
+    pagerState: PagerState,
+    pagerContent: @Composable (Int) -> Unit,
+    onLastPage: Boolean,
+    onNextOrFinish: () -> Unit,
+    onFinish: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding(),
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onFinish) { Text("Skip") }
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    pageSpacing = PageSpacing,
+                ) { page -> pagerContent(page) }
+            }
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                PagerDots(current = pagerState.currentPage, count = PAGE_COUNT)
+                Button(
+                    onClick = onNextOrFinish,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                ) {
+                    Text(if (onLastPage) "Get started" else "Next")
+                }
             }
         }
     }
@@ -196,6 +315,7 @@ private fun OnboardingPage(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,

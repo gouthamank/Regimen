@@ -210,6 +210,69 @@ The core loop, and the highest-risk screen. Users spend most of their time here.
 
 ---
 
+## Adaptive / foldable support
+
+Rolled out **screen-by-screen**, not all at once. Shared infra lives in
+`ui/adaptive/WindowAdaptive.kt`:
+
+- `RegimenPosture` (`Compact` / `Tabletop` / `BookOrExpanded`) — Regimen's own simplified
+  layout classification, derived from `androidx.compose.material3.adaptive`'s
+  `currentWindowAdaptiveInfo()` (`windowPosture` + `windowSizeClass`).
+- `LocalRegimenWindowInfo` (CompositionLocal) + `ProvideRegimenWindowInfo { }` — provided
+  once in `MainActivity.setContent`, wrapping both the Onboarding gate and `RegimenApp`, so
+  any descendant screen can read `LocalRegimenWindowInfo.current` without nav-arg plumbing.
+
+Dependencies (versions pinned directly in `libs.versions.toml`; the first two don't ship in
+the Compose BOM, the third tracks `material3`'s own version in lockstep):
+`androidx.window:window:1.5.1`, `androidx.compose.material3.adaptive:adaptive:1.2.0`,
+`androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-alpha23` (reuses the
+`material3Expressive` version ref).
+
+The app shell (`RegimenApp.kt`) uses `NavigationSuiteScaffold` for the 5-tab nav — its
+`layoutType` is driven by `RegimenPosture.toNavigationSuiteType()` (Compact/Tabletop →
+`NavigationBar`, BookOrExpanded → `NavigationRail`) rather than
+`NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo`, to stay consistent with the rest
+of the rollout; kept as its own named mapping function as a seam for a future override.
+`NavigationSuiteType.NavigationDrawer` (rendered as a `PermanentDrawerSheet`) is supported by
+the library but deliberately not used — out of scope: desktop-class widths aren't a target,
+only foldable/book posture is, and Google's own default logic doesn't auto-select a drawer
+either (only ever Bar or Rail).
+
+Rollout checklist (update as each screen is adapted):
+
+```
+[✓] App shell (RegimenApp.kt) — NavigationSuiteScaffold: NavigationBar for Compact/Tabletop,
+    NavigationRail for BookOrExpanded; WorkoutInProgressBanner docked at the bottom of the
+    content pane in both, with .navigationBarsPadding() added after a screenshot showed it
+    flush against the bottom edge in Rail mode. No NavigationDrawer tier (out of scope).
+    RegimenNavHost content is width-capped + centered @600dp for both Compact and Tabletop
+    (Tabletop keeps the bottom bar regardless of actual width, and can be genuinely wide — e.g.
+    a half-opened, horizontal-hinge AVD state confirmed at ~852dp) — only BookOrExpanded is
+    full-bleed. Confirmed on-device.
+[✓] Onboarding (S17) — tabletop: nav controls pushed to the bottom pane, content/title in
+    the top pane; book/expanded: content constrained to 600dp max width and centered;
+    compact: unchanged.
+[✓] Home (S1) — BookOrExpanded: week/month summary and frequency/bodyweight charts go
+    side-by-side (960dp max width, centered), rather than just width-capping. Tabletop treated
+    identically to Compact (scrollable dashboard, no fixed hinge-adjacent controls to protect).
+    Also added empty states for the frequency/bodyweight charts instead of hiding them (text
+    only for frequency, text + a "Log bodyweight" CTA into Body Measurements for bodyweight).
+    Confirmed on-device.
+[ ] Routines (S4) / Routine Editor
+[ ] History (S5) / Session Detail
+[ ] Progress (S6) / Body Measurements (S8)
+[ ] Settings (S9)
+[ ] Exercise Library / Exercise Detail
+[ ] Active Workout (S13) / Workout Summary (S15)
+```
+
+Routines and Exercise Library/Detail are the likely candidates for a true list-detail split
+via `androidx.compose.material3.adaptive:adaptive-layout`'s `ListDetailPaneScaffold` when
+their turn comes — a separate artifact/decision from the shared infra above, which Onboarding
+does not use (it has no list/detail shape).
+
+---
+
 ## Data model (Room entities)
 
 ```
@@ -255,7 +318,9 @@ BodyMetric(id, measurementTypeId, date, value)
 
 ### Verified versions (July 2026)
 - Compose BOM `2026.06.00` · AGP `9.2.0` (Gradle 8.11+) · Kotlin `2.3.x` · KSP `2.3.4` ·
-  Room `2.8.4` · Navigation Compose `2.9.6`.
+  Room `2.8.4` · Navigation Compose `2.9.6` · `androidx.window` `1.5.1` ·
+  `androidx.compose.material3.adaptive` `1.2.0` ·
+  `androidx.compose.material3:material3-adaptive-navigation-suite` `1.5.0-alpha23`.
 
 ### ⚠️ Material 3 Expressive is not fully stable — adopted anyway
 Stable `material3` is `1.4.0`, which does **not** include the Expressive APIs. **Done:** the app

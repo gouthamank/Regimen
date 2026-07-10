@@ -8,6 +8,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.DialogProperties
@@ -93,12 +94,12 @@ fun RegimenNavHost(
     // "New routine" FAB): each destination's root expands from the tapped row/FAB instead of
     // sliding in like every other destination. See exerciseRowTransitionKey /
     // measurementRowTransitionKey / routineRowTransitionKey / routineCreateFabTransitionKey.
-    SharedTransitionLayout {
+    SharedTransitionLayout(modifier = modifier) {
         val sharedTransitionScope = this
         NavHost(
             navController = navController,
             startDestination = HomeRoute,
-            modifier = modifier,
+            modifier = Modifier.fillMaxSize(),
             enterTransition = {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
@@ -131,6 +132,7 @@ fun RegimenNavHost(
                         navController.navigateToTab(RoutinesRoute)
                     },
                     onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
+                    onOpenMeasurements = { navController.navigate(MeasurementsRoute) },
                 )
             }
             composable<RoutinesRoute> {

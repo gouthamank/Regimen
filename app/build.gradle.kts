@@ -54,6 +54,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+    // Adaptive / foldable support
+    implementation(libs.androidx.window)
+    implementation(libs.androidx.compose.material3.adaptive)
+    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
+
     // Navigation + serialization + coroutines
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)

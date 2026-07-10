@@ -60,7 +60,7 @@ class PreferencesRepository @Inject constructor(
                 ?: ThemeMode.SYSTEM,
             dynamicColor = p[Keys.DYNAMIC] ?: true,
             restDefaultSec = p[Keys.REST] ?: 90,
-            restChimeEnabled = p[Keys.REST_CHIME] ?: true,
+            restChimeEnabled = p[Keys.REST_CHIME] ?: false,
             onboarded = p[Keys.ONBOARDED] ?: false,
         )
     }
