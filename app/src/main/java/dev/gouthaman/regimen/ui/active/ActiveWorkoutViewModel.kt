@@ -58,7 +58,8 @@ data class ActiveExercise(
     val workoutExerciseId: Long get() = workoutExercise.id
 }
 
-/** An active rest countdown: [endAtMillis] is when it completes; [totalSec] scales the progress. */
+/** An active rest countdown: [endAtMillis] is when it completes; [totalSec] is the original
+ * duration the progress bar is normalized against, fixed even as [endAtMillis] is adjusted. */
 data class RestTimerState(
     val endAtMillis: Long,
     val totalSec: Int,
@@ -237,13 +238,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch { upsertSet(target.copy(isComplete = true)) }
     }
 
-    /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s). */
+    /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s). Only shifts the deadline — the
+     * progress bar's max (totalSec) stays put so the bar reflects remaining time, not duration —
+     * and is capped so remaining time can't exceed the original totalSec (bar can't overfill). */
     fun addRestTime(deltaSec: Int) {
         val current = _rest.value ?: return
+        val now = System.currentTimeMillis()
         _rest.value = current.copy(
             endAtMillis = (current.endAtMillis + deltaSec * 1000L)
-                .coerceAtLeast(System.currentTimeMillis()),
-            totalSec = (current.totalSec + deltaSec).coerceAtLeast(1),
+                .coerceIn(now, now + current.totalSec * 1000L),
         )
     }
 

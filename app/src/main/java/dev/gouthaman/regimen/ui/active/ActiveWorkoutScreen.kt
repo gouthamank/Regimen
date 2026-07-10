@@ -5,11 +5,25 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,9 +35,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -73,6 +89,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -188,6 +205,7 @@ fun ActiveWorkoutScreen(
     modifier: Modifier = Modifier,
 ) {
     var showDiscard by remember { mutableStateOf(false) }
+    var showFinishConfirm by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
     val isEditing = uiState.isEditingPastSession
 
@@ -308,7 +326,7 @@ fun ActiveWorkoutScreen(
                     elapsed = elapsed,
                     onPause = onPause,
                     onResume = onResume,
-                    onFinish = onFinish,
+                    onFinish = { if (isEditing) onFinish() else showFinishConfirm = true },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
@@ -380,6 +398,23 @@ fun ActiveWorkoutScreen(
             )
         }
     }
+
+    if (showFinishConfirm) {
+        AlertDialog(
+            onDismissRequest = { showFinishConfirm = false },
+            title = { Text("Finish workout?") },
+            text = { Text("This ends the session and saves it to your history.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFinishConfirm = false
+                    onFinish()
+                }) { Text("Finish") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishConfirm = false }) { Text("Keep going") }
+            },
+        )
+    }
 }
 
 private val ToolbarShape = RoundedCornerShape(percent = 50)
@@ -440,6 +475,19 @@ private fun ActiveWorkoutToolbar(
         )
     }
 
+    // "Live" cues while the timer is actually counting: a breathing dot + background glow (slow,
+    // ambient) — frozen/solid when paused.
+    val isRunning = !isEditing && !isPaused
+    val breathe by rememberInfiniteTransition(label = "timerBreathe").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "breathe",
+    )
+
     Box(modifier = modifier.scale(scale.value)) {
         Box(
             modifier = Modifier
@@ -456,6 +504,11 @@ private fun ActiveWorkoutToolbar(
                 }
                 .background(baseColor)
                 .drawBehind {
+                    if (isRunning) {
+                        // Ambient "breathing" glow — reinforces the timer is live without
+                        // competing with the reveal/pop that marks an actual pause/resume flip.
+                        drawRect(color = contentColor.copy(alpha = 0.1f * breathe))
+                    }
                     if (revealProgress.value < 1f) {
                         val maxRadius = hypot(size.width, size.height)
                         drawCircle(
@@ -475,13 +528,33 @@ private fun ActiveWorkoutToolbar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                if (isEditing) "Editing session" else {
-                    if (isPaused) "${formatElapsed(elapsed)} · Paused" else formatElapsed(elapsed)
-                },
-                style = MaterialTheme.typography.titleMedium,
-                color = contentColor,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    if (isEditing) "Editing session" else {
+                        if (isPaused) "${formatElapsed(elapsed)} · Paused" else formatElapsed(
+                            elapsed
+                        )
+                    },
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = contentColor,
+                )
+                if (!isEditing && !isPaused) {
+                    // Live pulse dot: breathes while running, dims to a static glow when paused.
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                contentColor.copy(
+                                    alpha = 0.4f + 0.6f * breathe,
+                                ),
+                            ),
+                    )
+                }
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -495,18 +568,33 @@ private fun ActiveWorkoutToolbar(
                         onClick = { if (isPaused) onResume() else onPause() },
                         colors = buttonColors,
                     ) {
-                        if (isPaused) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
-                        } else {
-                            Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                        AnimatedContent(
+                            targetState = isPaused,
+                            transitionSpec = {
+                                (scaleIn(initialScale = 0.6f) + fadeIn())
+                                    .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
+                            },
+                            label = "pauseResumeIcon",
+                        ) { paused ->
+                            if (paused) {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
+                            } else {
+                                Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                            }
                         }
                     }
                 }
-                FilledIconButton(onClick = onFinish, colors = buttonColors) {
-                    Icon(
-                        Icons.Filled.Check,
-                        contentDescription = if (isEditing) "Done" else "Finish",
-                    )
+                AnimatedVisibility(
+                    visible = !isPaused,
+                    enter = expandHorizontally() + fadeIn(),
+                    exit = shrinkHorizontally() + fadeOut(),
+                ) {
+                    FilledIconButton(onClick = onFinish, colors = buttonColors) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = if (isEditing) "Done" else "Finish",
+                        )
+                    }
                 }
             }
         }

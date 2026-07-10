@@ -72,7 +72,7 @@ fun RoutineEditorScreen(
         animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onNameChange = viewModel::setName,
-        onAddExercises = viewModel::addExercises,
+        onAddExercises = viewModel::setExercises,
         onCreateCustomExercise = onCreateCustomExercise,
         onRemove = viewModel::removeAt,
         onReorder = viewModel::reorder,
@@ -240,7 +240,8 @@ fun RoutineEditorScreen(
 
     if (showPicker) {
         ExercisePickerSheet(
-            exercises = uiState.addableExercises,
+            exercises = uiState.availableStrength,
+            initiallySelected = uiState.usedIds,
             onConfirm = { ids ->
                 onAddExercises(ids)
                 showPicker = false

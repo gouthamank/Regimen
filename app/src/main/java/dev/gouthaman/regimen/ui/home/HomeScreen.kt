@@ -133,6 +133,7 @@ fun HomeScreen(
                     ) {
                         StartWorkoutButton(
                             onClick = { showStartSheet = true },
+                            enabled = !uiState.hasWorkoutInProgress,
                             modifier = Modifier.align(Alignment.CenterHorizontally),
                         )
                         Row(
@@ -164,6 +165,7 @@ fun HomeScreen(
                 ) {
                     StartWorkoutButton(
                         onClick = { showStartSheet = true },
+                        enabled = !uiState.hasWorkoutInProgress,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
                     WeekSummarySection(uiState)
@@ -188,10 +190,15 @@ fun HomeScreen(
 }
 
 @Composable
-private fun StartWorkoutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun StartWorkoutButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     val startButtonHeight = ButtonDefaults.LargeContainerHeight
     ElevatedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.padding(top = 4.dp),
         contentPadding = ButtonDefaults.contentPaddingFor(startButtonHeight, hasStartIcon = true),
     ) {

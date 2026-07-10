@@ -41,10 +41,9 @@ data class RoutineEditorUiState(
     val saved: Boolean = false,
 ) {
     val canSave: Boolean get() = name.isNotBlank() && exercises.isNotEmpty()
-    private val usedIds: Set<Long> get() = exercises.map { it.exerciseId }.toSet()
 
-    /** Strength exercises not already in the routine — what the picker should offer. */
-    val addableExercises: List<Exercise> get() = availableStrength.filter { it.id !in usedIds }
+    /** Exercise ids already in the routine — what the picker should show pre-checked. */
+    val usedIds: Set<Long> get() = exercises.map { it.exerciseId }.toSet()
 }
 
 private const val SETS_MIN = 1
@@ -109,9 +108,14 @@ class RoutineEditorViewModel @Inject constructor(
 
     fun setName(value: String) = _uiState.update { it.copy(name = value) }
 
-    fun addExercises(ids: List<Long>) = _uiState.update { state ->
+    /** Reconciles the picker's checked ids against the current routine: keeps customized entries
+     * for ids still checked, drops unchecked ones, and appends newly checked ids. */
+    fun setExercises(ids: List<Long>) = _uiState.update { state ->
+        val idSet = ids.toSet()
+        val kept = state.exercises.filter { it.exerciseId in idSet }
+        val keptIds = kept.map { it.exerciseId }.toSet()
         val byId = state.availableStrength.associateBy { it.id }
-        val toAdd = ids.filter { it !in state.exercises.map { e -> e.exerciseId } }
+        val added = ids.filter { it !in keptIds }
             .mapNotNull { byId[it] }
             .map { ex ->
                 EditorExercise(
@@ -123,7 +127,7 @@ class RoutineEditorViewModel @Inject constructor(
                     targetRestSec = defaultRestSec,
                 )
             }
-        state.copy(exercises = state.exercises + toAdd)
+        state.copy(exercises = kept + added)
     }
 
     fun removeAt(index: Int) = _uiState.update { state ->

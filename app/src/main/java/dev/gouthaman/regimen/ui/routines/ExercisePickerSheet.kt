@@ -46,14 +46,14 @@ fun ExercisePickerSheet(
     onDismiss: () -> Unit,
     onCreateCustom: () -> Unit,
     modifier: Modifier = Modifier,
+    initiallySelected: Set<Long> = emptySet(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
-    val selected = remember { mutableStateListOf<Long>() }
+    val selected = remember { mutableStateListOf<Long>().apply { addAll(initiallySelected) } }
 
-    val visible = remember(exercises, query) {
-        exercises.filter { it.matchesSearch(query) }
-    }
+    // Keep selected items visible even if a later search query would otherwise filter them out.
+    val visible = exercises.filter { it.matchesSearch(query) || it.id in selected }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = modifier) {
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -103,7 +103,7 @@ fun ExercisePickerSheet(
                     .fillMaxWidth()
                     .padding(vertical = 12.dp),
             ) {
-                Text(if (selected.isEmpty()) "Add" else "Add ${selected.size}")
+                Text(if (selected.isEmpty()) "Save" else "Save (${selected.size})")
             }
         }
     }

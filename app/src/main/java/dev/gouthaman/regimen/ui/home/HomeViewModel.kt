@@ -9,6 +9,7 @@ import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
@@ -60,6 +61,9 @@ data class HomeUiState(
     val bodyweightTrend: List<Float> = emptyList(),
     /** Most recent bodyweight entry formatted for display, e.g. "72 kg"; blank if none logged. */
     val bodyweightLatestLabel: String = "",
+    /** A workout is already running — Start Workout should resume it via the banner, not launch
+     * a fresh pick-a-routine flow. */
+    val hasWorkoutInProgress: Boolean = false,
     val loaded: Boolean = false,
 )
 
@@ -74,6 +78,7 @@ class HomeViewModel @Inject constructor(
     getWorkoutFrequency: GetWorkoutFrequencyUseCase,
     observeMeasurementTypes: ObserveMeasurementTypesUseCase,
     observeMeasurements: ObserveMeasurementsUseCase,
+    observeActiveWorkoutId: ObserveActiveWorkoutIdUseCase,
     private val startWorkoutUseCase: StartWorkoutUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
 ) : ViewModel() {
@@ -120,8 +125,9 @@ class HomeViewModel @Inject constructor(
         combine(
             getWorkoutFrequency(HistoryRange.FOUR_WEEKS),
             bodyweightTrend,
-        ) { frequency, trend -> frequency to trend },
-    ) { summary, routines, history, prefs, (frequency, weightTrend) ->
+            observeActiveWorkoutId(),
+        ) { frequency, trend, activeWorkoutId -> Triple(frequency, trend, activeWorkoutId) },
+    ) { summary, routines, history, prefs, (frequency, weightTrend, activeWorkoutId) ->
         val system = prefs.weightUnit
 
         // Order quick-start chips by most-recently-used routine, then by manual position.
@@ -169,6 +175,7 @@ class HomeViewModel @Inject constructor(
             bodyweightLatestLabel = weightTrend.lastOrNull()?.let {
                 "${UnitConverter.formatValue(it.toDouble())} ${UnitConverter.weightLabel(system)}"
             } ?: "",
+            hasWorkoutInProgress = activeWorkoutId != null,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
