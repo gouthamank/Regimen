@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.profile
+package dev.gouthaman.regimen.ui.settings
 
 import android.os.Build
 import androidx.compose.foundation.clickable
@@ -48,13 +48,13 @@ private const val REST_MAX_SEC = 300
 private const val REST_STEP_SEC = 15
 
 @Composable
-fun ProfileScreen(
+fun SettingsScreen(
     modifier: Modifier = Modifier,
     onOpenExerciseLibrary: () -> Unit = {},
-    viewModel: ProfileViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
-    ProfileScreen(
+    SettingsScreen(
         prefs = prefs,
         modifier = modifier,
         onWeightUnitChange = viewModel::setWeightUnit,
@@ -69,7 +69,7 @@ fun ProfileScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(
+fun SettingsScreen(
     prefs: UserPreferences,
     modifier: Modifier = Modifier,
     onWeightUnitChange: (UnitSystem) -> Unit = {},
@@ -85,7 +85,7 @@ fun ProfileScreen(
         modifier = modifier
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
-        topBar = { MediumTopAppBar(title = { Text("Profile") }, scrollBehavior = scrollBehavior) },
+        topBar = { MediumTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
     ) { innerPadding ->
         Column(
             modifier = Modifier

@@ -129,6 +129,7 @@ fun ExerciseDetailScreen(
                     uiState.prLabel,
                     uiState.history
                 )
+
                 uiState.loaded -> NotFound()
                 else -> {} // initial loading — nothing to show yet
             }

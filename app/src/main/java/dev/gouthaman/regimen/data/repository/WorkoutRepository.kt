@@ -33,6 +33,7 @@ class WorkoutRepository @Inject constructor(
     suspend fun getWorkout(id: Long): WorkoutWithDetails? = dao.getWorkoutWithDetails(id)
     suspend fun getMostRecentForRoutine(routineId: Long): WorkoutWithDetails? =
         dao.getMostRecentCompletedForRoutine(routineId)
+
     suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry? =
         dao.getMostRecentSetForExercise(exerciseId)
 

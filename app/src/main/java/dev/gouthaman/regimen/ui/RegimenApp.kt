@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -47,6 +46,17 @@ fun RegimenApp(
     val navController = rememberNavController()
     val inProgressWorkoutId by viewModel.inProgressWorkoutId.collectAsStateWithLifecycle()
 
+    // Tracks which bottom tab should stay highlighted. All routes live in a single flat NavHost
+    // (no per-tab nested graphs), so a pushed detail screen (e.g. Session Detail) has no graph-level
+    // tie back to the tab it was opened from. Switching tabs away and back restores that tab's saved
+    // stack via restoreState, which can land on the detail screen rather than the tab root itself —
+    // so this can't be inferred purely from whichever destination the restore happens to resolve to.
+    // It's set eagerly at the point of intent (see onNavigateToTab below, passed to every
+    // navigateToTab call site) and the destination-changed listener below only fills in the cases
+    // that aren't an explicit tab switch (cold start, popping back up to a tab's own root).
+    var activeTabRoute by remember { mutableStateOf<Any?>(null) }
+    val onNavigateToTab: (Any) -> Unit = { route -> activeTabRoute = route }
+
     Scaffold(
         // The top status-bar inset is handled by each screen's own TopAppBar. Zeroing the
         // top inset here avoids double-counting it (which left a gap under the status bar);
@@ -60,17 +70,12 @@ fun RegimenApp(
                 it.hasRoute(ActiveWorkoutRoute::class) || it.hasRoute(WorkoutSummaryRoute::class)
             } == true
 
-            // All routes live in a single flat NavHost (no per-tab nested graphs), so a pushed
-            // detail screen (e.g. Session Detail, Exercise Detail) has no graph-level tie back to
-            // the tab it was opened from. Track the most recently visited top-level destination
-            // ourselves instead of walking NavController.currentBackStack (restricted to the
-            // androidx.navigation library group): that's the tab that should stay highlighted
-            // underneath the detail screens pushed on top of it.
-            var activeTab by remember { mutableStateOf<NavDestination?>(null) }
             DisposableEffect(navController) {
                 val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
-                    if (topLevelDestinations.any { destination.hasRoute(it.route::class) }) {
-                        activeTab = destination
+                    val matched =
+                        topLevelDestinations.firstOrNull { destination.hasRoute(it.route::class) }
+                    if (matched != null) {
+                        activeTabRoute = matched.route
                     }
                 }
                 navController.addOnDestinationChangedListener(listener)
@@ -90,14 +95,15 @@ fun RegimenApp(
                 }
                 NavigationBar {
                     topLevelDestinations.forEach { dest ->
-                        val selected = activeTab?.hasRoute(dest.route::class) == true
+                        val selected = activeTabRoute == dest.route
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
                                 onTabSelected(
                                     navController,
                                     dest,
-                                    alreadySelected = selected
+                                    alreadySelected = selected,
+                                    onNavigateToTab,
                                 )
                             },
                             icon = { Icon(dest.icon, contentDescription = dest.label) },
@@ -108,7 +114,7 @@ fun RegimenApp(
             }
         },
     ) { innerPadding ->
-        RegimenNavHost(navController, Modifier.padding(innerPadding))
+        RegimenNavHost(navController, Modifier.padding(innerPadding), onNavigateToTab)
     }
 }
 
@@ -120,10 +126,12 @@ private fun onTabSelected(
     navController: NavHostController,
     dest: TopLevelDestination,
     alreadySelected: Boolean,
+    onNavigateToTab: (Any) -> Unit,
 ) {
     if (alreadySelected) {
         navController.popBackStack(dest.route, inclusive = false)
     } else {
+        onNavigateToTab(dest.route)
         navController.navigateToTab(dest.route)
     }
 }

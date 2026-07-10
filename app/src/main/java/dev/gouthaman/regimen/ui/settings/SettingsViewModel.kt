@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.profile
+package dev.gouthaman.regimen.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor(
+class SettingsViewModel @Inject constructor(
     observePreferences: ObservePreferencesUseCase,
     private val updatePreferences: UpdatePreferencesUseCase,
 ) : ViewModel() {

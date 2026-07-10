@@ -161,7 +161,7 @@ private fun AppearancePage(
 ) {
     OnboardingPage(
         title = "Make it yours",
-        subtitle = "Choose a theme. You can change any of this later in Profile.",
+        subtitle = "Choose a theme. You can change any of this later in Settings.",
     ) {
         ThemeModeSelector(themeMode, onThemeModeChange)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

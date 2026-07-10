@@ -31,7 +31,7 @@ freeform "Quick workout" (see [Workout entry](#workout-entry)).
 Single-Activity, Jetpack Compose, Navigation Compose (type-safe routes). Top-level
 navigation is a **bottom tab bar** with 5 destinations:
 
-1. **Home** · 2. **Routines** · 3. **History** · 4. **Progress** · 5. **Profile**
+1. **Home** · 2. **Routines** · 3. **History** · 4. **Progress** · 5. **Settings**
 
 **Active Workout is not a tab** — it's a full-screen destination launched from Home or
 Routines and backed by a foreground service. While a workout is in progress and the user
@@ -87,8 +87,9 @@ navigates elsewhere, a persistent "workout in progress" banner returns them to i
 > There is no separate per-exercise progress chart screen in v1. Per-exercise history and PRs
 > live in Exercise Detail (S11).
 
-### Tab 5 — Profile
-- **S9. Profile / Settings** — **units** (metric/imperial: kg/lb + km/mi), **theme**
+### Tab 5 — Settings
+
+- **S9. Settings** — **units** (metric/imperial: kg/lb + km/mi), **theme**
   (light / dark / system + dynamic-color toggle), **rest-timer default duration**, **manage
   custom measurement types**, an entry point to the Exercise Library, and **data export →
   JSON** (deferred).
@@ -347,7 +348,7 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
   (`ActiveWorkoutScreen`, `ActiveWorkoutViewModel`, `WorkoutSummaryScreen`,
   `WorkoutSummaryViewModel`).
 - ~~**Rest-alert sound toggle (Settings).**~~ **Done.** `UserPreferences.restChimeEnabled`
-  (default on) + a Profile switch ("Rest timer sound"); `RestAlerts.fire(chimeEnabled)` skips
+  (default on) + a Settings switch ("Rest timer sound"); `RestAlerts.fire(chimeEnabled)` skips
   `playChime()` when off. Also fixed a related bug found during verification: on Android 8+,
   notification sound is a *channel* property, not per-notification — gating just `playChime()`
   wasn't enough, since the notification itself still played the channel's default sound
@@ -369,7 +370,7 @@ Cross-cutting enhancements captured for later; none block the numbered build ord
      exact top-level route, the bottom bar walks the live back stack
      (`navController.currentBackStack`) for the most recent top-level entry and highlights that tab
      underneath any detail screens pushed on top of it (e.g. Session Detail stays under History,
-     Exercise Detail stays under Profile).
+     Exercise Detail stays under Settings).
 
 ---
 

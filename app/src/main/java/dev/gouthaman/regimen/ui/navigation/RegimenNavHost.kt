@@ -25,10 +25,10 @@ import dev.gouthaman.regimen.ui.history.SessionDetailScreen
 import dev.gouthaman.regimen.ui.home.HomeScreen
 import dev.gouthaman.regimen.ui.measurements.MeasurementDetailScreen
 import dev.gouthaman.regimen.ui.measurements.MeasurementsScreen
-import dev.gouthaman.regimen.ui.profile.ProfileScreen
 import dev.gouthaman.regimen.ui.progress.ProgressScreen
 import dev.gouthaman.regimen.ui.routines.RoutineEditorScreen
 import dev.gouthaman.regimen.ui.routines.RoutinesScreen
+import dev.gouthaman.regimen.ui.settings.SettingsScreen
 
 /**
  * ─────────────────────────────────────────────────────────────────────────
@@ -45,14 +45,14 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *    [✓] Routines   RoutinesRoute
  *    [✓] History    HistoryRoute
  *    [✓] Progress   ProgressRoute
- *    [✓] Profile    ProfileRoute     ← S9 Profile/Settings lives here (units,
+ *    [✓] Settings   SettingsRoute    ← S9 Settings lives here (units,
  *                                       theme, dynamic color, rest-timer default)
  *
  *  Detail / secondary destinations (pushed above the tabs):
  *
  *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
  *              ──▶ [✓] Active Workout     ActiveWorkoutRoute(workoutId) (Start/quick-start/Quick-workout)
- *    Profile   ──▶ [✓] Exercise Library   ExerciseLibraryRoute
+ *    Settings  ──▶ [✓] Exercise Library   ExerciseLibraryRoute
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
  *    Detail    ──▶ [✓] Edit Exercise      EditExerciseRoute(exerciseId)
@@ -82,6 +82,7 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
 fun RegimenNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
+    onNavigateToTab: (Any) -> Unit,
 ) {
     // Shared-axis-x transitions between all destinations (push slides in from the end + fades in,
     // popping reverses it) instead of the platform's abrupt default cross-fade.
@@ -125,7 +126,10 @@ fun RegimenNavHost(
                 HomeScreen(
                     // The empty-state CTA switches to the Routines tab (where routine creation
                     // actually lives) rather than pushing the editor directly from Home.
-                    onCreateRoutine = { navController.navigateToTab(RoutinesRoute) },
+                    onCreateRoutine = {
+                        onNavigateToTab(RoutinesRoute)
+                        navController.navigateToTab(RoutinesRoute)
+                    },
                     onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
                 )
             }
@@ -170,8 +174,8 @@ fun RegimenNavHost(
                     onOpenMeasurements = { navController.navigate(MeasurementsRoute) },
                 )
             }
-            composable<ProfileRoute> {
-                ProfileScreen(
+            composable<SettingsRoute> {
+                SettingsScreen(
                     onOpenExerciseLibrary = { navController.navigate(ExerciseLibraryRoute) },
                 )
             }

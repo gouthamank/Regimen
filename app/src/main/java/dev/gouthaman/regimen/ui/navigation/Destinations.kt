@@ -5,7 +5,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -25,7 +25,7 @@ data object HistoryRoute
 data object ProgressRoute
 
 @Serializable
-data object ProfileRoute
+data object SettingsRoute
 
 /** Detail / secondary destinations. */
 @Serializable
@@ -55,9 +55,6 @@ data object MeasurementsRoute
 @Serializable
 data class MeasurementDetailRoute(val typeId: Long)
 
-@Serializable
-data object SettingsRoute
-
 data class TopLevelDestination(
     val route: Any,
     val label: String,
@@ -69,7 +66,7 @@ val topLevelDestinations = listOf(
     TopLevelDestination(RoutinesRoute, "Routines", Icons.Filled.FitnessCenter),
     TopLevelDestination(HistoryRoute, "History", Icons.Filled.CalendarMonth),
     TopLevelDestination(ProgressRoute, "Progress", Icons.AutoMirrored.Filled.TrendingUp),
-    TopLevelDestination(ProfileRoute, "Profile", Icons.Outlined.Person),
+    TopLevelDestination(SettingsRoute, "Settings", Icons.Filled.Settings),
 )
 
 /**

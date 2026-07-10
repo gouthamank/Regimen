@@ -28,7 +28,7 @@ project memory; see also `build.gradle.kts` / `gradle.properties`.
 - **Local-only**: no backend, no auth, no network. Room for persistence. Data export (JSON)
   is deferred.
 - **UI**: Jetpack Compose + **Material 3 Expressive**, single-Activity, bottom-tab
-  navigation (Home / Routines / History / Progress / Profile).
+  navigation (Home / Routines / History / Progress / Settings).
 - **Architecture**: MVVM + UDF with a **full use-case (domain) layer**
   (`ui → domain → data/repository → Room DAO`); ViewModels expose `StateFlow`. Hilt for DI.
 - **minSdk 26**, Kotlin + Gradle Kotlin DSL + version catalog + KSP.
