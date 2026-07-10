@@ -38,6 +38,9 @@ data class HomeUiState(
     val volumeLabel: String = "",
     val timeLabel: String = "",
     val weekStreak: Int = 0,
+    val workoutsThisMonth: Int = 0,
+    val volumeLabelMonth: String = "",
+    val timeLabelMonth: String = "",
     /** Top few recent routines shown as quick-start chips. */
     val quickStart: List<QuickStartRoutine> = emptyList(),
     /** All routines (recency-ordered) for the "Start a workout" chooser. */
@@ -108,6 +111,16 @@ class HomeViewModel @Inject constructor(
             } ${UnitConverter.weightLabel(system)}",
             timeLabel = SessionFormat.duration(0L, summary.durationMillisThisWeek),
             weekStreak = summary.weekStreak,
+            workoutsThisMonth = summary.workoutsThisMonth,
+            volumeLabelMonth = "${
+                UnitConverter.formatValue(
+                    UnitConverter.kgToDisplay(
+                        summary.volumeKgThisMonth,
+                        system
+                    )
+                )
+            } ${UnitConverter.weightLabel(system)}",
+            timeLabelMonth = SessionFormat.duration(0L, summary.durationMillisThisMonth),
             quickStart = orderedRoutines.take(MAX_QUICK_START),
             routines = orderedRoutines,
             loaded = true,

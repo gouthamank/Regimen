@@ -121,11 +121,13 @@ fun HomeScreen(
                         )
                     }
 
-                    WeekSummarySection(uiState)
-
                     if (uiState.quickStart.isNotEmpty()) {
                         QuickStartSection(uiState, onStartRoutine = { onStartWorkout(it) })
                     }
+                    
+                    WeekSummarySection(uiState)
+                    MonthSummarySection(uiState)
+
                 }
             }
         }
@@ -199,6 +201,22 @@ private fun WeekSummarySection(uiState: HomeUiState) {
     }
 }
 
+// "This month" mirrors the week tiles (no streak — that's a weekly concept).
+@Composable
+private fun MonthSummarySection(uiState: HomeUiState) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("This month", style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            StatTile("Workouts", uiState.workoutsThisMonth.toString(), Modifier.weight(1f))
+            StatTile("Volume", uiState.volumeLabelMonth, Modifier.weight(1f))
+            StatTile("Time", uiState.timeLabelMonth, Modifier.weight(1f))
+        }
+    }
+}
+
 @Composable
 private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier = modifier) {
@@ -249,12 +267,24 @@ private fun StreakTile(weeks: Int) {
                 )
             }
             Text(
-                "$weeks-week streak",
+                formatStreak(weeks),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
+    }
+}
+
+// Weeks roll up to months (4 weeks) once the streak is a month or longer, then to
+// years once it's a year or longer (12 months), so long streaks stay readable.
+private fun formatStreak(weeks: Int): String = when {
+    weeks < 4 -> "$weeks-week streak"
+    weeks < 48 -> "${weeks / 4}-month streak"
+    else -> {
+        val years = weeks / 48
+        val months = (weeks % 48) / 4
+        if (months == 0) "$years-year streak" else "$years-year, $months-month streak"
     }
 }
 
