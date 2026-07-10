@@ -5,8 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,8 +16,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -30,7 +30,6 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.toShape
@@ -67,7 +66,7 @@ fun HomeScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
@@ -106,25 +105,31 @@ fun HomeScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    // Primary CTA opens a chooser (pick a routine, or a freeform quick workout).
-                    Button(
+                    val startButtonHeight = ButtonDefaults.LargeContainerHeight
+                    ElevatedButton(
                         onClick = { showStartSheet = true },
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .align(Alignment.CenterHorizontally)
                             .padding(top = 4.dp),
+                        contentPadding = ButtonDefaults.contentPaddingFor(
+                            startButtonHeight,
+                            hasStartIcon = true,
+                        ),
                     ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(startButtonHeight)),
+                        )
                         Text(
                             "Start Workout",
-                            modifier = Modifier.padding(start = 8.dp),
-                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(
+                                start = ButtonDefaults.iconSpacingFor(startButtonHeight),
+                            ),
+                            style = ButtonDefaults.textStyleFor(startButtonHeight),
                         )
                     }
 
-                    if (uiState.quickStart.isNotEmpty()) {
-                        QuickStartSection(uiState, onStartRoutine = { onStartWorkout(it) })
-                    }
-                    
                     WeekSummarySection(uiState)
                     MonthSummarySection(uiState)
 
@@ -285,26 +290,6 @@ private fun formatStreak(weeks: Int): String = when {
         val years = weeks / 48
         val months = (weeks % 48) / 4
         if (months == 0) "$years-year streak" else "$years-year, $months-month streak"
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun QuickStartSection(uiState: HomeUiState, onStartRoutine: (Long) -> Unit) {
-    Column {
-        Text(
-            "Quick start",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            uiState.quickStart.forEach { routine ->
-                SuggestionChip(
-                    onClick = { onStartRoutine(routine.routineId) },
-                    label = { Text(routine.name) },
-                )
-            }
-        }
     }
 }
 
