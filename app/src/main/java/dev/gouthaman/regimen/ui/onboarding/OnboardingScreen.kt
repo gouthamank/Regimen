@@ -206,9 +206,11 @@ private fun TabletopOnboardingLayout(
             .systemBarsPadding(),
     ) {
         Box(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+            ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onFinish) { Text("Skip") }
                 }

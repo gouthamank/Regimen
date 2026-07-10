@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -18,11 +19,13 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -75,6 +78,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -292,6 +296,9 @@ fun ActiveWorkoutScreen(
                         onUpdateCardio = onUpdateCardio,
                         onStartRest = onStartRest,
                         showRestTimer = !isEditing,
+                        // Animates a newly-added exercise's appearance (and would animate
+                        // reordering/removal too, though neither happens here today).
+                        modifier = Modifier.animateItem(),
                     )
                 }
 
@@ -613,14 +620,22 @@ private fun ExerciseCard(
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (Long, Int) -> Unit,
     showRestTimer: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = if (exercise.isSkipped) {
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    // Cross-fades the container tint on skip/unskip instead of an instant color cut, same
+    // duration as the toolbar's pause/resume tint cross-fade above.
+    val containerColor by animateColorAsState(
+        targetValue = if (exercise.isSkipped) {
+            MaterialTheme.colorScheme.surfaceVariant
         } else {
-            CardDefaults.cardColors()
+            CardDefaults.cardColors().containerColor
         },
+        animationSpec = tween(300),
+        label = "exerciseCardContainer",
+    )
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -636,75 +651,141 @@ private fun ExerciseCard(
                 )
                 if (exercise.isStrength) {
                     IconButton(onClick = { onToggleSkip(exercise.workoutExercise) }) {
-                        Icon(
-                            if (exercise.isSkipped) Icons.Filled.AddCircleOutline
-                            else Icons.Filled.RemoveCircleOutline,
-                            contentDescription = if (exercise.isSkipped) "Include" else "Skip",
-                        )
+                        // Same scale+fade swap the toolbar uses for its pause/resume icon.
+                        AnimatedContent(
+                            targetState = exercise.isSkipped,
+                            transitionSpec = {
+                                (scaleIn(initialScale = 0.6f) + fadeIn())
+                                    .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
+                            },
+                            label = "skipToggleIcon",
+                        ) { skipped ->
+                            Icon(
+                                if (skipped) Icons.Filled.AddCircleOutline
+                                else Icons.Filled.RemoveCircleOutline,
+                                contentDescription = if (skipped) "Include" else "Skip",
+                            )
+                        }
                     }
                 }
             }
 
-            when {
-                exercise.isSkipped -> Text(
-                    "Skipped",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+            // Cross-fades between the "Skipped" label and the sets/cardio body, resizing the
+            // card smoothly instead of an abrupt height jump — the two bodies are very different
+            // heights (one line vs. a full set list).
+            AnimatedContent(
+                targetState = exercise.isSkipped,
+                transitionSpec = {
+                    fadeIn(tween(220)).togetherWith(fadeOut(tween(150)))
+                        .using(SizeTransform(clip = false))
+                },
+                label = "exerciseCardBody",
+            ) { skipped ->
+                when {
+                    skipped -> Text(
+                        "Skipped",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
 
-                exercise.isStrength -> {
-                    exercise.sets.forEach { set ->
-                        SetRow(
-                            set = set,
-                            weightUnit = weightUnit,
-                            isBodyweight = exercise.equipment == Equipment.BODYWEIGHT,
-                            onUpdate = onUpdateSet,
-                            onDelete = { onDeleteSet(set) },
-                        )
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TextButton(
-                            onClick = {
-                                onAddSet(
-                                    exercise.workoutExerciseId,
-                                    exercise.sets.lastOrNull()
+                    exercise.isStrength -> Column {
+                        exercise.sets.forEach { set ->
+                            key(set.id) {
+                                AnimatedSetRow(
+                                    set = set,
+                                    weightUnit = weightUnit,
+                                    isBodyweight = exercise.equipment == Equipment.BODYWEIGHT,
+                                    onUpdate = onUpdateSet,
+                                    onDelete = { onDeleteSet(set) },
                                 )
-                            },
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = null)
-                            Text("Add set", modifier = Modifier.padding(start = 8.dp))
+                            }
                         }
-                        if (showRestTimer) TextButton(
-                            onClick = {
-                                onStartRest(
-                                    exercise.workoutExerciseId,
-                                    exercise.restTargetSec
-                                )
-                            },
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.Timer, contentDescription = null)
-                            Text("Rest", modifier = Modifier.padding(start = 8.dp))
+                            TextButton(
+                                onClick = {
+                                    onAddSet(
+                                        exercise.workoutExerciseId,
+                                        exercise.sets.lastOrNull()
+                                    )
+                                },
+                            ) {
+                                Icon(Icons.Filled.Add, contentDescription = null)
+                                Text("Add set", modifier = Modifier.padding(start = 8.dp))
+                            }
+                            if (showRestTimer) TextButton(
+                                onClick = {
+                                    onStartRest(
+                                        exercise.workoutExerciseId,
+                                        exercise.restTargetSec
+                                    )
+                                },
+                            ) {
+                                Icon(Icons.Filled.Timer, contentDescription = null)
+                                Text("Rest", modifier = Modifier.padding(start = 8.dp))
+                            }
                         }
                     }
+
+                    else -> CardioRow(
+                        cardio = exercise.cardio,
+                        workoutExerciseId = exercise.workoutExerciseId,
+                        distanceUnit = distanceUnit,
+                        onUpdate = onUpdateCardio,
+                    )
                 }
-
-                else -> CardioRow(
-                    cardio = exercise.cardio,
-                    workoutExerciseId = exercise.workoutExerciseId,
-                    distanceUnit = distanceUnit,
-                    onUpdate = onUpdateCardio,
-                )
             }
         }
     }
 }
+
+/**
+ * Wraps [SetRow] with an enter animation for newly-added sets and a delayed exit for deletion —
+ * [AnimatedVisibility]'s exit transition needs the composable to stay in the tree for its
+ * duration, so the real [onDelete] callback (which removes the set from the backing list) fires
+ * only after the shrink/fade finishes, matching [SetRowExitDurationMs].
+ */
+@Composable
+private fun AnimatedSetRow(
+    set: SetEntry,
+    weightUnit: UnitSystem,
+    isBodyweight: Boolean,
+    onUpdate: (SetEntry) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var visible by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    LaunchedEffect(removing) {
+        if (removing) {
+            delay(SetRowExitDurationMs)
+            onDelete()
+        }
+    }
+
+    AnimatedVisibility(
+        visible = visible && !removing,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut(tween(SetRowExitDurationMs.toInt())) +
+                shrinkVertically(tween(SetRowExitDurationMs.toInt())),
+    ) {
+        SetRow(
+            set = set,
+            weightUnit = weightUnit,
+            isBodyweight = isBodyweight,
+            onUpdate = onUpdate,
+            onDelete = { removing = true },
+        )
+    }
+}
+
+private const val SetRowExitDurationMs = 220L
 
 @Composable
 private fun SetRow(
