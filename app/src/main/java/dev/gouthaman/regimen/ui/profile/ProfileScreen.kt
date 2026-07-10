@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -52,7 +51,6 @@ private const val REST_STEP_SEC = 15
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     onOpenExerciseLibrary: () -> Unit = {},
-    onManageMeasurementTypes: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
@@ -66,7 +64,6 @@ fun ProfileScreen(
         onRestDefaultChange = viewModel::setRestDefaultSec,
         onRestChimeEnabledChange = viewModel::setRestChimeEnabled,
         onOpenExerciseLibrary = onOpenExerciseLibrary,
-        onManageMeasurementTypes = onManageMeasurementTypes,
     )
 }
 
@@ -82,7 +79,6 @@ fun ProfileScreen(
     onRestDefaultChange: (Int) -> Unit = {},
     onRestChimeEnabledChange: (Boolean) -> Unit = {},
     onOpenExerciseLibrary: () -> Unit = {},
-    onManageMeasurementTypes: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
@@ -151,13 +147,6 @@ fun ProfileScreen(
                 icon = Icons.Filled.FitnessCenter,
                 enabled = true,
                 onClick = onOpenExerciseLibrary,
-            )
-            NavRow(
-                headline = "Body measurements",
-                supporting = "Track bodyweight and custom measurements",
-                icon = Icons.Filled.Straighten,
-                enabled = true,
-                onClick = onManageMeasurementTypes,
             )
             NavRow(
                 headline = "Export data",

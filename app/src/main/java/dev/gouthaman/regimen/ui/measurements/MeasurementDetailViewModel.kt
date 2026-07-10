@@ -35,6 +35,7 @@ data class MeasurementEntry(
 )
 
 data class MeasurementDetailUiState(
+    val typeId: Long = 0L,
     val type: MeasurementType? = null,
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     /** Display-unit values in chronological order, for the trend chart (filtered by [range]). */
@@ -70,11 +71,12 @@ class MeasurementDetailViewModel @Inject constructor(
         _range,
     ) { type, metrics, prefs, range ->
         if (type == null) {
-            MeasurementDetailUiState(loaded = true)
+            MeasurementDetailUiState(typeId = typeId, loaded = true)
         } else {
             val system = prefs.weightUnit
             val cutoff = range.cutoffMillis()
             MeasurementDetailUiState(
+                typeId = typeId,
                 type = type,
                 weightUnit = system,
                 trend = metrics

@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.ui.measurements
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +51,8 @@ import java.util.Locale
 
 @Composable
 fun MeasurementDetailScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MeasurementDetailViewModel = hiltViewModel(),
@@ -55,6 +60,8 @@ fun MeasurementDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     MeasurementDetailScreen(
         uiState = uiState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onAddEntry = viewModel::addEntry,
         onDeleteEntry = viewModel::deleteEntry,
@@ -67,10 +74,12 @@ fun MeasurementDetailScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun MeasurementDetailScreen(
     uiState: MeasurementDetailUiState,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onAddEntry: (Long, Double) -> Unit,
     onDeleteEntry: (MeasurementEntry) -> Unit,
@@ -83,8 +92,18 @@ fun MeasurementDetailScreen(
     var showDeleteType by remember { mutableStateOf(false) }
     var showAddEntry by remember { mutableStateOf(false) }
 
+    // Expands from the tapped Measurements row (see MeasurementsScreen's MeasurementCard) via the
+    // shared-bounds container transform keyed on this measurement type's id.
+    val containerModifier = with(sharedTransitionScope) {
+        modifier
+            .fillMaxSize()
+            .sharedBounds(
+                rememberSharedContentState(key = measurementRowTransitionKey(uiState.typeId)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+    }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = containerModifier,
         topBar = {
             TopAppBar(
                 title = { Text(type?.name ?: "Measurement") },
@@ -115,12 +134,22 @@ fun MeasurementDetailScreen(
             )
         },
         floatingActionButton = {
-            if (type != null) {
-                ExtendedFloatingActionButton(
-                    onClick = { showAddEntry = true },
-                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text("Add entry") },
-                )
+            // Stay mounted through the brief pre-load frame (type == null, loaded == false) rather
+            // than only appearing once the type resolves — otherwise this shared-element-tagged FAB
+            // isn't part of the tree when the entry transition starts and just pops in instead of
+            // animating in anchored. Only truly hide it for the (rare) genuine not-found case.
+            if (!uiState.loaded || type != null) {
+                with(sharedTransitionScope) {
+                    ExtendedFloatingActionButton(
+                        onClick = { showAddEntry = true },
+                        icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        text = { Text("Add entry") },
+                        modifier = Modifier.sharedElement(
+                            rememberSharedContentState(key = measurementFabTransitionKey),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        ),
+                    )
+                }
             }
         },
     ) { innerPadding ->

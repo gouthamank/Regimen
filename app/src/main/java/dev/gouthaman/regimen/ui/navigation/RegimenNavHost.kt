@@ -53,7 +53,6 @@ import dev.gouthaman.regimen.ui.routines.RoutinesScreen
  *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
  *              ──▶ [✓] Active Workout     ActiveWorkoutRoute(workoutId) (Start/quick-start/Quick-workout)
  *    Profile   ──▶ [✓] Exercise Library   ExerciseLibraryRoute
- *              ──▶ [✓] Body Measurements  MeasurementsRoute (S8, "Measurement types" row)
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
  *    Detail    ──▶ [✓] Edit Exercise      EditExerciseRoute(exerciseId)
@@ -87,9 +86,10 @@ fun RegimenNavHost(
     // popping reverses it) instead of the platform's abrupt default cross-fade.
     val transitionSpec = tween<Float>(220)
 
-    // SharedTransitionLayout hosts the container-transform used by the Add/Edit Exercise screen:
-    // its root expands from the touch point (Library's FAB or Detail's Edit button) instead of
-    // sliding in like every other destination. See ExerciseEditTransitionKey.
+    // SharedTransitionLayout hosts the row-expand container transforms used by Exercise Library ->
+    // Exercise Detail and Measurements -> Measurement Detail: each destination's root expands from
+    // the tapped list row instead of sliding in like every other destination. See
+    // exerciseRowTransitionKey / measurementRowTransitionKey.
     SharedTransitionLayout {
         val sharedTransitionScope = this
         NavHost(
@@ -169,18 +169,28 @@ fun RegimenNavHost(
             composable<ProfileRoute> {
                 ProfileScreen(
                     onOpenExerciseLibrary = { navController.navigate(ExerciseLibraryRoute) },
-                    onManageMeasurementTypes = { navController.navigate(MeasurementsRoute) },
                 )
             }
 
             composable<MeasurementsRoute> {
                 MeasurementsScreen(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
                     onBack = navController::popBackStack,
                     onOpenType = { navController.navigate(MeasurementDetailRoute(it)) },
                 )
             }
-            composable<MeasurementDetailRoute> {
-                MeasurementDetailScreen(onBack = navController::popBackStack)
+            composable<MeasurementDetailRoute>(
+                // Detail is the destination of the Measurements row's container transform, so its
+                // own entrance/exit-back-to-list slide would fight that growth/shrink — suppress it.
+                enterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None },
+            ) {
+                MeasurementDetailScreen(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
+                    onBack = navController::popBackStack,
+                )
             }
 
             composable<ExerciseLibraryRoute> {

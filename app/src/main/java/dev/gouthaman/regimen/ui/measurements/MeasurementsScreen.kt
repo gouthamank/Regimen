@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.ui.measurements
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +45,8 @@ import dev.gouthaman.regimen.ui.components.Sparkline
 
 @Composable
 fun MeasurementsScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onOpenType: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -51,6 +56,8 @@ fun MeasurementsScreen(
     MeasurementsScreen(
         rows = uiState.rows,
         loaded = uiState.loaded,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onOpenType = onOpenType,
         onAddType = viewModel::addType,
@@ -60,11 +67,13 @@ fun MeasurementsScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun MeasurementsScreen(
     rows: List<MeasurementRow>,
     loaded: Boolean,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onOpenType: (Long) -> Unit,
     onAddType: (String, String) -> Unit,
@@ -94,11 +103,17 @@ fun MeasurementsScreen(
         },
         floatingActionButton = {
             if (rows.isNotEmpty()) {
-                ExtendedFloatingActionButton(
-                    onClick = { showAddEntry = true },
-                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text("Add entry") },
-                )
+                with(sharedTransitionScope) {
+                    ExtendedFloatingActionButton(
+                        onClick = { showAddEntry = true },
+                        icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        text = { Text("Add entry") },
+                        modifier = Modifier.sharedElement(
+                            rememberSharedContentState(key = measurementFabTransitionKey),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        ),
+                    )
+                }
             }
         },
     ) { innerPadding ->
@@ -113,7 +128,12 @@ fun MeasurementsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(rows, key = { it.type.id }) { row ->
-                    MeasurementCard(row = row, onClick = { onOpenType(row.type.id) })
+                    MeasurementCard(
+                        row = row,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        onClick = { onOpenType(row.type.id) },
+                    )
                 }
             }
         }
@@ -142,12 +162,24 @@ fun MeasurementsScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun MeasurementCard(row: MeasurementRow, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
+private fun MeasurementCard(
+    row: MeasurementRow,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onClick: () -> Unit,
+) {
+    val cardModifier = with(sharedTransitionScope) {
+        Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .sharedBounds(
+                rememberSharedContentState(key = measurementRowTransitionKey(row.type.id)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+    }
+    Card(
+        modifier = cardModifier.clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
