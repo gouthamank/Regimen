@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Regimen"
 include(":app")
+include(":core:domain")
