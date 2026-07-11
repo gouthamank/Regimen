@@ -1,4 +1,5 @@
 import com.android.build.gradle.LibraryExtension
+import dev.gouthaman.regimen.buildlogic.libs
 
 plugins {
     id("regimen.android.library")
@@ -12,5 +13,5 @@ extensions.configure<LibraryExtension> {
 }
 
 dependencies {
-    "implementation"(platform(libs.androidx.compose.bom))
+    "implementation"(platform(libs.findLibrary("androidx-compose-bom").get()))
 }
