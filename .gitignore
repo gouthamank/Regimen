@@ -3,12 +3,8 @@
 /local.properties
 /.idea
 .DS_Store
-/build
+build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
-
-# Project exclude paths
-/app/build/
-/app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/
