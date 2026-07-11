@@ -424,11 +424,20 @@ complexity.
 ## Deferred / backlog (post-milestone, not blocking)
 Cross-cutting enhancements captured for later; none block the numbered build order.
 
-- **Externalize strings to `strings.xml`.** User-facing text is currently hardcoded in Composables
-  throughout. Migrate all of it to `res/values/strings.xml` (enabling localization and
-  consistency), using **`<plurals>`** (quantity strings) wherever a count drives wording (e.g.
-  "N workouts", "N-week streak", "N exercises", "N reps", "in the last N weeks"). Prefer
-  parameterized resources over string concatenation.
+- ~~**Externalize strings to `strings.xml`.**~~ **Done.** All user-facing Composable text moved to
+  `res/values/strings.xml` (286 strings, 13 `<plurals>`), done screen-by-screen with
+  `stringResource`/
+  `pluralStringResource`. Where a ViewModel previously pre-formatted display text (e.g. "N reps",
+  "72 kg", "Quick workout" fallback), the UI state now carries structured/raw data instead (e.g.
+  `PersonalRecordValue`, `WeightValue`, `routineName: String?`) and formatting happens in the
+  Composable, since `stringResource` only works in composition. The shared non-Composable
+  formatters (`UnitConverter`, `SessionFormat`, `MeasurementFormat`, `ExerciseLabels`) were
+  converted to expose `@Composable` formatting functions (`UnitConverter.weightLabel`/
+  `distanceLabel` now return a `UnitLabel` enum resolved to text via `ui/util/UnitLabelText.kt`'s
+  `UnitLabel.text()`), with every ViewModel caller updated to pass raw data through instead.
+  Deliberately left alone: date/time `SimpleDateFormat` patterns, numeric-only formatters
+  (`formatElapsed`, `formatRest`, mm:ss), punctuation separators ("·", "×"), and the
+  `RegimenNavHost` ASCII navigation-map comment.
 - ~~**Remove emoji everywhere.**~~ **Done.** Replaced the "🔥 N-week streak" line on Home with a
   `MaterialShapes`-badged `Icons.Filled.Whatshot` icon (see the streak tile below), and the "🏆
   Personal records" header on Workout Summary with `Icons.Filled.EmojiEvents`. No emoji remain in

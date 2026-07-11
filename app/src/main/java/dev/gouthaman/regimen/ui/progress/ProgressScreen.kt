@@ -30,17 +30,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
 import dev.gouthaman.regimen.ui.components.LineChart
+import dev.gouthaman.regimen.ui.util.text
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -74,7 +78,10 @@ fun ProgressScreen(
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
-            MediumTopAppBar(title = { Text("Progress") }, scrollBehavior = scrollBehavior)
+            MediumTopAppBar(
+                title = { Text(stringResource(R.string.progress_title)) },
+                scrollBehavior = scrollBehavior
+            )
         },
     ) { innerPadding ->
         Box(
@@ -96,8 +103,8 @@ fun ProgressScreen(
             ) {
                 item {
                     ListItem(
-                        headlineContent = { Text("Body measurements") },
-                        supportingContent = { Text("Bodyweight and custom measurement trends") },
+                        headlineContent = { Text(stringResource(R.string.progress_measurements_link_title)) },
+                        supportingContent = { Text(stringResource(R.string.progress_measurements_link_subtitle)) },
                         leadingContent = {
                             Icon(Icons.Filled.Straighten, contentDescription = null)
                         },
@@ -118,7 +125,7 @@ fun ProgressScreen(
 
                 if (uiState.hasFrequency) {
                     item {
-                        SectionHeader("Workout frequency")
+                        SectionHeader(stringResource(R.string.progress_frequency_header))
                         HistoryRangeSelector(
                             selected = uiState.range,
                             onSelect = onRangeChange,
@@ -129,13 +136,13 @@ fun ProgressScreen(
                 }
 
                 if (uiState.hasRecords) {
-                    item { SectionHeader("Personal records") }
+                    item { SectionHeader(stringResource(R.string.progress_records_header)) }
                     items(uiState.personalRecords, key = { it.exerciseId }) { pr ->
                         ListItem(
                             headlineContent = { Text(pr.exerciseName) },
                             trailingContent = {
                                 Text(
-                                    pr.valueLabel,
+                                    personalRecordValueLabel(pr.value),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
@@ -146,6 +153,19 @@ fun ProgressScreen(
             }
         }
     }
+}
+
+@Composable
+private fun personalRecordValueLabel(value: PersonalRecordValue): String = when (value) {
+    is PersonalRecordValue.Weight ->
+        stringResource(
+            R.string.progress_weight_value_label,
+            value.displayValue,
+            value.unitLabel.text()
+        )
+
+    is PersonalRecordValue.Reps ->
+        pluralStringResource(R.plurals.progress_reps_count, value.count, value.count)
 }
 
 @Composable
@@ -170,11 +190,27 @@ private fun FrequencyCard(uiState: ProgressUiState) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "${uiState.totalInWindow} workouts in the last ${uiState.frequency.size} weeks",
+                stringResource(
+                    R.string.progress_frequency_summary,
+                    pluralStringResource(
+                        R.plurals.progress_workout_count,
+                        uiState.totalInWindow,
+                        uiState.totalInWindow
+                    ),
+                    pluralStringResource(
+                        R.plurals.progress_week_count,
+                        uiState.frequency.size,
+                        uiState.frequency.size
+                    ),
+                ),
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                "${uiState.thisWeekCount} this week",
+                pluralStringResource(
+                    R.plurals.progress_this_week_count,
+                    uiState.thisWeekCount,
+                    uiState.thisWeekCount
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
@@ -221,7 +257,7 @@ private fun EmptyProgress() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "Finish a workout to see your personal records and weekly activity here.",
+            stringResource(R.string.progress_empty_state),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

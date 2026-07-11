@@ -48,14 +48,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
+import dev.gouthaman.regimen.ui.exercise.label
 
 @Composable
 fun RoutineEditorScreen(
@@ -134,17 +137,28 @@ fun RoutineEditorScreen(
         modifier = containerModifier,
         topBar = {
             MediumTopAppBar(
-                title = { Text(if (uiState.isEditing) "Edit routine" else "New routine") },
+                title = {
+                    Text(
+                        stringResource(
+                            if (uiState.isEditing) R.string.routine_editor_edit_title else R.string.routine_editor_new_title,
+                        ),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.routine_editor_back_description)
+                        )
                     }
                 },
                 actions = {
                     FilledIconButton(onClick = onSave, enabled = uiState.canSave) {
                         Icon(
                             if (uiState.isEditing) Icons.Filled.Check else Icons.Filled.Add,
-                            contentDescription = "Add"
+                            contentDescription = stringResource(
+                                if (uiState.isEditing) R.string.routine_editor_save_description else R.string.routine_editor_add_description,
+                            ),
                         )
                     }
                 },
@@ -210,7 +224,7 @@ fun RoutineEditorScreen(
                         value = uiState.name,
                         onValueChange = onNameChange,
                         singleLine = true,
-                        label = { Text("Routine name") },
+                        label = { Text(stringResource(R.string.routine_editor_name_field_label)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -218,7 +232,7 @@ fun RoutineEditorScreen(
                 if (working.isEmpty()) {
                     item {
                         Text(
-                            "Add strength exercises to build this routine.",
+                            stringResource(R.string.routine_editor_empty_state),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -256,7 +270,10 @@ fun RoutineEditorScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null)
-                        Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
+                        Text(
+                            stringResource(R.string.routine_editor_add_exercise_button),
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
             }
@@ -303,20 +320,26 @@ private fun ExerciseEditorCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Filled.DragHandle,
-                    contentDescription = "Reorder ${exercise.name}",
+                    contentDescription = stringResource(
+                        R.string.routine_editor_reorder_description,
+                        exercise.name
+                    ),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = dragHandleModifier.padding(horizontal = 8.dp),
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(exercise.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        exercise.subtitle,
+                        "${exercise.muscleGroup.label()} · ${exercise.equipment.label()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Filled.Close, contentDescription = "Remove")
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.routine_editor_remove_description)
+                    )
                 }
             }
             // Three steppers need ~420dp to sit comfortably in one row; below that they split
@@ -327,21 +350,24 @@ private fun ExerciseEditorCard(
                     .fillMaxWidth()
                     .padding(top = 8.dp, start = 24.dp, end = 12.dp),
             ) {
+                val setsLabel = stringResource(R.string.routine_editor_sets_label)
+                val repsLabel = stringResource(R.string.routine_editor_reps_label)
+                val restLabel = stringResource(R.string.routine_editor_rest_label)
                 if (maxWidth >= 420.dp) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         Stepper(
-                            "Sets", exercise.targetSets.toString(),
+                            setsLabel, exercise.targetSets.toString(),
                             onDec = { onSetsChange(exercise.targetSets - 1) },
                             onInc = { onSetsChange(exercise.targetSets + 1) })
                         Stepper(
-                            "Reps", exercise.targetReps.toString(),
+                            repsLabel, exercise.targetReps.toString(),
                             onDec = { onRepsChange(exercise.targetReps - 1) },
                             onInc = { onRepsChange(exercise.targetReps + 1) })
                         Stepper(
-                            "Rest", formatRest(exercise.targetRestSec),
+                            restLabel, formatRest(exercise.targetRestSec),
                             onDec = { onRestChange(exercise.targetRestSec - restStep) },
                             onInc = { onRestChange(exercise.targetRestSec + restStep) })
                     }
@@ -352,11 +378,11 @@ private fun ExerciseEditorCard(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                         ) {
                             Stepper(
-                                "Sets", exercise.targetSets.toString(),
+                                setsLabel, exercise.targetSets.toString(),
                                 onDec = { onSetsChange(exercise.targetSets - 1) },
                                 onInc = { onSetsChange(exercise.targetSets + 1) })
                             Stepper(
-                                "Reps", exercise.targetReps.toString(),
+                                repsLabel, exercise.targetReps.toString(),
                                 onDec = { onRepsChange(exercise.targetReps - 1) },
                                 onInc = { onRepsChange(exercise.targetReps + 1) })
                         }
@@ -367,7 +393,7 @@ private fun ExerciseEditorCard(
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             Stepper(
-                                "Rest", formatRest(exercise.targetRestSec),
+                                restLabel, formatRest(exercise.targetRestSec),
                                 onDec = { onRestChange(exercise.targetRestSec - restStep) },
                                 onInc = { onRestChange(exercise.targetRestSec + restStep) })
                         }
@@ -390,7 +416,10 @@ private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -
             IconButton(onClick = onDec) {
                 Icon(
                     Icons.Filled.Remove,
-                    contentDescription = "Decrease $label"
+                    contentDescription = stringResource(
+                        R.string.routine_editor_decrease_description,
+                        label
+                    )
                 )
             }
             Text(
@@ -402,7 +431,10 @@ private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -
             IconButton(onClick = onInc) {
                 Icon(
                     Icons.Filled.Add,
-                    contentDescription = "Increase $label"
+                    contentDescription = stringResource(
+                        R.string.routine_editor_increase_description,
+                        label
+                    )
                 )
             }
         }
@@ -410,5 +442,9 @@ private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -
 }
 
 /** Rest seconds → "0:45" / "1:30", or "Off" when zero. */
+@Composable
 private fun formatRest(totalSec: Int): String =
-    if (totalSec <= 0) "Off" else "%d:%02d".format(totalSec / 60, totalSec % 60)
+    if (totalSec <= 0) stringResource(R.string.routine_editor_rest_off) else "%d:%02d".format(
+        totalSec / 60,
+        totalSec % 60
+    )

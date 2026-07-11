@@ -30,8 +30,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import java.text.SimpleDateFormat
@@ -71,7 +73,7 @@ fun AddMeasurementSheet(
         // full sheet height — in compact landscape the form scrolls internally instead of pushing
         // Save off-screen with nothing left to scroll it back into view.
         Text(
-            "Add measurement",
+            stringResource(R.string.add_measurement_sheet_title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
         )
@@ -93,7 +95,7 @@ fun AddMeasurementSheet(
                         value = selectedType.name,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Measurement") },
+                        label = { Text(stringResource(R.string.add_measurement_sheet_type_label)) },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded)
                         },
@@ -123,7 +125,14 @@ fun AddMeasurementSheet(
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
-                label = { Text("Value ($unitLabel)") },
+                label = {
+                    Text(
+                        stringResource(
+                            R.string.add_measurement_sheet_value_label,
+                            unitLabel
+                        )
+                    )
+                },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
@@ -134,7 +143,7 @@ fun AddMeasurementSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text("Date")
+                Text(stringResource(R.string.add_measurement_sheet_date_label))
                 TextButton(onClick = { showDatePicker = true }) {
                     Text(dateFormatter.format(dateMillis))
                 }
@@ -149,7 +158,7 @@ fun AddMeasurementSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp, top = 16.dp),
         ) {
-            Text("Save")
+            Text(stringResource(R.string.add_measurement_sheet_save_button))
         }
     }
 
@@ -164,10 +173,12 @@ fun AddMeasurementSheet(
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { dateMillis = it }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.add_measurement_sheet_ok_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    showDatePicker = false
+                }) { Text(stringResource(R.string.add_measurement_sheet_cancel_button)) }
             },
         ) {
             DatePicker(state = pickerState)

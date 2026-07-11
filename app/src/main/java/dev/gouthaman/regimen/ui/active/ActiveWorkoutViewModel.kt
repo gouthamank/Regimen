@@ -69,7 +69,9 @@ data class RestTimerState(
 
 data class ActiveWorkoutUiState(
     val workoutId: Long = 0,
-    val title: String = "",
+    /** Null means it's a freeform/"Quick workout" session, not that it isn't loaded yet ([loaded]
+     * distinguishes that) — resolved to display text by the Composable. */
+    val routineName: String? = null,
     val startTime: Long = 0,
     val exercises: List<ActiveExercise> = emptyList(),
     val note: String = "",
@@ -142,7 +144,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 .orEmpty()
             ActiveWorkoutUiState(
                 workoutId = workoutId,
-                title = routine?.routine?.name ?: "Quick workout",
+                routineName = routine?.routine?.name,
                 startTime = workout.workout.startTime,
                 note = workout.workout.note.orEmpty(),
                 weightUnit = prefs.weightUnit,

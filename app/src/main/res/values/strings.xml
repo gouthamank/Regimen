@@ -1,3 +1,384 @@
 <resources>
     <string name="app_name">Regimen</string>
+
+    <!-- Shared enum labels: UnitSystem (Onboarding + Settings) -->
+    <string name="unit_system_metric_weight">Metric (kg)</string>
+    <string name="unit_system_imperial_weight">Imperial (lb)</string>
+    <string name="unit_system_metric_distance">Metric (km)</string>
+    <string name="unit_system_imperial_distance">Imperial (mi)</string>
+
+    <!-- Shared enum labels: ThemeMode (Onboarding + Settings) -->
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_system">System</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_units_title">Welcome to Regimen</string>
+    <string name="onboarding_units_subtitle">Track your workouts, all on your device. First, which units do you use?</string>
+    <string name="onboarding_weight_label">Weight</string>
+    <string name="onboarding_distance_label">Distance</string>
+    <string name="onboarding_appearance_title">Make it yours</string>
+    <string name="onboarding_appearance_subtitle">Choose a theme. You can change any of this later in Settings.</string>
+    <string name="onboarding_dynamic_color_label">Dynamic color</string>
+    <string name="onboarding_dynamic_color_description">Use colors from your wallpaper</string>
+
+    <!-- Progress -->
+    <string name="progress_title">Progress</string>
+    <string name="progress_measurements_link_title">Body measurements</string>
+    <string name="progress_measurements_link_subtitle">Bodyweight and custom measurement trends</string>
+    <string name="progress_frequency_header">Workout frequency</string>
+    <string name="progress_records_header">Personal records</string>
+    <string name="progress_empty_state">Finish a workout to see your personal records and weekly activity here.</string>
+    <string name="progress_frequency_summary">%1$s in the last %2$s</string>
+    <plurals name="progress_workout_count">
+        <item quantity="one">%d workout</item>
+        <item quantity="other">%d workouts</item>
+    </plurals>
+    <plurals name="progress_week_count">
+        <item quantity="one">%d week</item>
+        <item quantity="other">%d weeks</item>
+    </plurals>
+    <plurals name="progress_this_week_count">
+        <item quantity="one">%d workout this week</item>
+        <item quantity="other">%d workouts this week</item>
+    </plurals>
+    <string name="progress_weight_value_label">%1$s %2$s</string>
+    <plurals name="progress_reps_count">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
+
+    <!-- Home -->
+    <string name="home_start_workout_button">Start Workout</string>
+    <string name="home_start_workout_sheet_title">Start a workout</string>
+    <string name="home_quick_workout_title">Quick workout</string>
+    <string name="home_quick_workout_subtitle">Freeform — no routine</string>
+    <string name="home_stat_workouts_label">Workouts</string>
+    <string name="home_stat_volume_label">Volume</string>
+    <string name="home_stat_time_label">Time</string>
+    <string name="home_this_week_header">This week</string>
+    <string name="home_this_month_header">This month</string>
+    <string name="home_frequency_header">Workout frequency</string>
+    <string name="home_frequency_empty">Finish a workout to start tracking your frequency.</string>
+    <string name="home_last_4_weeks">Last 4 weeks</string>
+    <string name="home_bodyweight_title">Bodyweight</string>
+    <string name="home_bodyweight_empty">Log your bodyweight to see a trend here.</string>
+    <string name="home_log_bodyweight_button">Log bodyweight</string>
+    <string name="home_empty_state_text">Build a routine to start tracking your workouts.</string>
+    <string name="home_create_routine_button">Create your first routine</string>
+    <string name="home_streak_years_and_months">%1$s, %2$s</string>
+    <plurals name="home_streak_weeks">
+        <item quantity="one">%d-week streak</item>
+        <item quantity="other">%d-week streak</item>
+    </plurals>
+    <plurals name="home_streak_months">
+        <item quantity="one">%d-month streak</item>
+        <item quantity="other">%d-month streak</item>
+    </plurals>
+    <plurals name="home_streak_years">
+        <item quantity="one">%d-year streak</item>
+        <item quantity="other">%d-year streak</item>
+    </plurals>
+    <plurals name="home_streak_years_part">
+        <item quantity="one">%d-year</item>
+        <item quantity="other">%d-year</item>
+    </plurals>
+    <plurals name="home_streak_months_part">
+        <item quantity="one">%d-month streak</item>
+        <item quantity="other">%d-month streak</item>
+    </plurals>
+    <string name="home_greeting_morning">Good morning</string>
+    <string name="home_greeting_afternoon">Good afternoon</string>
+    <string name="home_greeting_evening">Good evening</string>
+    <string name="home_weight_value_label">%1$s %2$s</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_preferences_header">Preferences</string>
+    <string name="settings_weight_unit_headline">Weight unit</string>
+    <string name="settings_distance_unit_headline">Distance unit</string>
+    <string name="settings_theme_headline">Theme</string>
+    <string name="settings_dynamic_color_label">Dynamic color</string>
+    <string name="settings_dynamic_color_description_available">Use colors from your wallpaper</string>
+    <string name="settings_dynamic_color_description_unavailable">Requires Android 12 or newer</string>
+    <string name="settings_rest_timer_default_headline">Rest timer default</string>
+    <string name="settings_rest_timer_sound_headline">Rest timer sound</string>
+    <string name="settings_rest_timer_sound_description">Chime when a rest period ends (vibration always on)</string>
+    <string name="settings_library_data_header">Library &amp; data</string>
+    <string name="settings_exercise_library_headline">Exercise library</string>
+    <string name="settings_exercise_library_description">Browse and add exercises</string>
+    <string name="settings_export_data_headline">Export data</string>
+    <string name="settings_export_data_description">JSON backup — planned</string>
+
+    <!-- History (calendar) -->
+    <string name="history_title">History</string>
+    <string name="history_empty_state">No workouts logged yet. Finished sessions will appear here on the day you did them.</string>
+    <string name="history_choose_session_dialog_title">Choose a session</string>
+    <string name="history_session_picker_cancel_button">Cancel</string>
+    <string name="history_previous_month_description">Previous month</string>
+    <string name="history_next_month_description">Next month</string>
+    <string name="history_day_view_sessions_click_label">View sessions</string>
+    <string name="history_day_not_yet_available_description">%1$d, not yet available</string>
+    <string name="history_quick_workout_fallback">Quick workout</string>
+
+    <!-- Session Detail -->
+    <string name="session_detail_title_fallback">Session</string>
+    <string name="session_detail_quick_workout_fallback">Quick workout</string>
+    <string name="session_detail_back_description">Back</string>
+    <string name="session_detail_more_description">More</string>
+    <string name="session_detail_repeat_menu_item">Repeat workout</string>
+    <string name="session_detail_edit_menu_item">Edit session</string>
+    <string name="session_detail_save_as_routine_menu_item">Save as routine</string>
+    <string name="session_detail_delete_menu_item">Delete session</string>
+    <string name="session_detail_not_found">Session not found</string>
+    <string name="session_detail_saved_as_routine_snackbar">Saved as routine</string>
+    <string name="session_detail_delete_dialog_title">Delete this session?</string>
+    <string name="session_detail_delete_dialog_text">This past workout and all its logged sets will be removed. This can\'t be undone.</string>
+    <string name="session_detail_delete_confirm_button">Delete</string>
+    <string name="session_detail_cancel_button">Cancel</string>
+    <plurals name="session_detail_exercise_count">
+        <item quantity="one">Exercise</item>
+        <item quantity="other">Exercises</item>
+    </plurals>
+    <string name="session_detail_duration_label">Duration</string>
+    <string name="session_detail_skipped_chip">Skipped</string>
+    <string name="session_detail_no_sets_logged">No sets logged</string>
+    <string name="session_detail_no_cardio_logged">No cardio logged</string>
+    <string name="session_detail_save_as_routine_dialog_text">Creates a new routine from this session\'s strength exercises.</string>
+    <string name="session_detail_routine_name_label">Routine name</string>
+    <string name="session_detail_save_button">Save</string>
+
+    <!-- Routines list -->
+    <string name="routines_title">Routines</string>
+    <string name="routines_new_fab">New routine</string>
+    <string name="routines_no_exercises_yet">No exercises yet</string>
+    <string name="routines_reorder_description">Reorder %1$s</string>
+    <string name="routines_delete_description">Delete routine</string>
+    <string name="routines_card_summary">%1$s · %2$s</string>
+    <plurals name="routines_exercise_count">
+        <item quantity="one">%1$d exercise</item>
+        <item quantity="other">%1$d exercises</item>
+    </plurals>
+    <string name="routines_delete_dialog_title">Delete routine?</string>
+    <string name="routines_delete_dialog_text">\"%1$s\" will be removed. This can\'t be undone.</string>
+    <string name="routines_delete_confirm_button">Delete</string>
+    <string name="routines_cancel_button">Cancel</string>
+    <string name="routines_empty_state">No routines yet. Build one to start working out from a template.</string>
+
+    <!-- Routine Editor -->
+    <string name="routine_editor_edit_title">Edit routine</string>
+    <string name="routine_editor_new_title">New routine</string>
+    <string name="routine_editor_back_description">Back</string>
+    <string name="routine_editor_save_description">Save</string>
+    <string name="routine_editor_add_description">Add</string>
+    <string name="routine_editor_name_field_label">Routine name</string>
+    <string name="routine_editor_empty_state">Add strength exercises to build this routine.</string>
+    <string name="routine_editor_add_exercise_button">Add exercise</string>
+    <string name="routine_editor_reorder_description">Reorder %1$s</string>
+    <string name="routine_editor_remove_description">Remove</string>
+    <string name="routine_editor_sets_label">Sets</string>
+    <string name="routine_editor_reps_label">Reps</string>
+    <string name="routine_editor_rest_label">Rest</string>
+    <string name="routine_editor_decrease_description">Decrease %1$s</string>
+    <string name="routine_editor_increase_description">Increase %1$s</string>
+    <string name="routine_editor_rest_off">Off</string>
+
+    <!-- Exercise Picker (used from Routine Editor) -->
+    <string name="exercise_picker_title">Add exercises</string>
+    <string name="exercise_picker_search_placeholder">Search</string>
+    <string name="exercise_picker_create_custom">Create custom exercise</string>
+    <string name="exercise_picker_save_button">Save</string>
+    <string name="exercise_picker_save_with_count_button">Save (%1$d)</string>
+
+    <!-- Measurements list -->
+    <string name="measurements_title">Body measurements</string>
+    <string name="measurements_back_description">Back</string>
+    <string name="measurements_add_type_description">Add measurement type</string>
+    <string name="measurements_add_entry_fab">Add entry</string>
+    <string name="measurements_no_entries_yet">No entries yet</string>
+    <string name="measurements_new_type_dialog_title">New measurement type</string>
+    <string name="measurements_new_type_name_label">Name (e.g. Waist)</string>
+    <string name="measurements_new_type_unit_label">Unit (e.g. cm, %)</string>
+    <string name="measurements_add_type_confirm_button">Add</string>
+    <string name="measurements_add_type_cancel_button">Cancel</string>
+    <string name="measurements_empty_state_description">Track bodyweight and your own measurements (waist, arm, body-fat %…) over time.</string>
+    <string name="measurements_empty_state_button">Add a measurement type</string>
+
+    <!-- Measurement Detail -->
+    <string name="measurement_detail_title_fallback">Measurement</string>
+    <string name="measurement_detail_back_description">Back</string>
+    <string name="measurement_detail_more_description">More</string>
+    <string name="measurement_detail_delete_type_menu_item">Delete measurement type</string>
+    <string name="measurement_detail_add_entry_fab">Add entry</string>
+    <string name="measurement_detail_not_found">Measurement not found</string>
+    <string name="measurement_detail_trend_header">Trend</string>
+    <string name="measurement_detail_no_entries_in_range">No entries in this range.</string>
+    <string name="measurement_detail_no_entries_yet">No entries yet. Tap Add entry to log your first %1$s.</string>
+    <string name="measurement_detail_history_header">History</string>
+    <string name="measurement_detail_delete_dialog_title">Delete %1$s?</string>
+    <string name="measurement_detail_delete_dialog_text">This measurement type and all its logged entries will be removed. This can\'t be undone.</string>
+    <string name="measurement_detail_delete_confirm_button">Delete</string>
+    <string name="measurement_detail_cancel_button">Cancel</string>
+    <string name="measurement_detail_delete_entry_description">Delete entry</string>
+
+    <!-- Add Measurement Sheet (shared by Measurements + Measurement Detail) -->
+    <string name="add_measurement_sheet_title">Add measurement</string>
+    <string name="add_measurement_sheet_type_label">Measurement</string>
+    <string name="add_measurement_sheet_value_label">Value (%1$s)</string>
+    <string name="add_measurement_sheet_date_label">Date</string>
+    <string name="add_measurement_sheet_save_button">Save</string>
+    <string name="add_measurement_sheet_ok_button">OK</string>
+    <string name="add_measurement_sheet_cancel_button">Cancel</string>
+
+    <!-- Active Workout -->
+    <string name="workout_title_fallback">Workout</string>
+    <string name="workout_quick_workout_fallback">Quick workout</string>
+    <string name="workout_cancel_edit_action">Cancel edit</string>
+    <string name="workout_discard_action">Discard</string>
+    <string name="workout_not_found">Workout not found</string>
+    <string name="workout_no_exercises_yet">No exercises yet. Add one to start logging.</string>
+    <string name="workout_add_exercise_button">Add exercise</string>
+    <string name="workout_session_note_label">Session note</string>
+    <string name="workout_cancel_edit_dialog_title">Cancel edit?</string>
+    <string name="workout_cancel_edit_dialog_text">Changes you\'ve made so far are already saved. This closes editing and returns the session to its original finished state.</string>
+    <string name="workout_keep_editing_button">Keep editing</string>
+    <string name="workout_discard_dialog_title">Discard this workout?</string>
+    <string name="workout_discard_dialog_text">Everything logged in this session will be deleted. This can\'t be undone.</string>
+    <string name="workout_keep_going_button">Keep going</string>
+    <string name="workout_finish_dialog_title">Finish workout?</string>
+    <string name="workout_finish_dialog_text">This ends the session and saves it to your history.</string>
+    <string name="workout_finish_action">Finish</string>
+    <string name="workout_editing_session_status">Editing session</string>
+    <string name="workout_paused_status">%1$s · Paused</string>
+    <string name="workout_resume_description">Resume</string>
+    <string name="workout_pause_description">Pause</string>
+    <string name="workout_done_description">Done</string>
+    <string name="workout_include_description">Include</string>
+    <string name="workout_skip_description">Skip</string>
+    <string name="workout_skipped_label">Skipped</string>
+    <string name="workout_add_set_button">Add set</string>
+    <string name="workout_rest_label">Rest</string>
+    <string name="workout_reps_label">Reps</string>
+    <string name="workout_delete_set_description">Delete set</string>
+    <string name="workout_minutes_label">Minutes</string>
+    <string name="workout_distance_label">Distance (%1$s)</string>
+    <string name="workout_rest_minus_15s">−15s</string>
+    <string name="workout_rest_plus_15s">+15s</string>
+    <string name="workout_skip_rest_button">Skip rest</string>
+
+    <!-- Workout Summary -->
+    <string name="workout_summary_title">Workout complete</string>
+    <string name="workout_summary_quick_workout_fallback">Quick workout</string>
+    <string name="workout_summary_not_found">Workout not found</string>
+    <string name="workout_summary_duration_label">Duration</string>
+    <string name="workout_summary_volume_label">Volume</string>
+    <string name="workout_summary_sets_label">Sets</string>
+    <string name="workout_summary_records_header">Personal records</string>
+    <string name="workout_summary_saved_as_routine">Saved as routine \"%1$s\".</string>
+    <string name="workout_summary_save_as_routine_action">Save as routine</string>
+    <string name="workout_summary_done_button">Done</string>
+    <string name="workout_summary_save_as_routine_dialog_text">Creates a new routine from this session\'s strength exercises.</string>
+    <string name="workout_summary_routine_name_label">Routine name</string>
+    <string name="workout_summary_save_button">Save</string>
+    <string name="workout_summary_cancel_button">Cancel</string>
+    <string name="workout_summary_weight_value_label">%1$s %2$s</string>
+
+    <!-- Edit Exercise Sheet -->
+    <string name="edit_exercise_edit_title">Edit exercise</string>
+    <string name="edit_exercise_new_title">New exercise</string>
+    <string name="edit_exercise_save_description">Save</string>
+    <string name="edit_exercise_name_label">Name</string>
+    <string name="edit_exercise_muscle_group_label">Muscle group</string>
+    <string name="edit_exercise_equipment_label">Equipment</string>
+    <string name="edit_exercise_strength_only_note">Custom exercises are strength movements in this version.</string>
+
+    <!-- Exercise Detail -->
+    <string name="exercise_detail_title_fallback">Exercise</string>
+    <string name="exercise_detail_back_description">Back</string>
+    <string name="exercise_detail_edit_description">Edit</string>
+    <string name="exercise_detail_delete_description">Delete</string>
+    <string name="exercise_detail_delete_dialog_title">Delete exercise?</string>
+    <string name="exercise_detail_delete_dialog_text">\"%1$s\" will be removed. This can\'t be undone.</string>
+    <string name="exercise_detail_delete_confirm_button">Delete</string>
+    <string name="exercise_detail_cancel_button">Cancel</string>
+    <string name="exercise_detail_delete_blocked_title">Can\'t delete</string>
+    <string name="exercise_detail_delete_blocked_text">\"%1$s\" is still used in %2$s. Remove it from those first.</string>
+    <string name="exercise_detail_used_in_routines">routines</string>
+    <string name="exercise_detail_used_in_workouts">logged workouts</string>
+    <string name="exercise_detail_delete_blocked_ok_button">OK</string>
+    <string name="exercise_detail_type_label">Type</string>
+    <string name="exercise_detail_muscle_group_label">Muscle group</string>
+    <string name="exercise_detail_equipment_label">Equipment</string>
+    <string name="exercise_detail_source_label">Source</string>
+    <string name="exercise_detail_source_custom">Custom</string>
+    <string name="exercise_detail_source_builtin">Built-in</string>
+    <string name="exercise_detail_pr_header">Personal record</string>
+    <string name="exercise_detail_pr_weight_label">%1$s %2$s</string>
+    <plurals name="exercise_detail_pr_reps_count">
+        <item quantity="one">%1$d rep</item>
+        <item quantity="other">%1$d reps</item>
+    </plurals>
+    <string name="exercise_detail_no_records_yet">No records yet — log a workout to set one.</string>
+    <string name="exercise_detail_history_header">History</string>
+    <string name="exercise_detail_no_sessions_logged">No sessions logged yet.</string>
+    <string name="exercise_detail_not_found">Exercise not found.</string>
+
+    <!-- Exercise Library -->
+    <string name="exercise_library_custom_label">Custom</string>
+    <string name="exercise_library_back_description">Back</string>
+    <string name="exercise_library_filters_label">Filters</string>
+    <string name="exercise_library_add_custom_description">Add custom exercise</string>
+    <string name="exercise_library_clear_search_description">Clear search</string>
+    <string name="exercise_library_search_placeholder">Search exercises</string>
+    <string name="exercise_library_remove_filter_description">Remove %1$s filter</string>
+    <string name="exercise_library_clear_all_button">Clear all</string>
+    <string name="exercise_library_type_filter_title">Type</string>
+    <string name="exercise_library_muscle_group_filter_title">Muscle group</string>
+    <string name="exercise_library_equipment_filter_title">Equipment</string>
+    <string name="exercise_library_empty_state">No exercises match your filters.</string>
+    <string name="exercise_library_clear_filters_button">Clear filters</string>
+
+    <!-- Shared unit-abbreviation labels (UnitConverter.UnitLabel) -->
+    <string name="unit_label_kg">kg</string>
+    <string name="unit_label_lb">lb</string>
+    <string name="unit_label_km">km</string>
+    <string name="unit_label_mi">mi</string>
+
+    <!-- Exercise taxonomy labels (ExerciseLabels.kt) -->
+    <string name="exercise_type_strength">Strength</string>
+    <string name="exercise_type_cardio">Cardio</string>
+    <string name="muscle_group_chest">Chest</string>
+    <string name="muscle_group_back">Back</string>
+    <string name="muscle_group_shoulders">Shoulders</string>
+    <string name="muscle_group_arms">Arms</string>
+    <string name="muscle_group_legs">Legs</string>
+    <string name="muscle_group_core">Core</string>
+    <string name="muscle_group_full_body">Full body</string>
+    <string name="muscle_group_cardio">Cardio</string>
+    <string name="muscle_group_other">Other</string>
+    <string name="equipment_barbell">Barbell</string>
+    <string name="equipment_dumbbell">Dumbbell</string>
+    <string name="equipment_machine">Machine</string>
+    <string name="equipment_cable">Cable</string>
+    <string name="equipment_bodyweight">Bodyweight</string>
+    <string name="equipment_kettlebell">Kettlebell</string>
+    <string name="equipment_cardio_machine">Cardio machine</string>
+    <string name="equipment_other">Other</string>
+
+    <!-- SessionFormat.kt -->
+    <string name="session_format_placeholder_dash">—</string>
+    <string name="session_format_duration_minutes">%1$d min</string>
+    <string name="session_format_duration_hours_minutes">%1$dh %2$02dm</string>
+    <string name="session_format_weight_value">%1$s %2$s</string>
+    <string name="session_format_weight_reps">%1$s × %2$d</string>
+    <string name="session_format_distance_value">%1$s %2$s</string>
+    <string name="session_format_time_distance">%1$s · %2$s</string>
+    <plurals name="session_format_reps_count">
+        <item quantity="one">%1$d rep</item>
+        <item quantity="other">%1$d reps</item>
+    </plurals>
+    <string name="measurement_format_value_label">%1$s %2$s</string>
 </resources>

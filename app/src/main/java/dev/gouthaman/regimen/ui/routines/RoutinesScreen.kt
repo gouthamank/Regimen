@@ -44,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,7 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
@@ -102,13 +105,16 @@ fun RoutinesScreen(
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
-            MediumTopAppBar(title = { Text("Routines") }, scrollBehavior = scrollBehavior)
+            MediumTopAppBar(
+                title = { Text(stringResource(R.string.routines_title)) },
+                scrollBehavior = scrollBehavior
+            )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onCreateRoutine,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New routine") },
+                text = { Text(stringResource(R.string.routines_new_fab)) },
                 modifier = fabModifier,
             )
         },
@@ -226,7 +232,7 @@ private fun RoutineCard(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val exercises = routine.exercises.sortedBy { it.routineExercise.position }
     val summary = when {
-        exercises.isEmpty() -> "No exercises yet"
+        exercises.isEmpty() -> stringResource(R.string.routines_no_exercises_yet)
         else -> exercises.joinToString(", ") { it.exercise.name }
     }
 
@@ -251,14 +257,25 @@ private fun RoutineCard(
         ) {
             Icon(
                 Icons.Filled.DragHandle,
-                contentDescription = "Reorder ${routine.routine.name}",
+                contentDescription = stringResource(
+                    R.string.routines_reorder_description,
+                    routine.routine.name
+                ),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = dragHandleModifier.padding(horizontal = 8.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(routine.routine.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "${exercises.size} ${if (exercises.size == 1) "exercise" else "exercises"} · $summary",
+                    text = stringResource(
+                        R.string.routines_card_summary,
+                        pluralStringResource(
+                            R.plurals.routines_exercise_count,
+                            exercises.size,
+                            exercises.size
+                        ),
+                        summary,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -266,7 +283,10 @@ private fun RoutineCard(
                 )
             }
             IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete routine")
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.routines_delete_description)
+                )
             }
         }
     }
@@ -274,16 +294,25 @@ private fun RoutineCard(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete routine?") },
-            text = { Text("\"${routine.routine.name}\" will be removed. This can't be undone.") },
+            title = { Text(stringResource(R.string.routines_delete_dialog_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.routines_delete_dialog_text,
+                        routine.routine.name
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     onDelete()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.routines_delete_confirm_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                }) { Text(stringResource(R.string.routines_cancel_button)) }
             },
         )
     }
@@ -298,7 +327,7 @@ private fun EmptyState(modifier: Modifier) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                "No routines yet. Build one to start working out from a template.",
+                stringResource(R.string.routines_empty_state),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

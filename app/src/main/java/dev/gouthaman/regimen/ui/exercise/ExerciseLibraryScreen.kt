@@ -54,11 +54,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.Exercise
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
@@ -113,13 +115,14 @@ fun ExerciseLibraryScreen(
     val filters = uiState.filters
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val windowInfo = LocalRegimenWindowInfo.current
+    val customLabel = stringResource(R.string.exercise_library_custom_label)
 
     // Pairs a chip label with the toggle that clears it, so the filter row and "clear all" share one list instead of four branches.
     val activeFilters = buildList<Pair<String, () -> Unit>> {
         filters.type?.let { type -> add(type.label() to { onToggleType(type) }) }
         filters.muscleGroup?.let { mg -> add(mg.label() to { onToggleMuscleGroup(mg) }) }
         filters.equipment?.let { eq -> add(eq.label() to { onToggleEquipment(eq) }) }
-        if (filters.customOnly) add("Custom" to onToggleCustomOnly)
+        if (filters.customOnly) add(customLabel to onToggleCustomOnly)
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -140,7 +143,10 @@ fun ExerciseLibraryScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.exercise_library_back_description)
+                        )
                     }
                 },
                 actions = {
@@ -152,7 +158,10 @@ fun ExerciseLibraryScreen(
                         },
                     ) {
                         IconButton(onClick = { showFilterSheet = true }) {
-                            Icon(Icons.Filled.Tune, contentDescription = "Filters")
+                            Icon(
+                                Icons.Filled.Tune,
+                                contentDescription = stringResource(R.string.exercise_library_filters_label)
+                            )
                         }
                     }
                 },
@@ -161,7 +170,10 @@ fun ExerciseLibraryScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddCustom) {
-                Icon(Icons.Filled.Add, contentDescription = "Add custom exercise")
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.exercise_library_add_custom_description)
+                )
             }
         },
     ) { innerPadding ->
@@ -238,11 +250,14 @@ private fun SearchField(
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.exercise_library_clear_search_description)
+                    )
                 }
             }
         },
-        placeholder = { Text("Search exercises") },
+        placeholder = { Text(stringResource(R.string.exercise_library_search_placeholder)) },
         shape = RoundedCornerShape(28.dp),
         colors = TextFieldDefaults.colors(
             unfocusedIndicatorColor = Color.Transparent,
@@ -271,7 +286,10 @@ private fun ActiveFiltersRow(activeFilters: List<Pair<String, () -> Unit>>) {
                 trailingIcon = {
                     Icon(
                         Icons.Filled.Close,
-                        contentDescription = "Remove $label filter",
+                        contentDescription = stringResource(
+                            R.string.exercise_library_remove_filter_description,
+                            label
+                        ),
                         modifier = Modifier.size(16.dp),
                     )
                 },
@@ -303,7 +321,10 @@ private fun FilterSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Filters", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.exercise_library_filters_label),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 val hasActive = filters.type != null || filters.muscleGroup != null ||
                         filters.equipment != null || filters.customOnly
                 TextButton(
@@ -315,12 +336,15 @@ private fun FilterSheet(
                     },
                     enabled = hasActive,
                 ) {
-                    Text("Clear all")
+                    Text(stringResource(R.string.exercise_library_clear_all_button))
                 }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Type", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    stringResource(R.string.exercise_library_type_filter_title),
+                    style = MaterialTheme.typography.labelLarge
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ExerciseType.entries.forEach { option ->
                         FilterChip(
@@ -332,19 +356,19 @@ private fun FilterSheet(
                     FilterChip(
                         selected = filters.customOnly,
                         onClick = onToggleCustomOnly,
-                        label = { Text("Custom") },
+                        label = { Text(stringResource(R.string.exercise_library_custom_label)) },
                     )
                 }
             }
             FilterSection(
-                title = "Muscle group",
+                title = stringResource(R.string.exercise_library_muscle_group_filter_title),
                 options = MuscleGroup.entries,
                 selected = filters.muscleGroup,
                 label = { it.label() },
                 onToggle = onToggleMuscleGroup,
             )
             FilterSection(
-                title = "Equipment",
+                title = stringResource(R.string.exercise_library_equipment_filter_title),
                 options = Equipment.entries,
                 selected = filters.equipment,
                 label = { it.label() },
@@ -360,7 +384,7 @@ private fun <T> FilterSection(
     title: String,
     options: List<T>,
     selected: T?,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     onToggle: (T) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -427,7 +451,7 @@ private fun ExerciseRow(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
-                        "Custom",
+                        stringResource(R.string.exercise_library_custom_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -456,14 +480,14 @@ private fun EmptyState(hasActiveFilters: Boolean, onClearAll: () -> Unit) {
                 modifier = Modifier.size(40.dp),
             )
             Text(
-                "No exercises match your filters.",
+                stringResource(R.string.exercise_library_empty_state),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             if (hasActiveFilters) {
                 TextButton(onClick = onClearAll) {
-                    Text("Clear filters")
+                    Text(stringResource(R.string.exercise_library_clear_filters_button))
                 }
             }
         }

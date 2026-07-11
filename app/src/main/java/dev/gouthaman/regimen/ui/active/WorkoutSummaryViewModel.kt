@@ -12,7 +12,7 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
-import dev.gouthaman.regimen.ui.history.SessionFormat
+import dev.gouthaman.regimen.domain.util.UnitLabel
 import dev.gouthaman.regimen.ui.navigation.WorkoutSummaryRoute
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,10 +21,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** A formatted value + its unit label (e.g. displayValue="1,250", unitLabel=UnitLabel.KG), kept
+ * structured so the Composable can localize the "value unit" template at render time. */
+data class WeightValue(val displayValue: String, val unitLabel: UnitLabel)
+
 data class WorkoutSummaryUiState(
-    val title: String = "",
-    val durationLabel: String = "",
-    val volumeLabel: String = "",
+    /** Null means it's a freeform/"Quick workout" session, not that it isn't loaded yet ([loaded]
+     * distinguishes that) — resolved to display text by the Composable. */
+    val routineName: String? = null,
+    /** Raw session timing, formatted to a duration string by the Composable (SessionFormat.duration
+     * is @Composable, so it can't be resolved here). */
+    val startTime: Long = 0L,
+    val endTime: Long? = null,
+    val accumulatedPausedMs: Long = 0L,
+    val volume: WeightValue = WeightValue("0", UnitLabel.KG),
     val completedSets: Int = 0,
     val prsHit: List<String> = emptyList(),
     /** Freeform (no routine) sessions with strength work can be saved as a routine. */
@@ -87,15 +97,19 @@ class WorkoutSummaryViewModel @Inject constructor(
                 .distinct()
 
             WorkoutSummaryUiState(
-                title = routineName ?: "Quick workout",
-                durationLabel = SessionFormat.duration(
-                    workout.workout.startTime,
-                    workout.workout.endTime,
-                    workout.workout.accumulatedPausedMs,
+                routineName = routineName,
+                startTime = workout.workout.startTime,
+                endTime = workout.workout.endTime,
+                accumulatedPausedMs = workout.workout.accumulatedPausedMs,
+                volume = WeightValue(
+                    displayValue = UnitConverter.formatValue(
+                        UnitConverter.kgToDisplay(
+                            volumeKg,
+                            system
+                        )
+                    ),
+                    unitLabel = UnitConverter.weightLabel(system),
                 ),
-                volumeLabel = "${
-                    UnitConverter.formatValue(UnitConverter.kgToDisplay(volumeKg, system))
-                } ${UnitConverter.weightLabel(system)}",
                 completedSets = completedSets.size,
                 prsHit = prsHit,
                 canSaveAsRoutine = workout.workout.routineId == null &&

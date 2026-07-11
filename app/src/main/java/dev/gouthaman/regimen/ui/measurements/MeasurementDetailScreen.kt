@@ -42,12 +42,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.data.local.entity.MeasurementType
 import dev.gouthaman.regimen.domain.model.HistoryRange
+import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
@@ -115,23 +119,33 @@ fun MeasurementDetailScreen(
         modifier = containerModifier,
         topBar = {
             MediumTopAppBar(
-                title = { Text(type?.name ?: "Measurement") },
+                title = {
+                    Text(
+                        type?.name ?: stringResource(R.string.measurement_detail_title_fallback)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.measurement_detail_back_description)
+                        )
                     }
                 },
                 actions = {
                     if (uiState.canDeleteType) {
                         IconButton(onClick = { menuExpanded = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.measurement_detail_more_description)
+                            )
                         }
                         DropdownMenu(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Delete measurement type") },
+                                text = { Text(stringResource(R.string.measurement_detail_delete_type_menu_item)) },
                                 onClick = {
                                     menuExpanded = false
                                     showDeleteType = true
@@ -152,7 +166,7 @@ fun MeasurementDetailScreen(
                     ExtendedFloatingActionButton(
                         onClick = { showAddEntry = true },
                         icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                        text = { Text("Add entry") },
+                        text = { Text(stringResource(R.string.measurement_detail_add_entry_fab)) },
                         modifier = Modifier.sharedElement(
                             rememberSharedContentState(key = measurementFabTransitionKey),
                             animatedVisibilityScope = animatedVisibilityScope,
@@ -169,7 +183,7 @@ fun MeasurementDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                if (uiState.loaded) Text("Measurement not found")
+                if (uiState.loaded) Text(stringResource(R.string.measurement_detail_not_found))
             }
             return@Scaffold
         }
@@ -202,7 +216,10 @@ fun MeasurementDetailScreen(
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Trend", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    stringResource(R.string.measurement_detail_trend_header),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
                                 if (uiState.trend.isNotEmpty()) {
                                     LineChart(
                                         points = uiState.trend,
@@ -210,7 +227,7 @@ fun MeasurementDetailScreen(
                                     )
                                 } else {
                                     Text(
-                                        "No entries in this range.",
+                                        stringResource(R.string.measurement_detail_no_entries_in_range),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(top = 12.dp),
@@ -224,7 +241,10 @@ fun MeasurementDetailScreen(
                 if (uiState.entries.isEmpty()) {
                     item {
                         Text(
-                            "No entries yet. Tap Add entry to log your first ${type.name.lowercase()}.",
+                            stringResource(
+                                R.string.measurement_detail_no_entries_yet,
+                                type.name.lowercase()
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -236,13 +256,17 @@ fun MeasurementDetailScreen(
                 } else {
                     item {
                         Text(
-                            "History",
+                            stringResource(R.string.measurement_detail_history_header),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
                     items(uiState.entries, key = { it.metric.id }) { entry ->
-                        EntryRow(entry = entry, onDelete = { onDeleteEntry(entry) })
+                        EntryRow(
+                            entry = entry,
+                            type = type,
+                            weightUnit = uiState.weightUnit,
+                            onDelete = { onDeleteEntry(entry) })
                         HorizontalDivider()
                     }
                 }
@@ -266,23 +290,37 @@ fun MeasurementDetailScreen(
     if (showDeleteType && type != null) {
         AlertDialog(
             onDismissRequest = { showDeleteType = false },
-            title = { Text("Delete ${type.name}?") },
-            text = { Text("This measurement type and all its logged entries will be removed. This can't be undone.") },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.measurement_detail_delete_dialog_title,
+                        type.name
+                    )
+                )
+            },
+            text = { Text(stringResource(R.string.measurement_detail_delete_dialog_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteType = false
                     onDeleteType()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.measurement_detail_delete_confirm_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteType = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    showDeleteType = false
+                }) { Text(stringResource(R.string.measurement_detail_cancel_button)) }
             },
         )
     }
 }
 
 @Composable
-private fun EntryRow(entry: MeasurementEntry, onDelete: () -> Unit) {
+private fun EntryRow(
+    entry: MeasurementEntry,
+    type: MeasurementType,
+    weightUnit: UnitSystem,
+    onDelete: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -290,7 +328,10 @@ private fun EntryRow(entry: MeasurementEntry, onDelete: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(entry.valueLabel, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                MeasurementFormat.format(type, entry.metric.value, weightUnit),
+                style = MaterialTheme.typography.bodyLarge
+            )
             Text(
                 dateFormatter.format(entry.dateMillis),
                 style = MaterialTheme.typography.bodyMedium,
@@ -298,7 +339,10 @@ private fun EntryRow(entry: MeasurementEntry, onDelete: () -> Unit) {
             )
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete entry")
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.measurement_detail_delete_entry_description)
+            )
         }
     }
 }

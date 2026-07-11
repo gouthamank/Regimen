@@ -55,3 +55,23 @@ pinning.
   whenever destinations are added, removed, or wired up** (flip `[ ]` → `[✓]` as routes land).
 - Match the existing code style. UI lives in feature packages under `ui/`; ViewModels expose
   `StateFlow` UI state and call use-cases (never DAOs/repositories directly from Compose).
+- **Strings:** all user-facing text (labels, button text, dialog copy, content descriptions,
+  Snackbar/Toast messages) goes in `res/values/strings.xml` — never a hardcoded string literal in
+  a Composable. Use `stringResource()` / `pluralStringResource()`; use `<plurals>` for anything a
+  count drives ("N reps", "N-week streak"), not manual singular/plural branching. Naming is
+  `screen_element` (e.g. `routines_delete_dialog_title`) — each screen gets its own keys even when
+  the English text is identical to another screen's, *except* enum-value display names (e.g.
+  `UnitSystem`, `ThemeMode` labels), which are genuinely one canonical name shown in multiple
+  places and should share a single resource.
+  `stringResource`/`pluralStringResource` only work inside `@Composable` functions, so a ViewModel
+  must never pre-format display text itself — if it needs to show a count, a unit, or a
+  conditional fallback (e.g. "Quick workout" when a routine name is null), expose the raw or
+  structured data in UI state (see `PersonalRecordValue`, `WeightValue`, `routineName: String?` for
+  the pattern) and do the actual string formatting in the Composable at render time. A lambda
+  parameter that calls a now-`@Composable` formatter (e.g. an enum's `.label()`) must itself be
+  typed `@Composable (T) -> String`, not a plain `(T) -> String`.
+  `UnitConverter`/`SessionFormat`/`MeasurementFormat`/`ExerciseLabels` are the shared formatters for
+  this — `UnitConverter.weightLabel`/`distanceLabel` return a `UnitLabel` enum, resolved to text via
+  `ui/util/UnitLabelText.kt`'s `UnitLabel.text()`. Exempt from all this: date/time
+  `SimpleDateFormat` patterns, purely numeric formatters (mm:ss, elapsed-time), and punctuation
+  separators ("·", "×") — none of that is translatable prose.

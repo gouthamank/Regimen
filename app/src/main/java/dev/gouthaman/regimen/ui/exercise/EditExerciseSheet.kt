@@ -27,9 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 
@@ -82,13 +84,13 @@ fun EditExerciseSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (uiState.isEditing) "Edit exercise" else "New exercise",
+                    stringResource(if (uiState.isEditing) R.string.edit_exercise_edit_title else R.string.edit_exercise_new_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 FilledIconButton(onClick = onSave, enabled = uiState.canSave) {
                     Icon(
                         if (uiState.isEditing) Icons.Filled.Check else Icons.Filled.Add,
-                        contentDescription = "Save"
+                        contentDescription = stringResource(R.string.edit_exercise_save_description)
                     )
                 }
             }
@@ -97,12 +99,12 @@ fun EditExerciseSheet(
                 value = uiState.name,
                 onValueChange = onNameChange,
                 singleLine = true,
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.edit_exercise_name_label)) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
             EnumDropdown(
-                label = "Muscle group",
+                label = stringResource(R.string.edit_exercise_muscle_group_label),
                 options = customExerciseMuscleGroups,
                 selected = uiState.muscleGroup,
                 optionLabel = { it.label() },
@@ -110,7 +112,7 @@ fun EditExerciseSheet(
             )
 
             EnumDropdown(
-                label = "Equipment",
+                label = stringResource(R.string.edit_exercise_equipment_label),
                 options = customExerciseEquipment,
                 selected = uiState.equipment,
                 optionLabel = { it.label() },
@@ -118,7 +120,7 @@ fun EditExerciseSheet(
             )
 
             Text(
-                "Custom exercises are strength movements in this version.",
+                stringResource(R.string.edit_exercise_strength_only_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -132,7 +134,7 @@ private fun <T> EnumDropdown(
     label: String,
     options: List<T>,
     selected: T,
-    optionLabel: (T) -> String,
+    optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
 ) {

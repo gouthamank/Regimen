@@ -15,10 +15,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 
-/** One past session as shown on a calendar day (and in the day picker when a day has several). */
+/** One past session as shown on a calendar day (and in the day picker when a day has several).
+ * Null [routineName] means it was a freeform/"Quick workout" session — resolved to display text by
+ * the Composable. */
 data class DaySession(
     val workoutId: Long,
-    val title: String,
+    val routineName: String?,
     val startMillis: Long,
 ) : Serializable
 
@@ -49,7 +51,7 @@ class HistoryViewModel @Inject constructor(
                 val day = Instant.ofEpochMilli(w.workout.startTime).atZone(zone).toLocalDate()
                 day to DaySession(
                     workoutId = w.workout.id,
-                    title = w.workout.routineId?.let { routineNames[it] } ?: "Quick workout",
+                    routineName = w.workout.routineId?.let { routineNames[it] },
                     startMillis = w.workout.startTime,
                 )
             }

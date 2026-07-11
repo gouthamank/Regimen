@@ -27,10 +27,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** One logged entry, formatted for the detail list, retaining the raw record for deletion. */
+/** One logged entry for the detail list. Kept raw (not pre-formatted) so the Composable can
+ * localize the value via MeasurementFormat.format at render time. */
 data class MeasurementEntry(
     val metric: BodyMetric,
-    val valueLabel: String,
     val dateMillis: Long,
 )
 
@@ -87,7 +87,6 @@ class MeasurementDetailViewModel @Inject constructor(
                 entries = metrics.sortedByDescending { it.date }.map { metric ->
                     MeasurementEntry(
                         metric = metric,
-                        valueLabel = MeasurementFormat.format(type, metric.value, system),
                         dateMillis = metric.date,
                     )
                 },

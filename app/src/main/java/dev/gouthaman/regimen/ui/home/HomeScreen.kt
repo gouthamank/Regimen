@@ -45,14 +45,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.adaptive.RegimenWindowInfo
 import dev.gouthaman.regimen.ui.components.LineChart
+import dev.gouthaman.regimen.ui.history.SessionFormat
+import dev.gouthaman.regimen.ui.util.text
 
 @Composable
 fun HomeScreen(
@@ -99,7 +104,10 @@ fun HomeScreen(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text(uiState.greeting.ifEmpty { "Regimen" }) },
+                title = {
+                    Text(uiState.greetingPeriod?.let { greetingLabel(it) }
+                        ?: stringResource(R.string.app_name))
+                },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -220,7 +228,7 @@ private fun StartWorkoutButton(
             modifier = Modifier.size(ButtonDefaults.iconSizeFor(startButtonHeight)),
         )
         Text(
-            "Start Workout",
+            stringResource(R.string.home_start_workout_button),
             modifier = Modifier.padding(start = ButtonDefaults.iconSpacingFor(startButtonHeight)),
             style = ButtonDefaults.textStyleFor(startButtonHeight),
         )
@@ -241,7 +249,7 @@ private fun StartWorkoutSheet(
                 .verticalScroll(rememberScrollState()),
         ) {
             Text(
-                "Start a workout",
+                stringResource(R.string.home_start_workout_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
@@ -254,8 +262,8 @@ private fun StartWorkoutSheet(
             }
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text("Quick workout") },
-                supportingContent = { Text("Freeform — no routine") },
+                headlineContent = { Text(stringResource(R.string.home_quick_workout_title)) },
+                supportingContent = { Text(stringResource(R.string.home_quick_workout_subtitle)) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable { onPick(null) },
             )
@@ -267,14 +275,29 @@ private fun StartWorkoutSheet(
 @Composable
 private fun WeekSummarySection(uiState: HomeUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("This week", style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.home_this_week_header),
+            style = MaterialTheme.typography.titleMedium
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatTile("Workouts", uiState.workoutsThisWeek.toString(), Modifier.weight(1f))
-            StatTile("Volume", uiState.volumeLabel, Modifier.weight(1f))
-            StatTile("Time", uiState.timeLabel, Modifier.weight(1f))
+            StatTile(
+                stringResource(R.string.home_stat_workouts_label),
+                uiState.workoutsThisWeek.toString(),
+                Modifier.weight(1f)
+            )
+            StatTile(
+                stringResource(R.string.home_stat_volume_label),
+                weightValueLabel(uiState.volumeThisWeek),
+                Modifier.weight(1f)
+            )
+            StatTile(
+                stringResource(R.string.home_stat_time_label),
+                SessionFormat.duration(0L, uiState.durationMillisThisWeek),
+                Modifier.weight(1f)
+            )
         }
         if (uiState.weekStreak > 0) {
             StreakTile(uiState.weekStreak)
@@ -286,14 +309,29 @@ private fun WeekSummarySection(uiState: HomeUiState) {
 @Composable
 private fun MonthSummarySection(uiState: HomeUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("This month", style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.home_this_month_header),
+            style = MaterialTheme.typography.titleMedium
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatTile("Workouts", uiState.workoutsThisMonth.toString(), Modifier.weight(1f))
-            StatTile("Volume", uiState.volumeLabelMonth, Modifier.weight(1f))
-            StatTile("Time", uiState.timeLabelMonth, Modifier.weight(1f))
+            StatTile(
+                stringResource(R.string.home_stat_workouts_label),
+                uiState.workoutsThisMonth.toString(),
+                Modifier.weight(1f)
+            )
+            StatTile(
+                stringResource(R.string.home_stat_volume_label),
+                weightValueLabel(uiState.volumeThisMonth),
+                Modifier.weight(1f)
+            )
+            StatTile(
+                stringResource(R.string.home_stat_time_label),
+                SessionFormat.duration(0L, uiState.durationMillisThisMonth),
+                Modifier.weight(1f)
+            )
         }
     }
 }
@@ -305,17 +343,20 @@ private fun MonthSummarySection(uiState: HomeUiState) {
 private fun WorkoutFrequencySection(uiState: HomeUiState) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Workout frequency", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.home_frequency_header),
+                style = MaterialTheme.typography.titleMedium
+            )
             if (uiState.workoutFrequency.all { it == 0 }) {
                 Text(
-                    "Finish a workout to start tracking your frequency.",
+                    stringResource(R.string.home_frequency_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             } else {
                 Text(
-                    "Last 4 weeks",
+                    stringResource(R.string.home_last_4_weeks),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -336,9 +377,12 @@ private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Un
     if (uiState.bodyweightTrend.isEmpty()) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Bodyweight", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Log your bodyweight to see a trend here.",
+                    stringResource(R.string.home_bodyweight_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    stringResource(R.string.home_bodyweight_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
@@ -347,7 +391,7 @@ private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Un
                     onClick = onOpenMeasurements,
                     modifier = Modifier.padding(top = 4.dp),
                 ) {
-                    Text("Log bodyweight")
+                    Text(stringResource(R.string.home_log_bodyweight_button))
                 }
             }
         }
@@ -360,15 +404,18 @@ private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Un
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Bodyweight", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    uiState.bodyweightLatestLabel,
+                    stringResource(R.string.home_bodyweight_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    uiState.bodyweightLatest?.let { weightValueLabel(it) } ?: "",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
             Text(
-                "Last 4 weeks",
+                stringResource(R.string.home_last_4_weeks),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -376,6 +423,17 @@ private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Un
         }
     }
 }
+
+@Composable
+private fun greetingLabel(period: GreetingPeriod): String = when (period) {
+    GreetingPeriod.MORNING -> stringResource(R.string.home_greeting_morning)
+    GreetingPeriod.AFTERNOON -> stringResource(R.string.home_greeting_afternoon)
+    GreetingPeriod.EVENING -> stringResource(R.string.home_greeting_evening)
+}
+
+@Composable
+private fun weightValueLabel(value: WeightValue): String =
+    stringResource(R.string.home_weight_value_label, value.displayValue, value.unitLabel.text())
 
 @Composable
 private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
@@ -437,13 +495,22 @@ private fun StreakTile(weeks: Int) {
 }
 
 // Weeks roll up to months (4wk) then years (12mo) once the streak is that long, so long streaks stay readable.
+@Composable
 private fun formatStreak(weeks: Int): String = when {
-    weeks < 4 -> "$weeks-week streak"
-    weeks < 48 -> "${weeks / 4}-month streak"
+    weeks < 4 -> pluralStringResource(R.plurals.home_streak_weeks, weeks, weeks)
+    weeks < 48 -> pluralStringResource(R.plurals.home_streak_months, weeks / 4, weeks / 4)
     else -> {
         val years = weeks / 48
         val months = (weeks % 48) / 4
-        if (months == 0) "$years-year streak" else "$years-year, $months-month streak"
+        if (months == 0) {
+            pluralStringResource(R.plurals.home_streak_years, years, years)
+        } else {
+            stringResource(
+                R.string.home_streak_years_and_months,
+                pluralStringResource(R.plurals.home_streak_years_part, years, years),
+                pluralStringResource(R.plurals.home_streak_months_part, months, months),
+            )
+        }
     }
 }
 
@@ -457,13 +524,13 @@ private fun EmptyHome(onCreateRoutine: () -> Unit, modifier: Modifier = Modifier
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            "Build a routine to start tracking your workouts.",
+            stringResource(R.string.home_empty_state_text),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
         Button(onClick = onCreateRoutine) {
-            Text("Create your first routine")
+            Text(stringResource(R.string.home_create_routine_button))
         }
     }
 }

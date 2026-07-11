@@ -26,8 +26,9 @@ import javax.inject.Inject
 /** One row in the Body Measurements list: a type plus a summary of its logged history. */
 data class MeasurementRow(
     val type: MeasurementType,
-    val latestLabel: String?,
-    val unitLabel: String,
+    /** Most recent entry's stored value (null = none logged yet); formatted for display by the
+     * Composable via MeasurementFormat.format, which needs the current weight unit. */
+    val latestValue: Double?,
     /** Display-unit values in chronological order, for the inline sparkline. */
     val trend: List<Float>,
     val entryCount: Int,
@@ -76,8 +77,7 @@ class MeasurementsViewModel @Inject constructor(
         val latest = metrics.maxByOrNull { it.date }
         return MeasurementRow(
             type = this,
-            latestLabel = latest?.let { MeasurementFormat.format(this, it.value, system) },
-            unitLabel = MeasurementFormat.unitLabel(this, system),
+            latestValue = latest?.value,
             trend = metrics.map { MeasurementFormat.toDisplay(this, it.value, system).toFloat() },
             entryCount = metrics.size,
         )

@@ -97,6 +97,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -104,6 +105,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.CardioEntry
 import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.domain.model.Equipment
@@ -114,6 +116,7 @@ import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
 import dev.gouthaman.regimen.ui.routines.ExercisePickerSheet
+import dev.gouthaman.regimen.ui.util.text
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
@@ -239,12 +242,22 @@ fun ActiveWorkoutScreen(
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
             MediumTopAppBar(
-                title = { Text(uiState.title.ifEmpty { "Workout" }) },
+                title = {
+                    Text(
+                        when {
+                            uiState.routineName != null -> uiState.routineName
+                            uiState.loaded -> stringResource(R.string.workout_quick_workout_fallback)
+                            else -> stringResource(R.string.workout_title_fallback)
+                        },
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { showDiscard = true }) {
                         Icon(
                             Icons.Filled.Close,
-                            contentDescription = if (isEditing) "Cancel edit" else "Discard",
+                            contentDescription = stringResource(
+                                if (isEditing) R.string.workout_cancel_edit_action else R.string.workout_discard_action,
+                            ),
                         )
                     }
                 },
@@ -258,7 +271,7 @@ fun ActiveWorkoutScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
-            ) { Text("Workout not found") }
+            ) { Text(stringResource(R.string.workout_not_found)) }
             return@Scaffold
         }
 
@@ -296,7 +309,7 @@ fun ActiveWorkoutScreen(
                     if (uiState.exercises.isEmpty()) {
                         item {
                             Text(
-                                "No exercises yet. Add one to start logging.",
+                                stringResource(R.string.workout_no_exercises_yet),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 24.dp),
@@ -327,7 +340,10 @@ fun ActiveWorkoutScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null)
-                            Text("Add exercise", modifier = Modifier.padding(start = 8.dp))
+                            Text(
+                                stringResource(R.string.workout_add_exercise_button),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
                         }
                     }
 
@@ -339,7 +355,7 @@ fun ActiveWorkoutScreen(
                                 note = it
                                 onUpdateNote(it)
                             },
-                            label = { Text("Session note") },
+                            label = { Text(stringResource(R.string.workout_session_note_label)) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -391,36 +407,35 @@ fun ActiveWorkoutScreen(
         if (isEditing) {
             AlertDialog(
                 onDismissRequest = { showDiscard = false },
-                title = { Text("Cancel edit?") },
-                text = {
-                    Text(
-                        "Changes you've made so far are already saved. This closes editing and " +
-                                "returns the session to its original finished state."
-                    )
-                },
+                title = { Text(stringResource(R.string.workout_cancel_edit_dialog_title)) },
+                text = { Text(stringResource(R.string.workout_cancel_edit_dialog_text)) },
                 confirmButton = {
                     TextButton(onClick = {
                         showDiscard = false
                         onCancelEdit()
-                    }) { Text("Cancel edit") }
+                    }) { Text(stringResource(R.string.workout_cancel_edit_action)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDiscard = false }) { Text("Keep editing") }
+                    TextButton(onClick = {
+                        showDiscard = false
+                    }) { Text(stringResource(R.string.workout_keep_editing_button)) }
                 },
             )
         } else {
             AlertDialog(
                 onDismissRequest = { showDiscard = false },
-                title = { Text("Discard this workout?") },
-                text = { Text("Everything logged in this session will be deleted. This can't be undone.") },
+                title = { Text(stringResource(R.string.workout_discard_dialog_title)) },
+                text = { Text(stringResource(R.string.workout_discard_dialog_text)) },
                 confirmButton = {
                     TextButton(onClick = {
                         showDiscard = false
                         onDiscard()
-                    }) { Text("Discard") }
+                    }) { Text(stringResource(R.string.workout_discard_action)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDiscard = false }) { Text("Keep going") }
+                    TextButton(onClick = {
+                        showDiscard = false
+                    }) { Text(stringResource(R.string.workout_keep_going_button)) }
                 },
             )
         }
@@ -429,16 +444,18 @@ fun ActiveWorkoutScreen(
     if (showFinishConfirm) {
         AlertDialog(
             onDismissRequest = { showFinishConfirm = false },
-            title = { Text("Finish workout?") },
-            text = { Text("This ends the session and saves it to your history.") },
+            title = { Text(stringResource(R.string.workout_finish_dialog_title)) },
+            text = { Text(stringResource(R.string.workout_finish_dialog_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     showFinishConfirm = false
                     onFinish()
-                }) { Text("Finish") }
+                }) { Text(stringResource(R.string.workout_finish_action)) }
             },
             dismissButton = {
-                TextButton(onClick = { showFinishConfirm = false }) { Text("Keep going") }
+                TextButton(onClick = {
+                    showFinishConfirm = false
+                }) { Text(stringResource(R.string.workout_keep_going_button)) }
             },
         )
     }
@@ -550,10 +567,12 @@ private fun ActiveWorkoutToolbar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    if (isEditing) "Editing session" else {
-                        if (isPaused) "${formatElapsed(elapsed)} · Paused" else formatElapsed(
-                            elapsed
-                        )
+                    if (isEditing) {
+                        stringResource(R.string.workout_editing_session_status)
+                    } else if (isPaused) {
+                        stringResource(R.string.workout_paused_status, formatElapsed(elapsed))
+                    } else {
+                        formatElapsed(elapsed)
                     },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = contentColor,
@@ -594,9 +613,15 @@ private fun ActiveWorkoutToolbar(
                             label = "pauseResumeIcon",
                         ) { paused ->
                             if (paused) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
+                                Icon(
+                                    Icons.Filled.PlayArrow,
+                                    contentDescription = stringResource(R.string.workout_resume_description)
+                                )
                             } else {
-                                Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                                Icon(
+                                    Icons.Filled.Pause,
+                                    contentDescription = stringResource(R.string.workout_pause_description)
+                                )
                             }
                         }
                     }
@@ -609,7 +634,9 @@ private fun ActiveWorkoutToolbar(
                     FilledIconButton(onClick = onFinish, colors = buttonColors) {
                         Icon(
                             Icons.Filled.Check,
-                            contentDescription = if (isEditing) "Done" else "Finish",
+                            contentDescription = stringResource(
+                                if (isEditing) R.string.workout_done_description else R.string.workout_finish_action,
+                            ),
                         )
                     }
                 }
@@ -672,7 +699,9 @@ private fun ExerciseCard(
                             Icon(
                                 if (skipped) Icons.Filled.AddCircleOutline
                                 else Icons.Filled.RemoveCircleOutline,
-                                contentDescription = if (skipped) "Include" else "Skip",
+                                contentDescription = stringResource(
+                                    if (skipped) R.string.workout_include_description else R.string.workout_skip_description,
+                                ),
                             )
                         }
                     }
@@ -691,7 +720,7 @@ private fun ExerciseCard(
             ) { skipped ->
                 when {
                     skipped -> Text(
-                        "Skipped",
+                        stringResource(R.string.workout_skipped_label),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
@@ -725,7 +754,10 @@ private fun ExerciseCard(
                                 },
                             ) {
                                 Icon(Icons.Filled.Add, contentDescription = null)
-                                Text("Add set", modifier = Modifier.padding(start = 8.dp))
+                                Text(
+                                    stringResource(R.string.workout_add_set_button),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
                             }
                             if (showRestTimer) TextButton(
                                 onClick = {
@@ -736,7 +768,10 @@ private fun ExerciseCard(
                                 },
                             ) {
                                 Icon(Icons.Filled.Timer, contentDescription = null)
-                                Text("Rest", modifier = Modifier.padding(start = 8.dp))
+                                Text(
+                                    stringResource(R.string.workout_rest_label),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
                             }
                         }
                     }
@@ -848,7 +883,7 @@ private fun SetRow(
             OutlinedTextField(
                 value = weight,
                 onValueChange = { weight = it; push() },
-                label = { Text(UnitConverter.weightLabel(weightUnit)) },
+                label = { Text(UnitConverter.weightLabel(weightUnit).text()) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.weight(1f),
@@ -857,7 +892,7 @@ private fun SetRow(
         OutlinedTextField(
             value = reps,
             onValueChange = { reps = it; push() },
-            label = { Text("Reps") },
+            label = { Text(stringResource(R.string.workout_reps_label)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
@@ -867,7 +902,10 @@ private fun SetRow(
             onCheckedChange = { complete = it; push() },
         )
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete set")
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.workout_delete_set_description)
+            )
         }
     }
 }
@@ -911,7 +949,7 @@ private fun CardioRow(
         OutlinedTextField(
             value = minutes,
             onValueChange = { minutes = it; push() },
-            label = { Text("Minutes") },
+            label = { Text(stringResource(R.string.workout_minutes_label)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
@@ -919,7 +957,14 @@ private fun CardioRow(
         OutlinedTextField(
             value = distance,
             onValueChange = { distance = it; push() },
-            label = { Text("Distance (${UnitConverter.distanceLabel(distanceUnit)})") },
+            label = {
+                Text(
+                    stringResource(
+                        R.string.workout_distance_label,
+                        UnitConverter.distanceLabel(distanceUnit).text()
+                    )
+                )
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),
@@ -955,18 +1000,21 @@ private fun RestTimerSheet(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Rest", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.workout_rest_label),
+                style = MaterialTheme.typography.titleMedium
+            )
             Text(formatRest(remainingSec), style = MaterialTheme.typography.displayMedium)
             LinearProgressIndicator(
                 progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { onAddTime(-15) }) { Text("−15s") }
-                OutlinedButton(onClick = { onAddTime(15) }) { Text("+15s") }
+                OutlinedButton(onClick = { onAddTime(-15) }) { Text(stringResource(R.string.workout_rest_minus_15s)) }
+                OutlinedButton(onClick = { onAddTime(15) }) { Text(stringResource(R.string.workout_rest_plus_15s)) }
             }
             Button(onClick = onStop, modifier = Modifier.fillMaxWidth()) {
-                Text("Skip rest")
+                Text(stringResource(R.string.workout_skip_rest_button))
             }
         }
     }

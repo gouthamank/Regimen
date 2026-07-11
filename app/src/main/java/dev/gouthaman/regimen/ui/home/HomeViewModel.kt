@@ -17,7 +17,7 @@ import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
-import dev.gouthaman.regimen.ui.history.SessionFormat
+import dev.gouthaman.regimen.domain.util.UnitLabel
 import dev.gouthaman.regimen.ui.measurements.MeasurementFormat
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -39,18 +39,24 @@ data class QuickStartRoutine(
     val name: String,
 )
 
+/** A formatted value + its unit label (e.g. displayValue="72", unitLabel=UnitLabel.KG), kept
+ * structured so the Composable can localize the "value unit" template at render time. */
+data class WeightValue(val displayValue: String, val unitLabel: UnitLabel)
+
+enum class GreetingPeriod { MORNING, AFTERNOON, EVENING }
+
 data class HomeUiState(
-    val greeting: String = "",
+    val greetingPeriod: GreetingPeriod? = null,
     val hasRoutines: Boolean = false,
     /** Has at least one completed workout — unlocks the freeform Quick workout entry. */
     val isEstablished: Boolean = false,
     val workoutsThisWeek: Int = 0,
-    val volumeLabel: String = "",
-    val timeLabel: String = "",
+    val volumeThisWeek: WeightValue = WeightValue("0", UnitLabel.KG),
+    val durationMillisThisWeek: Long = 0L,
     val weekStreak: Int = 0,
     val workoutsThisMonth: Int = 0,
-    val volumeLabelMonth: String = "",
-    val timeLabelMonth: String = "",
+    val volumeThisMonth: WeightValue = WeightValue("0", UnitLabel.KG),
+    val durationMillisThisMonth: Long = 0L,
     /** Top few recent routines shown as quick-start chips. */
     val quickStart: List<QuickStartRoutine> = emptyList(),
     /** All routines (recency-ordered) for the "Start a workout" chooser. */
@@ -59,8 +65,8 @@ data class HomeUiState(
     val workoutFrequency: List<Int> = emptyList(),
     /** Bodyweight entries in the last 4 weeks, oldest first, in display units. */
     val bodyweightTrend: List<Float> = emptyList(),
-    /** Most recent bodyweight entry formatted for display, e.g. "72 kg"; blank if none logged. */
-    val bodyweightLatestLabel: String = "",
+    /** Most recent bodyweight entry, e.g. displayValue="72" unitLabel="kg"; null if none logged. */
+    val bodyweightLatest: WeightValue? = null,
     /** A workout is already running — Start Workout resumes it via the banner instead of launching
      * a fresh pick-a-routine flow. */
     val hasWorkoutInProgress: Boolean = false,
@@ -144,45 +150,44 @@ class HomeViewModel @Inject constructor(
             .map { QuickStartRoutine(it.routine.id, it.routine.name) }
 
         HomeUiState(
-            greeting = greetingFor(LocalTime.now()),
+            greetingPeriod = greetingPeriodFor(LocalTime.now()),
             hasRoutines = routines.isNotEmpty(),
             isEstablished = history.isNotEmpty(),
             workoutsThisWeek = summary.workoutsThisWeek,
-            volumeLabel = "${
-                UnitConverter.formatValue(
-                    UnitConverter.kgToDisplay(
-                        summary.volumeKgThisWeek,
-                        system
-                    )
-                )
-            } ${UnitConverter.weightLabel(system)}",
-            timeLabel = SessionFormat.duration(0L, summary.durationMillisThisWeek),
+            volumeThisWeek = WeightValue(
+                displayValue = UnitConverter.formatValue(
+                    UnitConverter.kgToDisplay(summary.volumeKgThisWeek, system)
+                ),
+                unitLabel = UnitConverter.weightLabel(system),
+            ),
+            durationMillisThisWeek = summary.durationMillisThisWeek,
             weekStreak = summary.weekStreak,
             workoutsThisMonth = summary.workoutsThisMonth,
-            volumeLabelMonth = "${
-                UnitConverter.formatValue(
-                    UnitConverter.kgToDisplay(
-                        summary.volumeKgThisMonth,
-                        system
-                    )
-                )
-            } ${UnitConverter.weightLabel(system)}",
-            timeLabelMonth = SessionFormat.duration(0L, summary.durationMillisThisMonth),
+            volumeThisMonth = WeightValue(
+                displayValue = UnitConverter.formatValue(
+                    UnitConverter.kgToDisplay(summary.volumeKgThisMonth, system)
+                ),
+                unitLabel = UnitConverter.weightLabel(system),
+            ),
+            durationMillisThisMonth = summary.durationMillisThisMonth,
             quickStart = orderedRoutines.take(MAX_QUICK_START),
             routines = orderedRoutines,
             workoutFrequency = frequency.map { it.count },
             bodyweightTrend = weightTrend,
-            bodyweightLatestLabel = weightTrend.lastOrNull()?.let {
-                "${UnitConverter.formatValue(it.toDouble())} ${UnitConverter.weightLabel(system)}"
-            } ?: "",
+            bodyweightLatest = weightTrend.lastOrNull()?.let {
+                WeightValue(
+                    displayValue = UnitConverter.formatValue(it.toDouble()),
+                    unitLabel = UnitConverter.weightLabel(system),
+                )
+            },
             hasWorkoutInProgress = activeWorkoutId != null,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 }
 
-private fun greetingFor(time: LocalTime): String = when (time.hour) {
-    in 5..11 -> "Good morning"
-    in 12..17 -> "Good afternoon"
-    else -> "Good evening"
+private fun greetingPeriodFor(time: LocalTime): GreetingPeriod = when (time.hour) {
+    in 5..11 -> GreetingPeriod.MORNING
+    in 12..17 -> GreetingPeriod.AFTERNOON
+    else -> GreetingPeriod.EVENING
 }

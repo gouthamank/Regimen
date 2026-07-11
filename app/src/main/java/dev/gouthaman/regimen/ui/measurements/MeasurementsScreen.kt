@@ -41,11 +41,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.components.Sparkline
@@ -99,15 +101,21 @@ fun MeasurementsScreen(
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
             MediumTopAppBar(
-                title = { Text("Body measurements") },
+                title = { Text(stringResource(R.string.measurements_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.measurements_back_description)
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showAddType = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Add measurement type")
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.measurements_add_type_description)
+                        )
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -119,7 +127,7 @@ fun MeasurementsScreen(
                     ExtendedFloatingActionButton(
                         onClick = { showAddEntry = true },
                         icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                        text = { Text("Add entry") },
+                        text = { Text(stringResource(R.string.measurements_add_entry_fab)) },
                         modifier = Modifier.sharedElement(
                             rememberSharedContentState(key = measurementFabTransitionKey),
                             animatedVisibilityScope = animatedVisibilityScope,
@@ -159,6 +167,7 @@ fun MeasurementsScreen(
                     items(rows, key = { it.type.id }) { row ->
                         MeasurementCard(
                             row = row,
+                            weightUnit = weightUnit,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
                             onClick = { onOpenType(row.type.id) },
@@ -196,6 +205,7 @@ fun MeasurementsScreen(
 @Composable
 private fun MeasurementCard(
     row: MeasurementRow,
+    weightUnit: dev.gouthaman.regimen.domain.model.UnitSystem,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onClick: () -> Unit,
@@ -220,7 +230,14 @@ private fun MeasurementCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(row.type.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = row.latestLabel ?: "No entries yet",
+                    text = row.latestValue?.let {
+                        MeasurementFormat.format(
+                            row.type,
+                            it,
+                            weightUnit
+                        )
+                    }
+                        ?: stringResource(R.string.measurements_no_entries_yet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -246,19 +263,19 @@ private fun AddTypeDialog(
     var unit by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New measurement type") },
+        title = { Text(stringResource(R.string.measurements_new_type_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name (e.g. Waist)") },
+                    label = { Text(stringResource(R.string.measurements_new_type_name_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = unit,
                     onValueChange = { unit = it },
-                    label = { Text("Unit (e.g. cm, %)") },
+                    label = { Text(stringResource(R.string.measurements_new_type_unit_label)) },
                     singleLine = true,
                 )
             }
@@ -267,9 +284,9 @@ private fun AddTypeDialog(
             TextButton(
                 onClick = { onConfirm(name.trim(), unit.trim()) },
                 enabled = name.isNotBlank() && unit.isNotBlank(),
-            ) { Text("Add") }
+            ) { Text(stringResource(R.string.measurements_add_type_confirm_button)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.measurements_add_type_cancel_button)) } },
     )
 }
 
@@ -282,13 +299,13 @@ private fun EmptyState(modifier: Modifier, onAddType: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                "Track bodyweight and your own measurements (waist, arm, body-fat %…) over time.",
+                stringResource(R.string.measurements_empty_state_description),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             TextButton(onClick = onAddType, modifier = Modifier.padding(top = 12.dp)) {
-                Text("Add a measurement type")
+                Text(stringResource(R.string.measurements_empty_state_button))
             }
         }
     }

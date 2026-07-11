@@ -10,6 +10,7 @@ import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
+import dev.gouthaman.regimen.domain.util.UnitLabel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,12 +21,19 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** One personal record ready for display: exercise name + formatted heaviest weight (or, for a
- * bodyweight exercise with no logged weight, best reps). */
+/** Either a formatted heaviest weight, or (for a bodyweight exercise with no logged weight) best
+ * reps. Kept structured rather than a pre-formatted String so the Composable can localize/pluralize
+ * "reps" at render time. */
+sealed interface PersonalRecordValue {
+    data class Weight(val displayValue: String, val unitLabel: UnitLabel) : PersonalRecordValue
+    data class Reps(val count: Int) : PersonalRecordValue
+}
+
+/** One personal record ready for display: exercise name + its best value. */
 data class PersonalRecordItem(
     val exerciseId: Long,
     val exerciseName: String,
-    val valueLabel: String,
+    val value: PersonalRecordValue,
 )
 
 data class ProgressUiState(
@@ -71,14 +79,15 @@ class ProgressViewModel @Inject constructor(
                 PersonalRecordItem(
                     exerciseId = pr.exerciseId,
                     exerciseName = pr.exerciseName,
-                    valueLabel = when {
-                        pr.bestWeightKg != null -> "${
-                            UnitConverter.formatValue(
+                    value = when {
+                        pr.bestWeightKg != null -> PersonalRecordValue.Weight(
+                            displayValue = UnitConverter.formatValue(
                                 UnitConverter.kgToDisplay(pr.bestWeightKg, system)
-                            )
-                        } ${UnitConverter.weightLabel(system)}"
+                            ),
+                            unitLabel = UnitConverter.weightLabel(system),
+                        )
 
-                        else -> "${pr.bestReps} reps"
+                        else -> PersonalRecordValue.Reps(pr.bestReps ?: 0)
                     },
                 )
             },

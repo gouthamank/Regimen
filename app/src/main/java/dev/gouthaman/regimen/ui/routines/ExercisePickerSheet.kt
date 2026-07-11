@@ -28,7 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.Exercise
 import dev.gouthaman.regimen.domain.model.matchesSearch
 import dev.gouthaman.regimen.ui.exercise.label
@@ -60,21 +62,24 @@ fun ExercisePickerSheet(
         // footer exceed the sheet's available height, pushing Save off-screen with nothing left
         // to scroll it back into view.
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Text("Add exercises", style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.exercise_picker_title),
+                style = MaterialTheme.typography.titleLarge
+            )
 
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                placeholder = { Text("Search") },
+                placeholder = { Text(stringResource(R.string.exercise_picker_search_placeholder)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
             )
 
             ListItem(
-                headlineContent = { Text("Create custom exercise") },
+                headlineContent = { Text(stringResource(R.string.exercise_picker_create_custom)) },
                 leadingContent = { Icon(Icons.Filled.Add, contentDescription = null) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable(onClick = onCreateCustom),
@@ -111,7 +116,10 @@ fun ExercisePickerSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            Text(if (selected.isEmpty()) "Save" else "Save (${selected.size})")
+            Text(
+                if (selected.isEmpty()) stringResource(R.string.exercise_picker_save_button)
+                else stringResource(R.string.exercise_picker_save_with_count_button, selected.size),
+            )
         }
     }
 }

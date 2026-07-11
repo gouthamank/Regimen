@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import java.time.LocalDate
@@ -86,7 +88,10 @@ fun HistoryScreen(
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
-            MediumTopAppBar(title = { Text("History") }, scrollBehavior = scrollBehavior)
+            MediumTopAppBar(
+                title = { Text(stringResource(R.string.history_title)) },
+                scrollBehavior = scrollBehavior
+            )
         },
     ) { innerPadding ->
         // BookOrExpanded caps and centers the calendar at the same 600dp breakpoint as
@@ -128,7 +133,7 @@ fun HistoryScreen(
 
                 if (uiState.loaded && uiState.isEmpty) {
                     Text(
-                        "No workouts logged yet. Finished sessions will appear here on the day you did them.",
+                        stringResource(R.string.history_empty_state),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -145,12 +150,17 @@ fun HistoryScreen(
     if (sessions != null) {
         AlertDialog(
             onDismissRequest = { pickerDay = null },
-            title = { Text("Choose a session") },
+            title = { Text(stringResource(R.string.history_choose_session_dialog_title)) },
             text = {
                 Column {
                     sessions.forEach { session ->
                         ListItem(
-                            headlineContent = { Text(session.title) },
+                            headlineContent = {
+                                Text(
+                                    session.routineName
+                                        ?: stringResource(R.string.history_quick_workout_fallback)
+                                )
+                            },
                             supportingContent = { Text(SessionFormat.time(session.startMillis)) },
                             modifier = Modifier.clickable {
                                 pickerDay = null
@@ -161,7 +171,9 @@ fun HistoryScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { pickerDay = null }) { Text("Cancel") }
+                TextButton(onClick = {
+                    pickerDay = null
+                }) { Text(stringResource(R.string.history_session_picker_cancel_button)) }
             },
         )
     }
@@ -181,7 +193,10 @@ private fun MonthHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = stringResource(R.string.history_previous_month_description)
+            )
         }
         Text(
             "${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}",
@@ -191,7 +206,10 @@ private fun MonthHeader(
         )
         // Can't page into future months — there's nothing there to see yet.
         IconButton(onClick = onNext, enabled = canGoNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.history_next_month_description)
+            )
         }
     }
 }
@@ -277,15 +295,18 @@ private fun DayCell(
     // Always clickable (enabled = hasWorkout) rather than conditionally adding the modifier — that's
     // how Compose exposes a proper disabled state to accessibility services (TalkBack), instead
     // of the node silently not existing.
+    val viewSessionsLabel = stringResource(R.string.history_day_view_sessions_click_label)
+    val notYetAvailableDescription =
+        stringResource(R.string.history_day_not_yet_available_description, date.dayOfMonth)
     cell = cell
         .clickable(
             enabled = hasWorkout,
-            onClickLabel = if (hasWorkout) "View sessions" else null,
+            onClickLabel = if (hasWorkout) viewSessionsLabel else null,
             role = Role.Button,
         ) { onClick(sessions) }
         .then(
             if (isFuture) {
-                Modifier.semantics { contentDescription = "${date.dayOfMonth}, not yet available" }
+                Modifier.semantics { contentDescription = notYetAvailableDescription }
             } else {
                 Modifier
             }

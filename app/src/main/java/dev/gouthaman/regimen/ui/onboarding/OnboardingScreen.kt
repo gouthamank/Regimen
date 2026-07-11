@@ -36,11 +36,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.prefs.UserPreferences
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
@@ -166,7 +168,7 @@ private fun LinearOnboardingLayout(
     Column(modifier = modifier) {
         // Skip is always available, per the spec (onboarding is optional).
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onFinish) { Text("Skip") }
+            TextButton(onClick = onFinish) { Text(stringResource(R.string.onboarding_skip)) }
         }
 
         HorizontalPager(
@@ -185,7 +187,7 @@ private fun LinearOnboardingLayout(
                 .fillMaxWidth()
                 .padding(top = 16.dp),
         ) {
-            Text(if (onLastPage) "Get started" else "Next")
+            Text(stringResource(if (onLastPage) R.string.onboarding_get_started else R.string.onboarding_next))
         }
     }
 }
@@ -212,7 +214,7 @@ private fun TabletopOnboardingLayout(
                     .padding(24.dp)
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onFinish) { Text("Skip") }
+                    TextButton(onClick = onFinish) { Text(stringResource(R.string.onboarding_skip)) }
                 }
 
                 HorizontalPager(
@@ -240,7 +242,7 @@ private fun TabletopOnboardingLayout(
                         .fillMaxWidth()
                         .padding(top = 16.dp),
                 ) {
-                    Text(if (onLastPage) "Get started" else "Next")
+                    Text(stringResource(if (onLastPage) R.string.onboarding_get_started else R.string.onboarding_next))
                 }
             }
         }
@@ -255,17 +257,17 @@ private fun UnitsPage(
     onDistanceUnitChange: (UnitSystem) -> Unit,
 ) {
     OnboardingPage(
-        title = "Welcome to Regimen",
-        subtitle = "Track your workouts, all on your device. First, which units do you use?",
+        title = stringResource(R.string.onboarding_units_title),
+        subtitle = stringResource(R.string.onboarding_units_subtitle),
     ) {
         Text(
-            "Weight",
+            stringResource(R.string.onboarding_weight_label),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         UnitSystemSelector(weightUnit, onWeightUnitChange, weightLabels = true)
         Text(
-            "Distance",
+            stringResource(R.string.onboarding_distance_label),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 16.dp),
@@ -282,8 +284,8 @@ private fun AppearancePage(
     onDynamicColorChange: (Boolean) -> Unit,
 ) {
     OnboardingPage(
-        title = "Make it yours",
-        subtitle = "Choose a theme. You can change any of this later in Settings.",
+        title = stringResource(R.string.onboarding_appearance_title),
+        subtitle = stringResource(R.string.onboarding_appearance_subtitle),
     ) {
         ThemeModeSelector(themeMode, onThemeModeChange)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -295,9 +297,12 @@ private fun AppearancePage(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Dynamic color", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Use colors from your wallpaper",
+                        stringResource(R.string.onboarding_dynamic_color_label),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        stringResource(R.string.onboarding_dynamic_color_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -355,17 +360,19 @@ private fun UnitSystemSelector(
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(
-                    if (weightLabels) {
-                        when (option) {
-                            UnitSystem.METRIC -> "Metric (kg)"
-                            UnitSystem.IMPERIAL -> "Imperial (lb)"
-                        }
-                    } else {
-                        when (option) {
-                            UnitSystem.METRIC -> "Metric (km)"
-                            UnitSystem.IMPERIAL -> "Imperial (mi)"
-                        }
-                    },
+                    stringResource(
+                        if (weightLabels) {
+                            when (option) {
+                                UnitSystem.METRIC -> R.string.unit_system_metric_weight
+                                UnitSystem.IMPERIAL -> R.string.unit_system_imperial_weight
+                            }
+                        } else {
+                            when (option) {
+                                UnitSystem.METRIC -> R.string.unit_system_metric_distance
+                                UnitSystem.IMPERIAL -> R.string.unit_system_imperial_distance
+                            }
+                        },
+                    ),
                 )
             }
         }
@@ -384,11 +391,13 @@ private fun ThemeModeSelector(selected: ThemeMode, onChange: (ThemeMode) -> Unit
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(
-                    when (option) {
-                        ThemeMode.LIGHT -> "Light"
-                        ThemeMode.DARK -> "Dark"
-                        ThemeMode.SYSTEM -> "System"
-                    },
+                    stringResource(
+                        when (option) {
+                            ThemeMode.LIGHT -> R.string.theme_mode_light
+                            ThemeMode.DARK -> R.string.theme_mode_dark
+                            ThemeMode.SYSTEM -> R.string.theme_mode_system
+                        },
+                    ),
                 )
             }
         }

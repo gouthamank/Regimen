@@ -36,14 +36,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.local.entity.Exercise
+import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
+import dev.gouthaman.regimen.ui.history.SessionFormat
+import dev.gouthaman.regimen.ui.util.text
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -57,7 +63,7 @@ fun ExerciseDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
-    val deleteBlockedMessage by viewModel.deleteBlockedMessage.collectAsStateWithLifecycle()
+    val deleteBlockedInfo by viewModel.deleteBlockedInfo.collectAsStateWithLifecycle()
 
     // Deletion is refused if the exercise is still in use (DeleteExerciseUseCase), so navigate
     // back only once it's actually gone, not just on tapping "Delete".
@@ -70,7 +76,7 @@ fun ExerciseDetailScreen(
         onBack = onBack,
         onEdit = onEdit,
         onDelete = viewModel::deleteCurrent,
-        deleteBlockedMessage = deleteBlockedMessage,
+        deleteBlockedInfo = deleteBlockedInfo,
         onDismissDeleteBlocked = viewModel::dismissDeleteBlockedMessage,
         modifier = modifier,
     )
@@ -85,7 +91,7 @@ fun ExerciseDetailScreen(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onDelete: () -> Unit,
-    deleteBlockedMessage: String? = null,
+    deleteBlockedInfo: ExerciseDeleteBlockedInfo? = null,
     onDismissDeleteBlocked: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -109,19 +115,32 @@ fun ExerciseDetailScreen(
         modifier = containerModifier,
         topBar = {
             MediumTopAppBar(
-                title = { Text(exercise?.name ?: "Exercise") },
+                title = {
+                    Text(
+                        exercise?.name ?: stringResource(R.string.exercise_detail_title_fallback)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.exercise_detail_back_description)
+                        )
                     }
                 },
                 actions = {
                     if (exercise?.isCustom == true) {
                         FilledIconButton(onClick = { onEdit(exercise.id) }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                            Icon(
+                                Icons.Filled.Edit,
+                                contentDescription = stringResource(R.string.exercise_detail_edit_description)
+                            )
                         }
                         FilledIconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.exercise_detail_delete_description)
+                            )
                         }
                     }
                 },
@@ -148,8 +167,10 @@ fun ExerciseDetailScreen(
                 when {
                     exercise != null -> ExerciseDetailContent(
                         exercise,
-                        uiState.prLabel,
-                        uiState.history
+                        uiState.pr,
+                        uiState.history,
+                        uiState.weightUnit,
+                        uiState.distanceUnit,
                     )
 
                     uiState.loaded -> NotFound()
@@ -162,80 +183,127 @@ fun ExerciseDetailScreen(
     if (showDeleteDialog && exercise != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete exercise?") },
-            text = { Text("\"${exercise.name}\" will be removed. This can't be undone.") },
+            title = { Text(stringResource(R.string.exercise_detail_delete_dialog_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.exercise_detail_delete_dialog_text,
+                        exercise.name
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     onDelete()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.exercise_detail_delete_confirm_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                }) { Text(stringResource(R.string.exercise_detail_cancel_button)) }
             },
         )
     }
 
-    if (deleteBlockedMessage != null) {
+    if (deleteBlockedInfo != null) {
+        val usedIn = listOfNotNull(
+            stringResource(R.string.exercise_detail_used_in_routines).takeIf { deleteBlockedInfo.inRoutines },
+            stringResource(R.string.exercise_detail_used_in_workouts).takeIf { deleteBlockedInfo.inWorkouts },
+        ).joinToString(" and ")
         AlertDialog(
             onDismissRequest = onDismissDeleteBlocked,
-            title = { Text("Can't delete") },
-            text = { Text(deleteBlockedMessage) },
+            title = { Text(stringResource(R.string.exercise_detail_delete_blocked_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.exercise_detail_delete_blocked_text,
+                        deleteBlockedInfo.exerciseName,
+                        usedIn
+                    )
+                )
+            },
             confirmButton = {
-                TextButton(onClick = onDismissDeleteBlocked) { Text("OK") }
+                TextButton(onClick = onDismissDeleteBlocked) { Text(stringResource(R.string.exercise_detail_delete_blocked_ok_button)) }
             },
         )
     }
 }
 
 @Composable
+private fun exercisePrLabel(value: ExercisePrValue): String = when (value) {
+    is ExercisePrValue.Weight -> stringResource(
+        R.string.exercise_detail_pr_weight_label,
+        value.displayValue,
+        value.unitLabel.text()
+    )
+
+    is ExercisePrValue.Reps -> pluralStringResource(
+        R.plurals.exercise_detail_pr_reps_count,
+        value.count,
+        value.count
+    )
+}
+
+@Composable
 private fun ExerciseDetailContent(
     exercise: Exercise,
-    prLabel: String?,
+    pr: ExercisePrValue?,
     history: List<ExerciseHistoryItem>,
+    weightUnit: UnitSystem,
+    distanceUnit: UnitSystem,
 ) {
     ListItem(
-        headlineContent = { Text("Type") },
+        headlineContent = { Text(stringResource(R.string.exercise_detail_type_label)) },
         trailingContent = { Text(exercise.type.label()) },
     )
     ListItem(
-        headlineContent = { Text("Muscle group") },
+        headlineContent = { Text(stringResource(R.string.exercise_detail_muscle_group_label)) },
         trailingContent = { Text(exercise.muscleGroup.label()) },
     )
     ListItem(
-        headlineContent = { Text("Equipment") },
+        headlineContent = { Text(stringResource(R.string.exercise_detail_equipment_label)) },
         trailingContent = { Text(exercise.equipment.label()) },
     )
     ListItem(
-        headlineContent = { Text("Source") },
-        trailingContent = { Text(if (exercise.isCustom) "Custom" else "Built-in") },
+        headlineContent = { Text(stringResource(R.string.exercise_detail_source_label)) },
+        trailingContent = {
+            Text(
+                stringResource(
+                    if (exercise.isCustom) R.string.exercise_detail_source_custom else R.string.exercise_detail_source_builtin,
+                ),
+            )
+        },
     )
 
     HorizontalDivider()
-    SectionHeader("Personal record")
+    SectionHeader(stringResource(R.string.exercise_detail_pr_header))
     Text(
-        text = prLabel ?: "No records yet — log a workout to set one.",
-        style = if (prLabel != null) MaterialTheme.typography.headlineSmall
+        text = pr?.let { exercisePrLabel(it) }
+            ?: stringResource(R.string.exercise_detail_no_records_yet),
+        style = if (pr != null) MaterialTheme.typography.headlineSmall
         else MaterialTheme.typography.bodyMedium,
-        color = if (prLabel != null) MaterialTheme.colorScheme.onSurface
+        color = if (pr != null) MaterialTheme.colorScheme.onSurface
         else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
 
     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
-    SectionHeader("History")
+    SectionHeader(stringResource(R.string.exercise_detail_history_header))
     if (history.isEmpty()) {
         Text(
-            text = "No sessions logged yet.",
+            text = stringResource(R.string.exercise_detail_no_sessions_logged),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
     } else {
         history.forEach { item ->
+            val entryLabels = item.sets.map { SessionFormat.setLabel(it, weightUnit) } +
+                    item.cardio.map { SessionFormat.cardioLabel(it, distanceUnit) }
             ListItem(
                 headlineContent = { Text(item.dateLabel) },
-                supportingContent = { Text(item.entryLabels.joinToString(" · ")) },
+                supportingContent = { Text(entryLabels.joinToString(" · ")) },
             )
         }
     }
@@ -255,7 +323,7 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun NotFound() {
     Text(
-        "Exercise not found.",
+        stringResource(R.string.exercise_detail_not_found),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(24.dp),

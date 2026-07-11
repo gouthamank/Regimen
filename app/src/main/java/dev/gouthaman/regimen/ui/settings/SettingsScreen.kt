@@ -37,10 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.data.prefs.UserPreferences
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
@@ -92,7 +94,12 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
-        topBar = { MediumTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
+        topBar = {
+            MediumTopAppBar(
+                title = { Text(stringResource(R.string.settings_title)) },
+                scrollBehavior = scrollBehavior
+            )
+        },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -110,13 +117,13 @@ fun SettingsScreen(
             Column(
                 modifier = contentModifier.verticalScroll(rememberScrollState()),
             ) {
-                SectionHeader("Preferences")
+                SectionHeader(stringResource(R.string.settings_preferences_header))
 
-                SettingRow(headline = "Weight unit") {
+                SettingRow(headline = stringResource(R.string.settings_weight_unit_headline)) {
                     UnitSystemSelector(prefs.weightUnit, onWeightUnitChange, weightLabels = true)
                 }
 
-                SettingRow(headline = "Distance unit") {
+                SettingRow(headline = stringResource(R.string.settings_distance_unit_headline)) {
                     UnitSystemSelector(
                         prefs.distanceUnit,
                         onDistanceUnitChange,
@@ -124,17 +131,19 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingRow(headline = "Theme") {
+                SettingRow(headline = stringResource(R.string.settings_theme_headline)) {
                     ThemeModeSelector(prefs.themeMode, onThemeModeChange)
                 }
 
                 val dynamicAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                 ListItem(
-                    headlineContent = { Text("Dynamic color") },
+                    headlineContent = { Text(stringResource(R.string.settings_dynamic_color_label)) },
                     supportingContent = {
                         Text(
-                            if (dynamicAvailable) "Use colors from your wallpaper"
-                            else "Requires Android 12 or newer",
+                            stringResource(
+                                if (dynamicAvailable) R.string.settings_dynamic_color_description_available
+                                else R.string.settings_dynamic_color_description_unavailable,
+                            ),
                         )
                     },
                     trailingContent = {
@@ -149,9 +158,9 @@ fun SettingsScreen(
                 RestTimerRow(prefs.restDefaultSec, onRestDefaultChange)
 
                 ListItem(
-                    headlineContent = { Text("Rest timer sound") },
+                    headlineContent = { Text(stringResource(R.string.settings_rest_timer_sound_headline)) },
                     supportingContent = {
-                        Text("Chime when a rest period ends (vibration always on)")
+                        Text(stringResource(R.string.settings_rest_timer_sound_description))
                     },
                     trailingContent = {
                         Switch(
@@ -162,18 +171,18 @@ fun SettingsScreen(
                 )
 
                 HorizontalDivider()
-                SectionHeader("Library & data")
+                SectionHeader(stringResource(R.string.settings_library_data_header))
 
                 NavRow(
-                    headline = "Exercise library",
-                    supporting = "Browse and add exercises",
+                    headline = stringResource(R.string.settings_exercise_library_headline),
+                    supporting = stringResource(R.string.settings_exercise_library_description),
                     icon = Icons.Filled.FitnessCenter,
                     enabled = true,
                     onClick = onOpenExerciseLibrary,
                 )
                 NavRow(
-                    headline = "Export data",
-                    supporting = "JSON backup — planned",
+                    headline = stringResource(R.string.settings_export_data_headline),
+                    supporting = stringResource(R.string.settings_export_data_description),
                     icon = Icons.Filled.Upload,
                     enabled = false,
                     onClick = {},
@@ -229,17 +238,19 @@ private fun UnitSystemSelector(
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(
-                    if (weightLabels) {
-                        when (option) {
-                            UnitSystem.METRIC -> "Metric (kg)"
-                            UnitSystem.IMPERIAL -> "Imperial (lb)"
-                        }
-                    } else {
-                        when (option) {
-                            UnitSystem.METRIC -> "Metric (km)"
-                            UnitSystem.IMPERIAL -> "Imperial (mi)"
-                        }
-                    },
+                    stringResource(
+                        if (weightLabels) {
+                            when (option) {
+                                UnitSystem.METRIC -> R.string.unit_system_metric_weight
+                                UnitSystem.IMPERIAL -> R.string.unit_system_imperial_weight
+                            }
+                        } else {
+                            when (option) {
+                                UnitSystem.METRIC -> R.string.unit_system_metric_distance
+                                UnitSystem.IMPERIAL -> R.string.unit_system_imperial_distance
+                            }
+                        },
+                    ),
                 )
             }
         }
@@ -258,11 +269,13 @@ private fun ThemeModeSelector(selected: ThemeMode, onChange: (ThemeMode) -> Unit
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(
-                    when (option) {
-                        ThemeMode.LIGHT -> "Light"
-                        ThemeMode.DARK -> "Dark"
-                        ThemeMode.SYSTEM -> "System"
-                    },
+                    stringResource(
+                        when (option) {
+                            ThemeMode.LIGHT -> R.string.theme_mode_light
+                            ThemeMode.DARK -> R.string.theme_mode_dark
+                            ThemeMode.SYSTEM -> R.string.theme_mode_system
+                        },
+                    ),
                 )
             }
         }
@@ -276,7 +289,7 @@ private fun RestTimerRow(restDefaultSec: Int, onChange: (Int) -> Unit) {
     val steps = (REST_MAX_SEC - REST_MIN_SEC) / REST_STEP_SEC - 1
 
     SettingRow(
-        headline = "Rest timer default",
+        headline = stringResource(R.string.settings_rest_timer_default_headline),
         supporting = formatDuration(sliderValue.roundToInt()),
     ) {
         Slider(

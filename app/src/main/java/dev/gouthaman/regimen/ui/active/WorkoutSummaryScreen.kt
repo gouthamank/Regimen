@@ -35,13 +35,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
+import dev.gouthaman.regimen.ui.history.SessionFormat
+import dev.gouthaman.regimen.ui.util.text
 
 @Composable
 fun WorkoutSummaryScreen(
@@ -77,7 +81,7 @@ fun WorkoutSummaryScreen(
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
         topBar = {
             MediumTopAppBar(
-                title = { Text("Workout complete") },
+                title = { Text(stringResource(R.string.workout_summary_title)) },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -88,7 +92,7 @@ fun WorkoutSummaryScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
-            ) { Text("Workout not found") }
+            ) { Text(stringResource(R.string.workout_summary_not_found)) }
             return@Scaffold
         }
 
@@ -111,7 +115,14 @@ fun WorkoutSummaryScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(uiState.title, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    when {
+                        !uiState.loaded -> ""
+                        uiState.routineName != null -> uiState.routineName
+                        else -> stringResource(R.string.workout_summary_quick_workout_fallback)
+                    },
+                    style = MaterialTheme.typography.headlineSmall,
+                )
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -120,9 +131,26 @@ fun WorkoutSummaryScreen(
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Stat("Duration", uiState.durationLabel)
-                        Stat("Volume", uiState.volumeLabel)
-                        Stat("Sets", uiState.completedSets.toString())
+                        Stat(
+                            stringResource(R.string.workout_summary_duration_label),
+                            SessionFormat.duration(
+                                uiState.startTime,
+                                uiState.endTime,
+                                uiState.accumulatedPausedMs
+                            )
+                        )
+                        Stat(
+                            stringResource(R.string.workout_summary_volume_label),
+                            stringResource(
+                                R.string.workout_summary_weight_value_label,
+                                uiState.volume.displayValue,
+                                uiState.volume.unitLabel.text()
+                            ),
+                        )
+                        Stat(
+                            stringResource(R.string.workout_summary_sets_label),
+                            uiState.completedSets.toString()
+                        )
                     }
                 }
 
@@ -137,7 +165,7 @@ fun WorkoutSummaryScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Personal records",
+                                    stringResource(R.string.workout_summary_records_header),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
@@ -155,7 +183,7 @@ fun WorkoutSummaryScreen(
 
                 if (savedName != null) {
                     Text(
-                        "Saved as routine \"$savedName\".",
+                        stringResource(R.string.workout_summary_saved_as_routine, savedName!!),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -163,20 +191,20 @@ fun WorkoutSummaryScreen(
                     OutlinedButton(
                         onClick = { showSaveDialog = true },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Save as routine") }
+                    ) { Text(stringResource(R.string.workout_summary_save_as_routine_action)) }
                 }
 
                 Button(
                     onClick = onDone,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.workout_summary_done_button)) }
             }
         }
     }
 
     if (showSaveDialog) {
         SaveAsRoutineDialog(
-            defaultName = uiState.title,
+            defaultName = uiState.routineName.orEmpty(),
             onDismiss = { showSaveDialog = false },
             onConfirm = { name ->
                 showSaveDialog = false
@@ -209,11 +237,11 @@ private fun SaveAsRoutineDialog(
     var name by remember { mutableStateOf(defaultName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Save as routine") },
+        title = { Text(stringResource(R.string.workout_summary_save_as_routine_action)) },
         text = {
             Column {
                 Text(
-                    "Creates a new routine from this session's strength exercises.",
+                    stringResource(R.string.workout_summary_save_as_routine_dialog_text),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Start,
@@ -221,7 +249,7 @@ private fun SaveAsRoutineDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Routine name") },
+                    label = { Text(stringResource(R.string.workout_summary_routine_name_label)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -233,10 +261,10 @@ private fun SaveAsRoutineDialog(
             TextButton(
                 onClick = { onConfirm(name.trim()) },
                 enabled = name.isNotBlank(),
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.workout_summary_save_button)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.workout_summary_cancel_button)) }
         },
     )
 }

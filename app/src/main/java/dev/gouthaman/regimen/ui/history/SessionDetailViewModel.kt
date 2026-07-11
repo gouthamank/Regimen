@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.data.local.entity.CardioEntry
+import dev.gouthaman.regimen.data.local.entity.SetEntry
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
@@ -26,21 +28,28 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** One exercise within a past session, pre-formatted for display. */
+/** One exercise within a past session. Sets/cardio kept raw (not pre-formatted) so the Composable
+ * can localize each entry's label at render time via SessionFormat.setLabel/cardioLabel. */
 data class SessionExercise(
     val workoutExerciseId: Long,
     val name: String,
     val isStrength: Boolean,
     val equipment: Equipment,
     val isSkipped: Boolean,
-    val setLabels: List<String>,
-    val cardioLabels: List<String>,
+    val sets: List<SetEntry>,
+    val cardio: List<CardioEntry>,
 )
 
+/** Null routineName means it was a freeform/"Quick workout" session, not that it isn't loaded yet
+ * (SessionDetailUiState.loaded distinguishes that) — resolved to display text by the Composable. */
 data class SessionDetailUiState(
-    val title: String = "",
+    val routineName: String? = null,
     val dateLabel: String = "",
-    val durationLabel: String = "",
+    /** Raw session timing, formatted to a duration string by the Composable (SessionFormat.duration
+     * is @Composable, so it can't be resolved here). */
+    val startTime: Long = 0L,
+    val endTime: Long? = null,
+    val accumulatedPausedMs: Long = 0L,
     val note: String? = null,
     val exercises: List<SessionExercise> = emptyList(),
     val weightUnit: UnitSystem = UnitSystem.METRIC,
@@ -85,13 +94,11 @@ class SessionDetailViewModel @Inject constructor(
             val routineName = workout.workout.routineId
                 ?.let { id -> routines.firstOrNull { it.routine.id == id }?.routine.let { it?.name } }
             SessionDetailUiState(
-                title = routineName ?: "Quick workout",
+                routineName = routineName,
                 dateLabel = SessionFormat.fullDate(workout.workout.startTime),
-                durationLabel = SessionFormat.duration(
-                    workout.workout.startTime,
-                    workout.workout.endTime,
-                    workout.workout.accumulatedPausedMs,
-                ),
+                startTime = workout.workout.startTime,
+                endTime = workout.workout.endTime,
+                accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 note = workout.workout.note?.takeIf { it.isNotBlank() },
                 weightUnit = weightUnit,
                 distanceUnit = distanceUnit,
@@ -105,12 +112,8 @@ class SessionDetailViewModel @Inject constructor(
                             isStrength = strength,
                             equipment = we.exercise.equipment,
                             isSkipped = we.workoutExercise.isSkipped,
-                            setLabels = we.sets
-                                .sortedBy { it.setNumber }
-                                .map { SessionFormat.setLabel(it, weightUnit) },
-                            cardioLabels = we.cardio.map {
-                                SessionFormat.cardioLabel(it, distanceUnit)
-                            },
+                            sets = we.sets.sortedBy { it.setNumber },
+                            cardio = we.cardio,
                         )
                     },
                 loaded = true,

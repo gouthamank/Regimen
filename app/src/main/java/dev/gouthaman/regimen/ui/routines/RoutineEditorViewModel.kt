@@ -6,13 +6,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.data.local.entity.Exercise
+import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseSpec
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.usecase.ObserveExercisesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutineUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveRoutineUseCase
-import dev.gouthaman.regimen.ui.exercise.label
 import dev.gouthaman.regimen.ui.navigation.RoutineEditorRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,11 +23,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** One exercise line being edited within a routine. */
+/** One exercise line being edited within a routine. muscleGroup/equipment kept raw (not a
+ * pre-formatted subtitle) so the Composable can localize the label at render time. */
 data class EditorExercise(
     val exerciseId: Long,
     val name: String,
-    val subtitle: String,
+    val muscleGroup: MuscleGroup,
+    val equipment: Equipment,
     val targetSets: Int,
     val targetReps: Int,
     val targetRestSec: Int,
@@ -93,7 +96,8 @@ class RoutineEditorViewModel @Inject constructor(
                                     EditorExercise(
                                         exerciseId = re.exercise.id,
                                         name = re.exercise.name,
-                                        subtitle = "${re.exercise.muscleGroup.label()} · ${re.exercise.equipment.label()}",
+                                        muscleGroup = re.exercise.muscleGroup,
+                                        equipment = re.exercise.equipment,
                                         targetSets = re.routineExercise.targetSets,
                                         targetReps = re.routineExercise.targetReps,
                                         targetRestSec = re.routineExercise.targetRestSec,
@@ -121,7 +125,8 @@ class RoutineEditorViewModel @Inject constructor(
                 EditorExercise(
                     exerciseId = ex.id,
                     name = ex.name,
-                    subtitle = "${ex.muscleGroup.label()} · ${ex.equipment.label()}",
+                    muscleGroup = ex.muscleGroup,
+                    equipment = ex.equipment,
                     targetSets = 3,
                     targetReps = 10,
                     targetRestSec = defaultRestSec,

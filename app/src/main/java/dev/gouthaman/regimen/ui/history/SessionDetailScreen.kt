@@ -50,11 +50,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
@@ -115,16 +119,30 @@ fun SessionDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MediumTopAppBar(
-                title = { Text(uiState.title.ifEmpty { "Session" }) },
+                title = {
+                    Text(
+                        when {
+                            !uiState.loaded -> stringResource(R.string.session_detail_title_fallback)
+                            uiState.routineName != null -> uiState.routineName
+                            else -> stringResource(R.string.session_detail_quick_workout_fallback)
+                        },
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.session_detail_back_description)
+                        )
                     }
                 },
                 actions = {
                     if (!uiState.notFound && uiState.loaded) {
                         IconButton(onClick = { menuExpanded = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.session_detail_more_description)
+                            )
                         }
                         DropdownMenu(
                             expanded = menuExpanded,
@@ -132,7 +150,7 @@ fun SessionDetailScreen(
                         ) {
                             if (uiState.exercises.isNotEmpty()) {
                                 DropdownMenuItem(
-                                    text = { Text("Repeat workout") },
+                                    text = { Text(stringResource(R.string.session_detail_repeat_menu_item)) },
                                     onClick = {
                                         menuExpanded = false
                                         onRepeat()
@@ -140,7 +158,7 @@ fun SessionDetailScreen(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Edit session") },
+                                text = { Text(stringResource(R.string.session_detail_edit_menu_item)) },
                                 onClick = {
                                     menuExpanded = false
                                     onEdit()
@@ -148,7 +166,7 @@ fun SessionDetailScreen(
                             )
                             if (uiState.canSaveAsRoutine) {
                                 DropdownMenuItem(
-                                    text = { Text("Save as routine") },
+                                    text = { Text(stringResource(R.string.session_detail_save_as_routine_menu_item)) },
                                     onClick = {
                                         menuExpanded = false
                                         showSaveAsRoutine = true
@@ -156,7 +174,7 @@ fun SessionDetailScreen(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Delete session") },
+                                text = { Text(stringResource(R.string.session_detail_delete_menu_item)) },
                                 onClick = {
                                     menuExpanded = false
                                     showDelete = true
@@ -175,7 +193,7 @@ fun SessionDetailScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
-            ) { Text("Session not found") }
+            ) { Text(stringResource(R.string.session_detail_not_found)) }
             return@Scaffold
         }
 
@@ -200,20 +218,22 @@ fun SessionDetailScreen(
                 item { SessionSummaryCard(uiState) }
 
                 items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
-                    ExerciseCard(exercise)
+                    ExerciseCard(exercise, uiState.weightUnit, uiState.distanceUnit)
                 }
             }
         }
     }
 
     if (showSaveAsRoutine) {
+        val savedAsRoutineMessage =
+            stringResource(R.string.session_detail_saved_as_routine_snackbar)
         SaveAsRoutineDialog(
-            defaultName = uiState.title,
+            defaultName = uiState.routineName.orEmpty(),
             onDismiss = { showSaveAsRoutine = false },
             onConfirm = { name ->
                 showSaveAsRoutine = false
                 onSaveAsRoutine(name)
-                scope.launch { snackbarHostState.showSnackbar("Saved as routine") }
+                scope.launch { snackbarHostState.showSnackbar(savedAsRoutineMessage) }
             },
         )
     }
@@ -221,16 +241,18 @@ fun SessionDetailScreen(
     if (showDelete) {
         AlertDialog(
             onDismissRequest = { showDelete = false },
-            title = { Text("Delete this session?") },
-            text = { Text("This past workout and all its logged sets will be removed. This can't be undone.") },
+            title = { Text(stringResource(R.string.session_detail_delete_dialog_title)) },
+            text = { Text(stringResource(R.string.session_detail_delete_dialog_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDelete = false
                     onDelete()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.session_detail_delete_confirm_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDelete = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    showDelete = false
+                }) { Text(stringResource(R.string.session_detail_cancel_button)) }
             },
         )
     }
@@ -269,12 +291,19 @@ private fun SessionSummaryCard(uiState: SessionDetailUiState) {
                 SessionStat(
                     icon = Icons.Filled.FitnessCenter,
                     value = exerciseCount.toString(),
-                    label = if (exerciseCount == 1) "Exercise" else "Exercises",
+                    label = pluralStringResource(
+                        R.plurals.session_detail_exercise_count,
+                        exerciseCount
+                    ),
                 )
                 SessionStat(
                     icon = Icons.Filled.Schedule,
-                    value = uiState.durationLabel,
-                    label = "Duration",
+                    value = SessionFormat.duration(
+                        uiState.startTime,
+                        uiState.endTime,
+                        uiState.accumulatedPausedMs
+                    ),
+                    label = stringResource(R.string.session_detail_duration_label),
                 )
             }
             if (uiState.note != null) {
@@ -322,7 +351,11 @@ private fun SessionStat(icon: ImageVector, value: String, label: String) {
 }
 
 @Composable
-private fun ExerciseCard(exercise: SessionExercise) {
+private fun ExerciseCard(
+    exercise: SessionExercise,
+    weightUnit: UnitSystem,
+    distanceUnit: UnitSystem
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -341,7 +374,7 @@ private fun ExerciseCard(exercise: SessionExercise) {
                     AssistChip(
                         onClick = {},
                         enabled = false,
-                        label = { Text("Skipped") },
+                        label = { Text(stringResource(R.string.session_detail_skipped_chip)) },
                         colors = AssistChipDefaults.assistChipColors(),
                     )
                 }
@@ -350,10 +383,10 @@ private fun ExerciseCard(exercise: SessionExercise) {
             when {
                 exercise.isSkipped -> Unit
                 exercise.isStrength -> {
-                    if (exercise.setLabels.isEmpty()) {
-                        EmptyDetail("No sets logged")
+                    if (exercise.sets.isEmpty()) {
+                        EmptyDetail(stringResource(R.string.session_detail_no_sets_logged))
                     } else {
-                        exercise.setLabels.forEachIndexed { index, label ->
+                        exercise.sets.forEachIndexed { index, set ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -365,19 +398,22 @@ private fun ExerciseCard(exercise: SessionExercise) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.width(24.dp),
                                 )
-                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    SessionFormat.setLabel(set, weightUnit),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                             }
                         }
                     }
                 }
 
                 else -> {
-                    if (exercise.cardioLabels.isEmpty()) {
-                        EmptyDetail("No cardio logged")
+                    if (exercise.cardio.isEmpty()) {
+                        EmptyDetail(stringResource(R.string.session_detail_no_cardio_logged))
                     } else {
-                        exercise.cardioLabels.forEach { label ->
+                        exercise.cardio.forEach { cardio ->
                             Text(
-                                label,
+                                SessionFormat.cardioLabel(cardio, distanceUnit),
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.padding(top = 8.dp),
                             )
@@ -408,18 +444,18 @@ private fun SaveAsRoutineDialog(
     var name by remember { mutableStateOf(defaultName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Save as routine") },
+        title = { Text(stringResource(R.string.session_detail_save_as_routine_menu_item)) },
         text = {
             Column {
                 Text(
-                    "Creates a new routine from this session's strength exercises.",
+                    stringResource(R.string.session_detail_save_as_routine_dialog_text),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Routine name") },
+                    label = { Text(stringResource(R.string.session_detail_routine_name_label)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -431,10 +467,10 @@ private fun SaveAsRoutineDialog(
             TextButton(
                 onClick = { onConfirm(name.trim()) },
                 enabled = name.isNotBlank(),
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.session_detail_save_button)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.session_detail_cancel_button)) }
         },
     )
 }
