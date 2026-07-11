@@ -1,15 +1,15 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.data.local.entity.CardioEntry
-import dev.gouthaman.regimen.data.local.entity.ExerciseHistorySession
-import dev.gouthaman.regimen.data.local.entity.SetEntry
-import dev.gouthaman.regimen.data.local.entity.WorkoutExercise
-import dev.gouthaman.regimen.data.local.entity.WorkoutWithDetails
 import dev.gouthaman.regimen.data.repository.ExerciseRepository
 import dev.gouthaman.regimen.data.repository.RoutineRepository
 import dev.gouthaman.regimen.data.repository.WorkoutRepository
+import dev.gouthaman.regimen.domain.model.CardioEntry
+import dev.gouthaman.regimen.domain.model.ExerciseHistorySession
 import dev.gouthaman.regimen.domain.model.ExerciseSpec
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.SetEntry
+import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 

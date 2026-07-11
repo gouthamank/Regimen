@@ -1,9 +1,9 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.data.local.entity.Routine
-import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
 import dev.gouthaman.regimen.data.repository.RoutineRepository
 import dev.gouthaman.regimen.domain.model.ExerciseSpec
+import dev.gouthaman.regimen.domain.model.Routine
+import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject

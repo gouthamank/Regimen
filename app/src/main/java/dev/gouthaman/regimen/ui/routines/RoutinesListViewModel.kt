@@ -3,7 +3,7 @@ package dev.gouthaman.regimen.ui.routines
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
+import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.usecase.DeleteRoutineUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ReorderRoutinesUseCase

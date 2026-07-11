@@ -7,24 +7,24 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
-import dev.gouthaman.regimen.data.local.entity.Routine
-import dev.gouthaman.regimen.data.local.entity.RoutineExercise
-import dev.gouthaman.regimen.data.local.entity.RoutineWithExercises
+import dev.gouthaman.regimen.data.local.entity.RoutineEntity
+import dev.gouthaman.regimen.data.local.entity.RoutineExerciseEntity
+import dev.gouthaman.regimen.data.local.entity.RoutineWithExercisesEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RoutineDao {
     @Transaction
     @Query("SELECT * FROM routines ORDER BY position ASC")
-    fun observeRoutinesWithExercises(): Flow<List<RoutineWithExercises>>
+    fun observeRoutinesWithExercises(): Flow<List<RoutineWithExercisesEntity>>
 
     @Transaction
     @Query("SELECT * FROM routines WHERE id = :id")
-    fun observeRoutine(id: Long): Flow<RoutineWithExercises?>
+    fun observeRoutine(id: Long): Flow<RoutineWithExercisesEntity?>
 
     @Transaction
     @Query("SELECT * FROM routines WHERE id = :id")
-    suspend fun getRoutineWithExercises(id: Long): RoutineWithExercises?
+    suspend fun getRoutineWithExercises(id: Long): RoutineWithExercisesEntity?
 
     @Query("SELECT COUNT(*) FROM routines")
     fun observeCount(): Flow<Int>
@@ -49,23 +49,23 @@ interface RoutineDao {
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRoutine(routine: Routine): Long
+    suspend fun insertRoutine(routine: RoutineEntity): Long
 
     @Update
-    suspend fun updateRoutine(routine: Routine)
+    suspend fun updateRoutine(routine: RoutineEntity)
 
     @Delete
-    suspend fun deleteRoutine(routine: Routine)
+    suspend fun deleteRoutine(routine: RoutineEntity)
 
     @Query("DELETE FROM routine_exercises WHERE routineId = :routineId")
     suspend fun clearRoutineExercises(routineId: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRoutineExercises(items: List<RoutineExercise>)
+    suspend fun insertRoutineExercises(items: List<RoutineExerciseEntity>)
 
     /** Replaces a routine's exercise list atomically. */
     @Transaction
-    suspend fun replaceRoutineExercises(routineId: Long, items: List<RoutineExercise>) {
+    suspend fun replaceRoutineExercises(routineId: Long, items: List<RoutineExerciseEntity>) {
         clearRoutineExercises(routineId)
         insertRoutineExercises(items)
     }

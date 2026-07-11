@@ -106,11 +106,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.data.local.entity.CardioEntry
-import dev.gouthaman.regimen.data.local.entity.SetEntry
+import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Equipment
+import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
@@ -193,12 +195,12 @@ fun ActiveWorkoutScreen(
 @Composable
 fun ActiveWorkoutScreen(
     uiState: ActiveWorkoutUiState,
-    addableExercises: List<dev.gouthaman.regimen.data.local.entity.Exercise>,
+    addableExercises: List<Exercise>,
     rest: RestTimerState?,
     onUpdateSet: (SetEntry) -> Unit,
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
-    onToggleSkip: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
+    onToggleSkip: (WorkoutExercise) -> Unit,
     onAddExercises: (List<Long>) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onUpdateNote: (String) -> Unit,
@@ -653,7 +655,7 @@ private fun ExerciseCard(
     onUpdateSet: (SetEntry) -> Unit,
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
-    onToggleSkip: (dev.gouthaman.regimen.data.local.entity.WorkoutExercise) -> Unit,
+    onToggleSkip: (WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (Long, Int) -> Unit,
     showRestTimer: Boolean = true,

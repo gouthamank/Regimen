@@ -1,7 +1,5 @@
 package dev.gouthaman.regimen.domain.model
 
-import dev.gouthaman.regimen.data.local.entity.Exercise
-
 /**
  * True if [query] matches this exercise's name, or its type/muscle-group/equipment tags — so
  * searching "cardio" surfaces all cardio exercises, not just name matches. Shared by the

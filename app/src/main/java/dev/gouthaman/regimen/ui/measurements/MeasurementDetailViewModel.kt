@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.gouthaman.regimen.data.local.entity.BodyMetric
-import dev.gouthaman.regimen.data.local.entity.MeasurementType
+import dev.gouthaman.regimen.domain.model.BodyMetric
 import dev.gouthaman.regimen.domain.model.HistoryRange
+import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.usecase.AddMeasurementUseCase

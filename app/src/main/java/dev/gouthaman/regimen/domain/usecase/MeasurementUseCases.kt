@@ -1,8 +1,8 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.data.local.entity.BodyMetric
-import dev.gouthaman.regimen.data.local.entity.MeasurementType
 import dev.gouthaman.regimen.data.repository.MeasurementRepository
+import dev.gouthaman.regimen.domain.model.BodyMetric
+import dev.gouthaman.regimen.domain.model.MeasurementType
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 

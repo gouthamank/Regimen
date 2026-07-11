@@ -1,10 +1,10 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.data.local.entity.Exercise
 import dev.gouthaman.regimen.data.repository.ExerciseRepository
 import dev.gouthaman.regimen.data.repository.RoutineRepository
 import dev.gouthaman.regimen.data.repository.WorkoutRepository
 import dev.gouthaman.regimen.domain.model.Equipment
+import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.matchesSearch

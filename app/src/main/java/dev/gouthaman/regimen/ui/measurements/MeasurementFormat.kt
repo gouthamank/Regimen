@@ -3,7 +3,7 @@ package dev.gouthaman.regimen.ui.measurements
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.data.local.entity.MeasurementType
+import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.ui.util.text

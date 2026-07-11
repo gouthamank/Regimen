@@ -1,7 +1,7 @@
 package dev.gouthaman.regimen.data.local.seed
 
-import dev.gouthaman.regimen.data.local.entity.Exercise
-import dev.gouthaman.regimen.data.local.entity.MeasurementType
+import dev.gouthaman.regimen.data.local.entity.ExerciseEntity
+import dev.gouthaman.regimen.data.local.entity.MeasurementTypeEntity
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Equipment.BARBELL
 import dev.gouthaman.regimen.domain.model.Equipment.BODYWEIGHT
@@ -26,9 +26,9 @@ import dev.gouthaman.regimen.domain.model.MuscleGroup.SHOULDERS
 object BuiltInData {
 
     private fun ex(name: String, mg: MuscleGroup, eq: Equipment, type: ExerciseType = STRENGTH) =
-        Exercise(name = name, type = type, muscleGroup = mg, equipment = eq, isCustom = false)
+        ExerciseEntity(name = name, type = type, muscleGroup = mg, equipment = eq, isCustom = false)
 
-    val exercises: List<Exercise> = listOf(
+    val exercises: List<ExerciseEntity> = listOf(
         ex("Barbell Bench Press", CHEST, BARBELL),
         ex("Incline Barbell Bench Press", CHEST, BARBELL),
         ex("Dumbbell Bench Press", CHEST, DUMBBELL),
@@ -98,7 +98,7 @@ object BuiltInData {
     )
 
     /** Built-in measurement type. Bodyweight is stored in kg canonically. */
-    val measurementTypes: List<MeasurementType> = listOf(
-        MeasurementType(name = "Bodyweight", unit = "kg", isBuiltIn = true),
+    val measurementTypes: List<MeasurementTypeEntity> = listOf(
+        MeasurementTypeEntity(name = "Bodyweight", unit = "kg", isBuiltIn = true),
     )
 }

@@ -7,8 +7,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.data.local.entity.CardioEntry
-import dev.gouthaman.regimen.data.local.entity.SetEntry
+import dev.gouthaman.regimen.domain.model.CardioEntry
+import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.ui.util.text

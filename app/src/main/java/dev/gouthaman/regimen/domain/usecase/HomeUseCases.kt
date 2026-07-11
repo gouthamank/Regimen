@@ -1,8 +1,8 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.data.local.entity.WorkoutWithDetails
 import dev.gouthaman.regimen.data.repository.WorkoutRepository
 import dev.gouthaman.regimen.domain.model.HomeSummary
+import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.DayOfWeek

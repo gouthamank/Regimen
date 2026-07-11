@@ -34,7 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.data.local.entity.MeasurementType
+import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import java.text.SimpleDateFormat
 import java.util.Locale

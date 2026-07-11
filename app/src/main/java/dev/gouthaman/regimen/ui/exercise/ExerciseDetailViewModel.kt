@@ -5,10 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.gouthaman.regimen.data.local.entity.CardioEntry
-import dev.gouthaman.regimen.data.local.entity.Exercise
-import dev.gouthaman.regimen.data.local.entity.SetEntry
+import dev.gouthaman.regimen.domain.model.CardioEntry
+import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.usecase.DeleteExerciseResult
 import dev.gouthaman.regimen.domain.usecase.DeleteExerciseUseCase
