@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -53,7 +54,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
-import java.util.Locale
 
 @Composable
 fun HistoryScreen(
@@ -199,7 +199,12 @@ private fun MonthHeader(
             )
         }
         Text(
-            "${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}",
+            "${
+                month.month.getDisplayName(
+                    TextStyle.FULL,
+                    LocalLocale.current.platformLocale
+                )
+            } ${month.year}",
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f),
@@ -216,12 +221,12 @@ private fun MonthHeader(
 
 @Composable
 private fun WeekdayHeader() {
-    val firstDay = WeekFields.of(Locale.getDefault()).firstDayOfWeek
+    val firstDay = WeekFields.of(LocalLocale.current.platformLocale).firstDayOfWeek
     val days = (0 until 7).map { firstDay.plus(it.toLong()) }
     Row(modifier = Modifier.fillMaxWidth()) {
         days.forEach { day ->
             Text(
-                day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                day.getDisplayName(TextStyle.NARROW, LocalLocale.current.platformLocale),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -239,7 +244,7 @@ private fun MonthGrid(
     sessionsByDay: Map<LocalDate, List<DaySession>>,
     onDayClick: (List<DaySession>) -> Unit,
 ) {
-    val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
+    val firstDayOfWeek = WeekFields.of(LocalLocale.current.platformLocale).firstDayOfWeek
     val firstOfMonth = month.atDay(1)
     // Blank leading cells so day 1 lands under the right weekday column.
     val leadingBlanks = (firstOfMonth.dayOfWeek.value - firstDayOfWeek.value + 7) % 7
