@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_preferences_header">Preferences</string>
+    <string name="settings_weight_unit_headline">Weight unit</string>
+    <string name="settings_distance_unit_headline">Distance unit</string>
+    <string name="settings_theme_headline">Theme</string>
+    <string name="settings_dynamic_color_label">Dynamic color</string>
+    <string name="settings_dynamic_color_description_available">Use colors from your wallpaper</string>
+    <string name="settings_dynamic_color_description_unavailable">Requires Android 12 or newer</string>
+    <string name="settings_rest_timer_default_headline">Rest timer default</string>
+    <string name="settings_rest_timer_sound_headline">Rest timer sound</string>
+    <string name="settings_rest_timer_sound_description">Chime when a rest period ends (vibration always on)</string>
+    <string name="settings_library_data_header">Library &amp; data</string>
+    <string name="settings_exercise_library_headline">Exercise library</string>
+    <string name="settings_exercise_library_description">Browse and add exercises</string>
+    <string name="settings_export_data_headline">Export data</string>
+    <string name="settings_export_data_description">JSON backup — planned</string>
+</resources>

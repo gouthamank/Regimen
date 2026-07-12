@@ -9,11 +9,11 @@ import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
+import dev.gouthaman.regimen.designsystem.ProvideRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.RegimenTheme
+import dev.gouthaman.regimen.feature.onboarding.OnboardingScreen
 import dev.gouthaman.regimen.ui.MainViewModel
 import dev.gouthaman.regimen.ui.RegimenApp
-import dev.gouthaman.regimen.ui.adaptive.ProvideRegimenWindowInfo
-import dev.gouthaman.regimen.ui.onboarding.OnboardingScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

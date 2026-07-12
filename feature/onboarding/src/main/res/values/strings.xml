@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_units_title">Welcome to Regimen</string>
+    <string name="onboarding_units_subtitle">Track your workouts, all on your device. First, which units do you use?</string>
+    <string name="onboarding_weight_label">Weight</string>
+    <string name="onboarding_distance_label">Distance</string>
+    <string name="onboarding_appearance_title">Make it yours</string>
+    <string name="onboarding_appearance_subtitle">Choose a theme. You can change any of this later in Settings.</string>
+    <string name="onboarding_dynamic_color_label">Dynamic color</string>
+    <string name="onboarding_dynamic_color_description">Use colors from your wallpaper</string>
+</resources>

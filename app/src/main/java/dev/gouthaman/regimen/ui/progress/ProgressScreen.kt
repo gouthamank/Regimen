@@ -40,11 +40,11 @@ import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.designsystem.EmptyState
 import dev.gouthaman.regimen.designsystem.HistoryRangeSelector
 import dev.gouthaman.regimen.designsystem.LineChart
+import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.designsystem.SectionHeader
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.WeekCount
-import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.util.text
 import java.time.format.DateTimeFormatter
 import java.util.Locale

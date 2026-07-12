@@ -1,30 +1,6 @@
 <resources>
     <string name="app_name">Regimen</string>
 
-    <!-- Shared enum labels: UnitSystem (Onboarding + Settings) -->
-    <string name="unit_system_metric_weight">Metric (kg)</string>
-    <string name="unit_system_imperial_weight">Imperial (lb)</string>
-    <string name="unit_system_metric_distance">Metric (km)</string>
-    <string name="unit_system_imperial_distance">Imperial (mi)</string>
-
-    <!-- Shared enum labels: ThemeMode (Onboarding + Settings) -->
-    <string name="theme_mode_light">Light</string>
-    <string name="theme_mode_dark">Dark</string>
-    <string name="theme_mode_system">System</string>
-
-    <!-- Onboarding -->
-    <string name="onboarding_skip">Skip</string>
-    <string name="onboarding_get_started">Get started</string>
-    <string name="onboarding_next">Next</string>
-    <string name="onboarding_units_title">Welcome to Regimen</string>
-    <string name="onboarding_units_subtitle">Track your workouts, all on your device. First, which units do you use?</string>
-    <string name="onboarding_weight_label">Weight</string>
-    <string name="onboarding_distance_label">Distance</string>
-    <string name="onboarding_appearance_title">Make it yours</string>
-    <string name="onboarding_appearance_subtitle">Choose a theme. You can change any of this later in Settings.</string>
-    <string name="onboarding_dynamic_color_label">Dynamic color</string>
-    <string name="onboarding_dynamic_color_description">Use colors from your wallpaper</string>
-
     <!-- Progress -->
     <string name="progress_title">Progress</string>
     <string name="progress_measurements_link_title">Body measurements</string>
@@ -94,24 +70,6 @@
     <string name="home_greeting_afternoon">Good afternoon</string>
     <string name="home_greeting_evening">Good evening</string>
     <string name="home_weight_value_label">%1$s %2$s</string>
-
-    <!-- Settings -->
-    <string name="settings_title">Settings</string>
-    <string name="settings_preferences_header">Preferences</string>
-    <string name="settings_weight_unit_headline">Weight unit</string>
-    <string name="settings_distance_unit_headline">Distance unit</string>
-    <string name="settings_theme_headline">Theme</string>
-    <string name="settings_dynamic_color_label">Dynamic color</string>
-    <string name="settings_dynamic_color_description_available">Use colors from your wallpaper</string>
-    <string name="settings_dynamic_color_description_unavailable">Requires Android 12 or newer</string>
-    <string name="settings_rest_timer_default_headline">Rest timer default</string>
-    <string name="settings_rest_timer_sound_headline">Rest timer sound</string>
-    <string name="settings_rest_timer_sound_description">Chime when a rest period ends (vibration always on)</string>
-    <string name="settings_library_data_header">Library &amp; data</string>
-    <string name="settings_exercise_library_headline">Exercise library</string>
-    <string name="settings_exercise_library_description">Browse and add exercises</string>
-    <string name="settings_export_data_headline">Export data</string>
-    <string name="settings_export_data_description">JSON backup — planned</string>
 
     <!-- History (calendar) -->
     <string name="history_title">History</string>

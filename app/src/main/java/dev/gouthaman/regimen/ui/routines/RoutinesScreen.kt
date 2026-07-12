@@ -53,9 +53,9 @@ import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.designsystem.ConfirmDialog
 import dev.gouthaman.regimen.designsystem.EmptyState
+import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
-import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 
 @Composable
 fun RoutinesScreen(

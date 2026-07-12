@@ -12,4 +12,6 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.window)
+    implementation(libs.androidx.compose.material3.adaptive)
 }

@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.onboarding
+package dev.gouthaman.regimen.feature.onboarding
 
 import android.os.Build
 import androidx.compose.animation.core.animateDpAsState
@@ -42,14 +42,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.RegimenPosture
+import dev.gouthaman.regimen.designsystem.RegimenWindowInfo
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
-import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
-import dev.gouthaman.regimen.ui.adaptive.RegimenWindowInfo
 import kotlinx.coroutines.launch
+import dev.gouthaman.regimen.common.R as CommonR
 
 private const val PAGE_COUNT = 2
 private val PageSpacing = 24.dp
@@ -363,13 +363,13 @@ private fun UnitSystemSelector(
                     stringResource(
                         if (weightLabels) {
                             when (option) {
-                                UnitSystem.METRIC -> R.string.unit_system_metric_weight
-                                UnitSystem.IMPERIAL -> R.string.unit_system_imperial_weight
+                                UnitSystem.METRIC -> CommonR.string.unit_system_metric_weight
+                                UnitSystem.IMPERIAL -> CommonR.string.unit_system_imperial_weight
                             }
                         } else {
                             when (option) {
-                                UnitSystem.METRIC -> R.string.unit_system_metric_distance
-                                UnitSystem.IMPERIAL -> R.string.unit_system_imperial_distance
+                                UnitSystem.METRIC -> CommonR.string.unit_system_metric_distance
+                                UnitSystem.IMPERIAL -> CommonR.string.unit_system_imperial_distance
                             }
                         },
                     ),
@@ -393,9 +393,9 @@ private fun ThemeModeSelector(selected: ThemeMode, onChange: (ThemeMode) -> Unit
                 Text(
                     stringResource(
                         when (option) {
-                            ThemeMode.LIGHT -> R.string.theme_mode_light
-                            ThemeMode.DARK -> R.string.theme_mode_dark
-                            ThemeMode.SYSTEM -> R.string.theme_mode_system
+                            ThemeMode.LIGHT -> CommonR.string.theme_mode_light
+                            ThemeMode.DARK -> CommonR.string.theme_mode_dark
+                            ThemeMode.SYSTEM -> CommonR.string.theme_mode_system
                         },
                     ),
                 )

@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.settings
+package dev.gouthaman.regimen.feature.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,8 +14,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * First-run onboarding (S17). Selections are written to preferences immediately (so the app theme
+ * updates live and a skip still keeps whatever was chosen); [finish] flips the onboarded flag,
+ * which the app-level gate observes to leave onboarding.
+ */
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
+class OnboardingViewModel @Inject constructor(
     observePreferences: ObservePreferencesUseCase,
     private val updatePreferences: UpdatePreferencesUseCase,
 ) : ViewModel() {
@@ -39,11 +44,7 @@ class SettingsViewModel @Inject constructor(
         updatePreferences.setDynamicColor(value)
     }
 
-    fun setRestDefaultSec(value: Int) = viewModelScope.launch {
-        updatePreferences.setRestDefaultSec(value)
-    }
-
-    fun setRestChimeEnabled(value: Boolean) = viewModelScope.launch {
-        updatePreferences.setRestChimeEnabled(value)
+    fun finish() = viewModelScope.launch {
+        updatePreferences.setOnboarded(true)
     }
 }

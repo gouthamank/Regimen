@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Shared enum labels: UnitSystem (Onboarding + Settings) -->
+    <string name="unit_system_metric_weight">Metric (kg)</string>
+    <string name="unit_system_imperial_weight">Imperial (lb)</string>
+    <string name="unit_system_metric_distance">Metric (km)</string>
+    <string name="unit_system_imperial_distance">Imperial (mi)</string>
+
+    <!-- Shared enum labels: ThemeMode (Onboarding + Settings) -->
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_system">System</string>
+
     <string name="session_format_placeholder_dash">—</string>
     <string name="session_format_duration_hours_minutes">%1$dh %2$02dm</string>
     <string name="session_format_duration_minutes">%1$d min</string>

@@ -44,11 +44,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.navigation.HomeRoute
 import dev.gouthaman.regimen.navigation.WorkoutSummaryRoute
-import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.navigation.RegimenNavHost
 import dev.gouthaman.regimen.ui.navigation.TopLevelDestination
 import dev.gouthaman.regimen.ui.navigation.navigateToTab

@@ -16,6 +16,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
+import dev.gouthaman.regimen.feature.settings.SettingsScreen
 import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.navigation.EditExerciseRoute
 import dev.gouthaman.regimen.navigation.ExerciseDetailRoute
@@ -43,7 +44,6 @@ import dev.gouthaman.regimen.ui.measurements.MeasurementsScreen
 import dev.gouthaman.regimen.ui.progress.ProgressScreen
 import dev.gouthaman.regimen.ui.routines.RoutineEditorScreen
 import dev.gouthaman.regimen.ui.routines.RoutinesScreen
-import dev.gouthaman.regimen.ui.settings.SettingsScreen
 
 /**
  * ─────────────────────────────────────────────────────────────────────────

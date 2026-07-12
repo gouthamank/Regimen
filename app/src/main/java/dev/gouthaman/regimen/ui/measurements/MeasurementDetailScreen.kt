@@ -50,11 +50,11 @@ import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.designsystem.ConfirmDialog
 import dev.gouthaman.regimen.designsystem.HistoryRangeSelector
 import dev.gouthaman.regimen.designsystem.LineChart
+import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
-import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import java.text.SimpleDateFormat
 import java.util.Locale
 

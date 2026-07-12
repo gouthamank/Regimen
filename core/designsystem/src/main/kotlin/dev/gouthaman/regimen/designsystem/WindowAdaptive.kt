@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.adaptive
+package dev.gouthaman.regimen.designsystem
 
 import androidx.compose.material3.adaptive.WindowAdaptiveInfo
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo

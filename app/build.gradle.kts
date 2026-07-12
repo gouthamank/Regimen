@@ -44,7 +44,10 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:common-ui"))
     implementation(project(":core:navigation-api"))
+    implementation(project(":feature:settings"))
+    implementation(project(":feature:onboarding"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
