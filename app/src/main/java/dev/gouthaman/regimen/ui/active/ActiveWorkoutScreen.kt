@@ -57,7 +57,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -106,6 +105,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.ConfirmDialog
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
@@ -407,58 +407,45 @@ fun ActiveWorkoutScreen(
 
     if (showDiscard) {
         if (isEditing) {
-            AlertDialog(
-                onDismissRequest = { showDiscard = false },
-                title = { Text(stringResource(R.string.workout_cancel_edit_dialog_title)) },
-                text = { Text(stringResource(R.string.workout_cancel_edit_dialog_text)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showDiscard = false
-                        onCancelEdit()
-                    }) { Text(stringResource(R.string.workout_cancel_edit_action)) }
+            ConfirmDialog(
+                title = stringResource(R.string.workout_cancel_edit_dialog_title),
+                text = stringResource(R.string.workout_cancel_edit_dialog_text),
+                confirmLabel = stringResource(R.string.workout_cancel_edit_action),
+                onConfirm = {
+                    showDiscard = false
+                    onCancelEdit()
                 },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showDiscard = false
-                    }) { Text(stringResource(R.string.workout_keep_editing_button)) }
-                },
+                dismissLabel = stringResource(R.string.workout_keep_editing_button),
+                onDismiss = { showDiscard = false },
+                destructive = true,
             )
         } else {
-            AlertDialog(
-                onDismissRequest = { showDiscard = false },
-                title = { Text(stringResource(R.string.workout_discard_dialog_title)) },
-                text = { Text(stringResource(R.string.workout_discard_dialog_text)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showDiscard = false
-                        onDiscard()
-                    }) { Text(stringResource(R.string.workout_discard_action)) }
+            ConfirmDialog(
+                title = stringResource(R.string.workout_discard_dialog_title),
+                text = stringResource(R.string.workout_discard_dialog_text),
+                confirmLabel = stringResource(R.string.workout_discard_action),
+                onConfirm = {
+                    showDiscard = false
+                    onDiscard()
                 },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showDiscard = false
-                    }) { Text(stringResource(R.string.workout_keep_going_button)) }
-                },
+                dismissLabel = stringResource(R.string.workout_keep_going_button),
+                onDismiss = { showDiscard = false },
+                destructive = true,
             )
         }
     }
 
     if (showFinishConfirm) {
-        AlertDialog(
-            onDismissRequest = { showFinishConfirm = false },
-            title = { Text(stringResource(R.string.workout_finish_dialog_title)) },
-            text = { Text(stringResource(R.string.workout_finish_dialog_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showFinishConfirm = false
-                    onFinish()
-                }) { Text(stringResource(R.string.workout_finish_action)) }
+        ConfirmDialog(
+            title = stringResource(R.string.workout_finish_dialog_title),
+            text = stringResource(R.string.workout_finish_dialog_text),
+            confirmLabel = stringResource(R.string.workout_finish_action),
+            onConfirm = {
+                showFinishConfirm = false
+                onFinish()
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showFinishConfirm = false
-                }) { Text(stringResource(R.string.workout_keep_going_button)) }
-            },
+            dismissLabel = stringResource(R.string.workout_keep_going_button),
+            onDismiss = { showFinishConfirm = false },
         )
     }
 }

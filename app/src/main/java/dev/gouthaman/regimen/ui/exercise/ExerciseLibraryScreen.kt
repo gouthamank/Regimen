@@ -55,12 +55,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.EmptyState
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType
@@ -196,12 +196,21 @@ fun ExerciseLibraryScreen(
                 }
 
                 if (uiState.exercises.isEmpty()) {
+                    val hasActiveFilters =
+                        activeFilters.isNotEmpty() || filters.query.isNotEmpty()
                     EmptyState(
-                        hasActiveFilters = activeFilters.isNotEmpty() || filters.query.isNotEmpty(),
-                        onClearAll = {
-                            onQueryChange("")
-                            activeFilters.forEach { (_, clear) -> clear() }
-                        },
+                        message = stringResource(R.string.exercise_library_empty_state),
+                        modifier = Modifier.fillMaxSize(),
+                        icon = Icons.Filled.SearchOff,
+                        actionLabel = if (hasActiveFilters) {
+                            stringResource(R.string.exercise_library_clear_filters_button)
+                        } else null,
+                        onAction = if (hasActiveFilters) {
+                            {
+                                onQueryChange("")
+                                activeFilters.forEach { (_, clear) -> clear() }
+                            }
+                        } else null,
                     )
                 } else {
                     LazyColumn(
@@ -455,39 +464,6 @@ private fun ExerciseRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(hasActiveFilters: Boolean, onClearAll: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                Icons.Filled.SearchOff,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(40.dp),
-            )
-            Text(
-                stringResource(R.string.exercise_library_empty_state),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            if (hasActiveFilters) {
-                TextButton(onClick = onClearAll) {
-                    Text(stringResource(R.string.exercise_library_clear_filters_button))
                 }
             }
         }

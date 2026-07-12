@@ -47,15 +47,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.EmptyState
+import dev.gouthaman.regimen.designsystem.LineChart
+import dev.gouthaman.regimen.designsystem.Stat
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import dev.gouthaman.regimen.ui.adaptive.RegimenWindowInfo
-import dev.gouthaman.regimen.ui.components.LineChart
 import dev.gouthaman.regimen.ui.history.SessionFormat
 import dev.gouthaman.regimen.ui.util.text
 
@@ -124,14 +125,16 @@ fun HomeScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    EmptyHome(
-                        onCreateRoutine = onCreateRoutine,
+                    EmptyState(
+                        message = stringResource(R.string.home_empty_state_text),
                         // A line of text + button doesn't need a wide pane's full width — cap it like Onboarding's text-only content.
                         modifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
                             Modifier.widthIn(max = 480.dp)
                         } else {
                             Modifier
                         },
+                        actionLabel = stringResource(R.string.home_create_routine_button),
+                        onAction = onCreateRoutine,
                     )
                 }
             }
@@ -283,21 +286,33 @@ private fun WeekSummarySection(uiState: HomeUiState) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatTile(
-                stringResource(R.string.home_stat_workouts_label),
-                uiState.workoutsThisWeek.toString(),
-                Modifier.weight(1f)
-            )
-            StatTile(
-                stringResource(R.string.home_stat_volume_label),
-                weightValueLabel(uiState.volumeThisWeek),
-                Modifier.weight(1f)
-            )
-            StatTile(
-                stringResource(R.string.home_stat_time_label),
-                SessionFormat.duration(0L, uiState.durationMillisThisWeek),
-                Modifier.weight(1f)
-            )
+            Card(modifier = Modifier.weight(1f)) {
+                Stat(
+                    stringResource(R.string.home_stat_workouts_label),
+                    uiState.workoutsThisWeek.toString(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                )
+            }
+            Card(modifier = Modifier.weight(1f)) {
+                Stat(
+                    stringResource(R.string.home_stat_volume_label),
+                    weightValueLabel(uiState.volumeThisWeek),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                )
+            }
+            Card(modifier = Modifier.weight(1f)) {
+                Stat(
+                    stringResource(R.string.home_stat_time_label),
+                    SessionFormat.duration(0L, uiState.durationMillisThisWeek),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                )
+            }
         }
         if (uiState.weekStreak > 0) {
             StreakTile(uiState.weekStreak)
@@ -317,21 +332,33 @@ private fun MonthSummarySection(uiState: HomeUiState) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatTile(
-                stringResource(R.string.home_stat_workouts_label),
-                uiState.workoutsThisMonth.toString(),
-                Modifier.weight(1f)
-            )
-            StatTile(
-                stringResource(R.string.home_stat_volume_label),
-                weightValueLabel(uiState.volumeThisMonth),
-                Modifier.weight(1f)
-            )
-            StatTile(
-                stringResource(R.string.home_stat_time_label),
-                SessionFormat.duration(0L, uiState.durationMillisThisMonth),
-                Modifier.weight(1f)
-            )
+            Card(modifier = Modifier.weight(1f)) {
+                Stat(
+                    stringResource(R.string.home_stat_workouts_label),
+                    uiState.workoutsThisMonth.toString(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                )
+            }
+            Card(modifier = Modifier.weight(1f)) {
+                Stat(
+                    stringResource(R.string.home_stat_volume_label),
+                    weightValueLabel(uiState.volumeThisMonth),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                )
+            }
+            Card(modifier = Modifier.weight(1f)) {
+                Stat(
+                    stringResource(R.string.home_stat_time_label),
+                    SessionFormat.duration(0L, uiState.durationMillisThisMonth),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                )
+            }
         }
     }
 }
@@ -435,26 +462,6 @@ private fun greetingLabel(period: GreetingPeriod): String = when (period) {
 private fun weightValueLabel(value: WeightValue): String =
     stringResource(R.string.home_weight_value_label, value.displayValue, value.unitLabel.text())
 
-@Composable
-private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(value, style = MaterialTheme.typography.titleLarge)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StreakTile(weeks: Int) {
@@ -510,27 +517,6 @@ private fun formatStreak(weeks: Int): String = when {
                 pluralStringResource(R.plurals.home_streak_years_part, years, years),
                 pluralStringResource(R.plurals.home_streak_months_part, months, months),
             )
-        }
-    }
-}
-
-@Composable
-private fun EmptyHome(onCreateRoutine: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            stringResource(R.string.home_empty_state_text),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Button(onClick = onCreateRoutine) {
-            Text(stringResource(R.string.home_create_routine_button))
         }
     }
 }

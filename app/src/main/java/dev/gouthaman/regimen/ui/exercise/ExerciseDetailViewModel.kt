@@ -86,15 +86,17 @@ class ExerciseDetailViewModel @Inject constructor(
         observeExerciseHistory(exerciseId),
     ) { exercise, prs, prefs, historySessions ->
         val pr = prs.firstOrNull { it.exerciseId == exerciseId }?.let { pr ->
+            val bestWeightKg = pr.bestWeightKg
+            val bestReps = pr.bestReps
             when {
-                pr.bestWeightKg != null -> ExercisePrValue.Weight(
+                bestWeightKg != null -> ExercisePrValue.Weight(
                     displayValue = UnitConverter.formatValue(
-                        UnitConverter.kgToDisplay(pr.bestWeightKg, prefs.weightUnit)
+                        UnitConverter.kgToDisplay(bestWeightKg, prefs.weightUnit)
                     ),
                     unitLabel = UnitConverter.weightLabel(prefs.weightUnit),
                 )
 
-                pr.bestReps != null -> ExercisePrValue.Reps(pr.bestReps)
+                bestReps != null -> ExercisePrValue.Reps(bestReps)
                 else -> null
             }
         }

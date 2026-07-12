@@ -3,7 +3,7 @@ package dev.gouthaman.regimen.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.gouthaman.regimen.data.prefs.UserPreferences
+import dev.gouthaman.regimen.domain.model.UserPreferences
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

@@ -43,9 +43,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.data.prefs.UserPreferences
+import dev.gouthaman.regimen.designsystem.SectionHeader
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.model.UserPreferences
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
 import kotlin.math.roundToInt
@@ -117,7 +118,13 @@ fun SettingsScreen(
             Column(
                 modifier = contentModifier.verticalScroll(rememberScrollState()),
             ) {
-                SectionHeader(stringResource(R.string.settings_preferences_header))
+                SectionHeader(
+                    stringResource(R.string.settings_preferences_header),
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = MaterialTheme.colorScheme.primary,
+                    ),
+                )
 
                 SettingRow(headline = stringResource(R.string.settings_weight_unit_headline)) {
                     UnitSystemSelector(prefs.weightUnit, onWeightUnitChange, weightLabels = true)
@@ -171,7 +178,13 @@ fun SettingsScreen(
                 )
 
                 HorizontalDivider()
-                SectionHeader(stringResource(R.string.settings_library_data_header))
+                SectionHeader(
+                    stringResource(R.string.settings_library_data_header),
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = MaterialTheme.colorScheme.primary,
+                    ),
+                )
 
                 NavRow(
                     headline = stringResource(R.string.settings_exercise_library_headline),
@@ -190,16 +203,6 @@ fun SettingsScreen(
             }
         }
     }
-}
-
-@Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-    )
 }
 
 /** A settings row with a headline (+ optional supporting text) above a full-width control. */

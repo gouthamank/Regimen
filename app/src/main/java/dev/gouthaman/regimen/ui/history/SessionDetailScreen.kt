@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -32,12 +31,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +54,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.ConfirmDialog
+import dev.gouthaman.regimen.designsystem.SaveAsRoutineDialog
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
@@ -228,6 +227,11 @@ fun SessionDetailScreen(
         val savedAsRoutineMessage =
             stringResource(R.string.session_detail_saved_as_routine_snackbar)
         SaveAsRoutineDialog(
+            title = stringResource(R.string.session_detail_save_as_routine_menu_item),
+            dialogText = stringResource(R.string.session_detail_save_as_routine_dialog_text),
+            nameLabel = stringResource(R.string.session_detail_routine_name_label),
+            saveLabel = stringResource(R.string.session_detail_save_button),
+            cancelLabel = stringResource(R.string.session_detail_cancel_button),
             defaultName = uiState.routineName.orEmpty(),
             onDismiss = { showSaveAsRoutine = false },
             onConfirm = { name ->
@@ -239,21 +243,17 @@ fun SessionDetailScreen(
     }
 
     if (showDelete) {
-        AlertDialog(
-            onDismissRequest = { showDelete = false },
-            title = { Text(stringResource(R.string.session_detail_delete_dialog_title)) },
-            text = { Text(stringResource(R.string.session_detail_delete_dialog_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDelete = false
-                    onDelete()
-                }) { Text(stringResource(R.string.session_detail_delete_confirm_button)) }
+        ConfirmDialog(
+            title = stringResource(R.string.session_detail_delete_dialog_title),
+            text = stringResource(R.string.session_detail_delete_dialog_text),
+            confirmLabel = stringResource(R.string.session_detail_delete_confirm_button),
+            onConfirm = {
+                showDelete = false
+                onDelete()
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDelete = false
-                }) { Text(stringResource(R.string.session_detail_cancel_button)) }
-            },
+            dismissLabel = stringResource(R.string.session_detail_cancel_button),
+            onDismiss = { showDelete = false },
+            destructive = true,
         )
     }
 }
@@ -435,42 +435,3 @@ private fun EmptyDetail(text: String) {
     )
 }
 
-@Composable
-private fun SaveAsRoutineDialog(
-    defaultName: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var name by remember { mutableStateOf(defaultName) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.session_detail_save_as_routine_menu_item)) },
-        text = {
-            Column {
-                Text(
-                    stringResource(R.string.session_detail_save_as_routine_dialog_text),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(stringResource(R.string.session_detail_routine_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(name.trim()) },
-                enabled = name.isNotBlank(),
-            ) { Text(stringResource(R.string.session_detail_save_button)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.session_detail_cancel_button)) }
-        },
-    )
-}

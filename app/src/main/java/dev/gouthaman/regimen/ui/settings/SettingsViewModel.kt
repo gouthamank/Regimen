@@ -3,9 +3,9 @@ package dev.gouthaman.regimen.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.gouthaman.regimen.data.prefs.UserPreferences
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.model.UserPreferences
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdatePreferencesUseCase
 import kotlinx.coroutines.flow.SharingStarted

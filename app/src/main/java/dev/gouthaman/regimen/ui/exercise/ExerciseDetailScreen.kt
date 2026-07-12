@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -25,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +42,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.ConfirmDialog
+import dev.gouthaman.regimen.designsystem.SectionHeader
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
@@ -181,28 +181,17 @@ fun ExerciseDetailScreen(
     }
 
     if (showDeleteDialog && exercise != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.exercise_detail_delete_dialog_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.exercise_detail_delete_dialog_text,
-                        exercise.name
-                    )
-                )
+        ConfirmDialog(
+            title = stringResource(R.string.exercise_detail_delete_dialog_title),
+            text = stringResource(R.string.exercise_detail_delete_dialog_text, exercise.name),
+            confirmLabel = stringResource(R.string.exercise_detail_delete_confirm_button),
+            onConfirm = {
+                showDeleteDialog = false
+                onDelete()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                    onDelete()
-                }) { Text(stringResource(R.string.exercise_detail_delete_confirm_button)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                }) { Text(stringResource(R.string.exercise_detail_cancel_button)) }
-            },
+            dismissLabel = stringResource(R.string.exercise_detail_cancel_button),
+            onDismiss = { showDeleteDialog = false },
+            destructive = true,
         )
     }
 
@@ -211,21 +200,16 @@ fun ExerciseDetailScreen(
             stringResource(R.string.exercise_detail_used_in_routines).takeIf { deleteBlockedInfo.inRoutines },
             stringResource(R.string.exercise_detail_used_in_workouts).takeIf { deleteBlockedInfo.inWorkouts },
         ).joinToString(" and ")
-        AlertDialog(
-            onDismissRequest = onDismissDeleteBlocked,
-            title = { Text(stringResource(R.string.exercise_detail_delete_blocked_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.exercise_detail_delete_blocked_text,
-                        deleteBlockedInfo.exerciseName,
-                        usedIn
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = onDismissDeleteBlocked) { Text(stringResource(R.string.exercise_detail_delete_blocked_ok_button)) }
-            },
+        ConfirmDialog(
+            title = stringResource(R.string.exercise_detail_delete_blocked_title),
+            text = stringResource(
+                R.string.exercise_detail_delete_blocked_text,
+                deleteBlockedInfo.exerciseName,
+                usedIn,
+            ),
+            confirmLabel = stringResource(R.string.exercise_detail_delete_blocked_ok_button),
+            onConfirm = onDismissDeleteBlocked,
+            onDismiss = onDismissDeleteBlocked,
         )
     }
 }
@@ -277,7 +261,14 @@ private fun ExerciseDetailContent(
     )
 
     HorizontalDivider()
-    SectionHeader(stringResource(R.string.exercise_detail_pr_header))
+    SectionHeader(
+        stringResource(R.string.exercise_detail_pr_header),
+        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+        style = MaterialTheme.typography.titleSmall.copy(
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        ),
+    )
     Text(
         text = pr?.let { exercisePrLabel(it) }
             ?: stringResource(R.string.exercise_detail_no_records_yet),
@@ -289,7 +280,14 @@ private fun ExerciseDetailContent(
     )
 
     HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
-    SectionHeader(stringResource(R.string.exercise_detail_history_header))
+    SectionHeader(
+        stringResource(R.string.exercise_detail_history_header),
+        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+        style = MaterialTheme.typography.titleSmall.copy(
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        ),
+    )
     if (history.isEmpty()) {
         Text(
             text = stringResource(R.string.exercise_detail_no_sessions_logged),
@@ -307,17 +305,6 @@ private fun ExerciseDetailContent(
             )
         }
     }
-}
-
-@Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-    )
 }
 
 @Composable

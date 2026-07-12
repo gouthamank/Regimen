@@ -32,18 +32,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.EmptyState
+import dev.gouthaman.regimen.designsystem.HistoryRangeSelector
+import dev.gouthaman.regimen.designsystem.LineChart
+import dev.gouthaman.regimen.designsystem.SectionHeader
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
-import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
-import dev.gouthaman.regimen.ui.components.LineChart
 import dev.gouthaman.regimen.ui.util.text
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -120,12 +121,22 @@ fun ProgressScreen(
                 }
 
                 if (uiState.loaded && uiState.isEmpty) {
-                    item { EmptyProgress() }
+                    item {
+                        EmptyState(
+                            message = stringResource(R.string.progress_empty_state),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
 
                 if (uiState.hasFrequency) {
                     item {
-                        SectionHeader(stringResource(R.string.progress_frequency_header))
+                        SectionHeader(
+                            stringResource(R.string.progress_frequency_header),
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp,
+                            ),
+                        )
                         HistoryRangeSelector(
                             selected = uiState.range,
                             onSelect = onRangeChange,
@@ -136,7 +147,14 @@ fun ProgressScreen(
                 }
 
                 if (uiState.hasRecords) {
-                    item { SectionHeader(stringResource(R.string.progress_records_header)) }
+                    item {
+                        SectionHeader(
+                            stringResource(R.string.progress_records_header),
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp,
+                            ),
+                        )
+                    }
                     items(uiState.personalRecords, key = { it.exerciseId }) { pr ->
                         ListItem(
                             headlineContent = { Text(pr.exerciseName) },
@@ -166,15 +184,6 @@ private fun personalRecordValueLabel(value: PersonalRecordValue): String = when 
 
     is PersonalRecordValue.Reps ->
         pluralStringResource(R.plurals.progress_reps_count, value.count, value.count)
-}
-
-@Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
-    )
 }
 
 private val weekLabelFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
@@ -245,22 +254,5 @@ private fun WeekAxis(frequency: List<WeekCount>, range: HistoryRange) {
         val color = MaterialTheme.colorScheme.onSurfaceVariant
         Text(first.format(formatter), style = style, color = color)
         Text(last.format(formatter), style = style, color = color)
-    }
-}
-
-@Composable
-private fun EmptyProgress() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 48.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            stringResource(R.string.progress_empty_state),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
     }
 }

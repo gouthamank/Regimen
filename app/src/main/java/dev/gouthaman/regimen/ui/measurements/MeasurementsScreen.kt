@@ -42,15 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.EmptyState
+import dev.gouthaman.regimen.designsystem.Sparkline
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
-import dev.gouthaman.regimen.ui.components.Sparkline
 
 @Composable
 fun MeasurementsScreen(
@@ -145,12 +145,15 @@ fun MeasurementsScreen(
         ) {
             if (loaded && rows.isEmpty()) {
                 EmptyState(
-                    if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                    message = stringResource(R.string.measurements_empty_state_description),
+                    modifier = (if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
                         Modifier.widthIn(max = 480.dp)
                     } else {
                         Modifier
-                    },
-                ) { showAddType = true }
+                    }).fillMaxSize(),
+                    actionLabel = stringResource(R.string.measurements_empty_state_button),
+                    onAction = { showAddType = true },
+                )
             } else {
                 val listModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
                     Modifier
@@ -288,25 +291,4 @@ private fun AddTypeDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.measurements_add_type_cancel_button)) } },
     )
-}
-
-@Composable
-private fun EmptyState(modifier: Modifier, onAddType: () -> Unit) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp), contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                stringResource(R.string.measurements_empty_state_description),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = onAddType, modifier = Modifier.padding(top = 12.dp)) {
-                Text(stringResource(R.string.measurements_empty_state_button))
-            }
-        }
-    }
 }

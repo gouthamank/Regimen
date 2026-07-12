@@ -55,11 +55,12 @@ object SessionFormat {
                 UnitConverter.weightLabel(weightUnit).text(),
             )
         }
+        val repsValue = set.reps
         val reps =
-            set.reps?.let { pluralStringResource(R.plurals.session_format_reps_count, it, it) }
+            repsValue?.let { pluralStringResource(R.plurals.session_format_reps_count, it, it) }
         return when {
-            weight != null && set.reps != null ->
-                stringResource(R.string.session_format_weight_reps, weight, set.reps)
+            weight != null && repsValue != null ->
+                stringResource(R.string.session_format_weight_reps, weight, repsValue)
 
             weight != null -> weight
             reps != null -> reps

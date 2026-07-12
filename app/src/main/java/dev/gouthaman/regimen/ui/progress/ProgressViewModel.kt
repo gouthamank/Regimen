@@ -76,13 +76,14 @@ class ProgressViewModel @Inject constructor(
             frequency = frequency,
             range = range,
             personalRecords = prs.map { pr ->
+                val bestWeightKg = pr.bestWeightKg
                 PersonalRecordItem(
                     exerciseId = pr.exerciseId,
                     exerciseName = pr.exerciseName,
                     value = when {
-                        pr.bestWeightKg != null -> PersonalRecordValue.Weight(
+                        bestWeightKg != null -> PersonalRecordValue.Weight(
                             displayValue = UnitConverter.formatValue(
-                                UnitConverter.kgToDisplay(pr.bestWeightKg, system)
+                                UnitConverter.kgToDisplay(bestWeightKg, system)
                             ),
                             unitLabel = UnitConverter.weightLabel(system),
                         )

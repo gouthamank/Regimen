@@ -19,7 +19,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -32,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,13 +47,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.ConfirmDialog
+import dev.gouthaman.regimen.designsystem.HistoryRangeSelector
+import dev.gouthaman.regimen.designsystem.LineChart
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
-import dev.gouthaman.regimen.ui.components.HistoryRangeSelector
-import dev.gouthaman.regimen.ui.components.LineChart
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -288,28 +287,17 @@ fun MeasurementDetailScreen(
     }
 
     if (showDeleteType && type != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteType = false },
-            title = {
-                Text(
-                    stringResource(
-                        R.string.measurement_detail_delete_dialog_title,
-                        type.name
-                    )
-                )
+        ConfirmDialog(
+            title = stringResource(R.string.measurement_detail_delete_dialog_title, type.name),
+            text = stringResource(R.string.measurement_detail_delete_dialog_text),
+            confirmLabel = stringResource(R.string.measurement_detail_delete_confirm_button),
+            onConfirm = {
+                showDeleteType = false
+                onDeleteType()
             },
-            text = { Text(stringResource(R.string.measurement_detail_delete_dialog_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteType = false
-                    onDeleteType()
-                }) { Text(stringResource(R.string.measurement_detail_delete_confirm_button)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteType = false
-                }) { Text(stringResource(R.string.measurement_detail_cancel_button)) }
-            },
+            dismissLabel = stringResource(R.string.measurement_detail_cancel_button),
+            onDismiss = { showDeleteType = false },
+            destructive = true,
         )
     }
 }

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -30,7 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,7 +44,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -54,6 +51,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.designsystem.ConfirmDialog
+import dev.gouthaman.regimen.designsystem.EmptyState
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.ui.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.ui.adaptive.RegimenPosture
@@ -137,11 +136,12 @@ fun RoutinesScreen(
             }
             if (routines.isEmpty()) {
                 EmptyState(
-                    if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
+                    message = stringResource(R.string.routines_empty_state),
+                    modifier = (if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
                         Modifier.widthIn(max = 480.dp)
                     } else {
                         Modifier
-                    },
+                    }).fillMaxSize(),
                 )
             } else {
                 RoutineList(
@@ -292,46 +292,17 @@ private fun RoutineCard(
     }
 
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.routines_delete_dialog_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.routines_delete_dialog_text,
-                        routine.routine.name
-                    )
-                )
+        ConfirmDialog(
+            title = stringResource(R.string.routines_delete_dialog_title),
+            text = stringResource(R.string.routines_delete_dialog_text, routine.routine.name),
+            confirmLabel = stringResource(R.string.routines_delete_confirm_button),
+            onConfirm = {
+                showDeleteDialog = false
+                onDelete()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                    onDelete()
-                }) { Text(stringResource(R.string.routines_delete_confirm_button)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                }) { Text(stringResource(R.string.routines_cancel_button)) }
-            },
+            dismissLabel = stringResource(R.string.routines_cancel_button),
+            onDismiss = { showDeleteDialog = false },
+            destructive = true,
         )
-    }
-}
-
-@Composable
-private fun EmptyState(modifier: Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp), contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                stringResource(R.string.routines_empty_state),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
     }
 }
