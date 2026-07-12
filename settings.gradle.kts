@@ -27,3 +27,4 @@ rootProject.name = "Regimen"
 include(":app")
 include(":core:domain")
 include(":core:data")
+include(":core:common-ui")

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_format_placeholder_dash">—</string>
+    <string name="session_format_duration_hours_minutes">%1$dh %2$02dm</string>
+    <string name="session_format_duration_minutes">%1$d min</string>
+    <string name="session_format_weight_value">%1$s %2$s</string>
+    <plurals name="session_format_reps_count">
+        <item quantity="one">%1$d rep</item>
+        <item quantity="other">%1$d reps</item>
+    </plurals>
+    <string name="session_format_weight_reps">%1$s × %2$d</string>
+    <string name="session_format_distance_value">%1$s %2$s</string>
+    <string name="session_format_time_distance">%1$s · %2$s</string>
+
+    <string name="measurement_format_value_label">%1$s %2$s</string>
+
+    <string name="exercise_type_strength">Strength</string>
+    <string name="exercise_type_cardio">Cardio</string>
+    <string name="muscle_group_chest">Chest</string>
+    <string name="muscle_group_back">Back</string>
+    <string name="muscle_group_shoulders">Shoulders</string>
+    <string name="muscle_group_arms">Arms</string>
+    <string name="muscle_group_legs">Legs</string>
+    <string name="muscle_group_core">Core</string>
+    <string name="muscle_group_full_body">Full body</string>
+    <string name="muscle_group_cardio">Cardio</string>
+    <string name="muscle_group_other">Other</string>
+    <string name="equipment_barbell">Barbell</string>
+    <string name="equipment_dumbbell">Dumbbell</string>
+    <string name="equipment_machine">Machine</string>
+    <string name="equipment_cable">Cable</string>
+    <string name="equipment_bodyweight">Bodyweight</string>
+    <string name="equipment_kettlebell">Kettlebell</string>
+    <string name="equipment_cardio_machine">Cardio machine</string>
+    <string name="equipment_other">Other</string>
+
+    <string name="unit_label_kg">kg</string>
+    <string name="unit_label_lb">lb</string>
+    <string name="unit_label_km">km</string>
+    <string name="unit_label_mi">mi</string>
+</resources>
