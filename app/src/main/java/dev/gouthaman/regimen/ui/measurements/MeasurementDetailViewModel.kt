@@ -16,7 +16,7 @@ import dev.gouthaman.regimen.domain.usecase.DeleteMeasurementUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
-import dev.gouthaman.regimen.ui.navigation.MeasurementDetailRoute
+import dev.gouthaman.regimen.navigation.MeasurementDetailRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

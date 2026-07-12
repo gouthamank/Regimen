@@ -12,7 +12,7 @@ import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.usecase.AddCustomExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateExerciseUseCase
-import dev.gouthaman.regimen.ui.navigation.EditExerciseRoute
+import dev.gouthaman.regimen.navigation.EditExerciseRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -28,8 +28,8 @@ import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
+import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.service.RestAlerts
-import dev.gouthaman.regimen.ui.navigation.ActiveWorkoutRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

@@ -17,7 +17,7 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.RepeatWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
-import dev.gouthaman.regimen.ui.navigation.SessionDetailRoute
+import dev.gouthaman.regimen.navigation.SessionDetailRoute
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted

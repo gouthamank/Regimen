@@ -18,8 +18,8 @@ import dev.gouthaman.regimen.domain.usecase.ObserveExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.domain.util.UnitLabel
+import dev.gouthaman.regimen.navigation.ExerciseDetailRoute
 import dev.gouthaman.regimen.ui.history.SessionFormat
-import dev.gouthaman.regimen.ui.navigation.ExerciseDetailRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

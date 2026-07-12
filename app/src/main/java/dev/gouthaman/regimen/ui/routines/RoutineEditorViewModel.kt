@@ -14,7 +14,7 @@ import dev.gouthaman.regimen.domain.usecase.ObserveExercisesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutineUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveRoutineUseCase
-import dev.gouthaman.regimen.ui.navigation.RoutineEditorRoute
+import dev.gouthaman.regimen.navigation.RoutineEditorRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

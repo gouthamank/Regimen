@@ -13,7 +13,7 @@ import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.domain.util.UnitLabel
-import dev.gouthaman.regimen.ui.navigation.WorkoutSummaryRoute
+import dev.gouthaman.regimen.navigation.WorkoutSummaryRoute
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
