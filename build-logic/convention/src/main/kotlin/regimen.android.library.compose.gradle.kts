@@ -1,4 +1,3 @@
-import com.android.build.gradle.LibraryExtension
 import dev.gouthaman.regimen.buildlogic.libs
 
 plugins {
@@ -6,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-extensions.configure<LibraryExtension> {
+android {
     buildFeatures {
         compose = true
     }

@@ -1,10 +1,8 @@
-import com.android.build.gradle.LibraryExtension
-
 plugins {
     id("com.android.library")
 }
 
-extensions.configure<LibraryExtension> {
+android {
     compileSdk {
         version = release(37) {
             minorApiLevel = 1
