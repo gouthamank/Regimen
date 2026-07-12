@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.measurements
+package dev.gouthaman.regimen.feature.measurements
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.MeasurementFormat
 import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import java.text.SimpleDateFormat

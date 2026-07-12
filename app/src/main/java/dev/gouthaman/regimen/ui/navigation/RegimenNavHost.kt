@@ -19,6 +19,8 @@ import androidx.navigation.compose.dialog
 import dev.gouthaman.regimen.feature.exercise.EditExerciseSheet
 import dev.gouthaman.regimen.feature.exercise.ExerciseDetailScreen
 import dev.gouthaman.regimen.feature.exercise.ExerciseLibraryScreen
+import dev.gouthaman.regimen.feature.measurements.MeasurementDetailScreen
+import dev.gouthaman.regimen.feature.measurements.MeasurementsScreen
 import dev.gouthaman.regimen.feature.settings.SettingsScreen
 import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.navigation.EditExerciseRoute
@@ -39,8 +41,6 @@ import dev.gouthaman.regimen.ui.active.WorkoutSummaryScreen
 import dev.gouthaman.regimen.ui.history.HistoryScreen
 import dev.gouthaman.regimen.ui.history.SessionDetailScreen
 import dev.gouthaman.regimen.ui.home.HomeScreen
-import dev.gouthaman.regimen.ui.measurements.MeasurementDetailScreen
-import dev.gouthaman.regimen.ui.measurements.MeasurementsScreen
 import dev.gouthaman.regimen.ui.progress.ProgressScreen
 import dev.gouthaman.regimen.ui.routines.RoutineEditorScreen
 import dev.gouthaman.regimen.ui.routines.RoutinesScreen

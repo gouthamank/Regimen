@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Measurements list -->
+    <string name="measurements_title">Body measurements</string>
+    <string name="measurements_back_description">Back</string>
+    <string name="measurements_add_type_description">Add measurement type</string>
+    <string name="measurements_add_entry_fab">Add entry</string>
+    <string name="measurements_no_entries_yet">No entries yet</string>
+    <string name="measurements_new_type_dialog_title">New measurement type</string>
+    <string name="measurements_new_type_name_label">Name (e.g. Waist)</string>
+    <string name="measurements_new_type_unit_label">Unit (e.g. cm, %)</string>
+    <string name="measurements_add_type_confirm_button">Add</string>
+    <string name="measurements_add_type_cancel_button">Cancel</string>
+    <string name="measurements_empty_state_description">Track bodyweight and your own measurements (waist, arm, body-fat %…) over time.</string>
+    <string name="measurements_empty_state_button">Add a measurement type</string>
+
+    <!-- Measurement Detail -->
+    <string name="measurement_detail_title_fallback">Measurement</string>
+    <string name="measurement_detail_back_description">Back</string>
+    <string name="measurement_detail_more_description">More</string>
+    <string name="measurement_detail_delete_type_menu_item">Delete measurement type</string>
+    <string name="measurement_detail_add_entry_fab">Add entry</string>
+    <string name="measurement_detail_not_found">Measurement not found</string>
+    <string name="measurement_detail_trend_header">Trend</string>
+    <string name="measurement_detail_no_entries_in_range">No entries in this range.</string>
+    <string name="measurement_detail_no_entries_yet">No entries yet. Tap Add entry to log your first %1$s.</string>
+    <string name="measurement_detail_history_header">History</string>
+    <string name="measurement_detail_delete_dialog_title">Delete %1$s?</string>
+    <string name="measurement_detail_delete_dialog_text">This measurement type and all its logged entries will be removed. This can\'t be undone.</string>
+    <string name="measurement_detail_delete_confirm_button">Delete</string>
+    <string name="measurement_detail_cancel_button">Cancel</string>
+    <string name="measurement_detail_delete_entry_description">Delete entry</string>
+
+    <!-- Add Measurement Sheet (shared by Measurements + Measurement Detail) -->
+    <string name="add_measurement_sheet_title">Add measurement</string>
+    <string name="add_measurement_sheet_type_label">Measurement</string>
+    <string name="add_measurement_sheet_value_label">Value (%1$s)</string>
+    <string name="add_measurement_sheet_date_label">Date</string>
+    <string name="add_measurement_sheet_save_button">Save</string>
+    <string name="add_measurement_sheet_ok_button">OK</string>
+    <string name="add_measurement_sheet_cancel_button">Cancel</string>
+</resources>

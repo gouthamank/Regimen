@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.measurements
+package dev.gouthaman.regimen.feature.measurements
 
 /**
  * Shared-bounds key linking a Measurements row's card to the Measurement Detail screen's root

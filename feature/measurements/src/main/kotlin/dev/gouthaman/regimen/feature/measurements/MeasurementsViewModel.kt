@@ -1,8 +1,9 @@
-package dev.gouthaman.regimen.ui.measurements
+package dev.gouthaman.regimen.feature.measurements
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.common.MeasurementFormat
 import dev.gouthaman.regimen.domain.model.BodyMetric
 import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.model.UnitSystem

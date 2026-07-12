@@ -3,6 +3,7 @@ package dev.gouthaman.regimen.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.common.MeasurementFormat
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.cutoffMillis
@@ -18,7 +19,6 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.domain.util.UnitLabel
-import dev.gouthaman.regimen.ui.measurements.MeasurementFormat
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
