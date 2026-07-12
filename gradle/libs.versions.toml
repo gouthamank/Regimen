@@ -22,6 +22,8 @@ windowManager = "1.5.1"
 adaptive = "1.2.0"
 javaxInject = "1"
 windowCore = "1.5.1"
+appcompat = "1.6.1"
+material = "1.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -75,6 +77,8 @@ compose-compiler-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compos
 ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }
 androidx-window-core = { group = "androidx.window", name = "window-core", version.ref = "windowCore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -82,3 +86,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+android-library = { id = "com.android.library", version.ref = "agp" }

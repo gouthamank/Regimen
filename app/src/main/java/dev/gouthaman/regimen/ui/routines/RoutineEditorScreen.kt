@@ -56,9 +56,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.RegimenPosture
-import dev.gouthaman.regimen.ui.exercise.label
 
 @Composable
 fun RoutineEditorScreen(

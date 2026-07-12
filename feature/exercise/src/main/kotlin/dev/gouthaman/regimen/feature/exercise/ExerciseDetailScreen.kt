@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -41,15 +41,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.SessionFormat
+import dev.gouthaman.regimen.common.label
+import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.ConfirmDialog
 import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.designsystem.SectionHeader
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.UnitSystem
-import dev.gouthaman.regimen.ui.history.SessionFormat
-import dev.gouthaman.regimen.ui.util.text
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable

@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,7 +31,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.customExerciseEquipment
+import dev.gouthaman.regimen.common.customExerciseMuscleGroups
+import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 

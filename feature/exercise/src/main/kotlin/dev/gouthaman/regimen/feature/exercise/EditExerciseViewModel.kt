@@ -1,10 +1,12 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.common.customExerciseEquipment
+import dev.gouthaman.regimen.common.customExerciseMuscleGroups
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType

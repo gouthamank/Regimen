@@ -48,6 +48,7 @@ dependencies {
     implementation(project(":core:navigation-api"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:onboarding"))
+    implementation(project(":feature:exercise"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

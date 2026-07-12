@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Edit Exercise Sheet -->
+    <string name="edit_exercise_edit_title">Edit exercise</string>
+    <string name="edit_exercise_new_title">New exercise</string>
+    <string name="edit_exercise_save_description">Save</string>
+    <string name="edit_exercise_name_label">Name</string>
+    <string name="edit_exercise_muscle_group_label">Muscle group</string>
+    <string name="edit_exercise_equipment_label">Equipment</string>
+    <string name="edit_exercise_strength_only_note">Custom exercises are strength movements in this version.</string>
+
+    <!-- Exercise Detail -->
+    <string name="exercise_detail_title_fallback">Exercise</string>
+    <string name="exercise_detail_back_description">Back</string>
+    <string name="exercise_detail_edit_description">Edit</string>
+    <string name="exercise_detail_delete_description">Delete</string>
+    <string name="exercise_detail_delete_dialog_title">Delete exercise?</string>
+    <string name="exercise_detail_delete_dialog_text">\"%1$s\" will be removed. This can\'t be undone.</string>
+    <string name="exercise_detail_delete_confirm_button">Delete</string>
+    <string name="exercise_detail_cancel_button">Cancel</string>
+    <string name="exercise_detail_delete_blocked_title">Can\'t delete</string>
+    <string name="exercise_detail_delete_blocked_text">\"%1$s\" is still used in %2$s. Remove it from those first.</string>
+    <string name="exercise_detail_used_in_routines">routines</string>
+    <string name="exercise_detail_used_in_workouts">logged workouts</string>
+    <string name="exercise_detail_delete_blocked_ok_button">OK</string>
+    <string name="exercise_detail_type_label">Type</string>
+    <string name="exercise_detail_muscle_group_label">Muscle group</string>
+    <string name="exercise_detail_equipment_label">Equipment</string>
+    <string name="exercise_detail_source_label">Source</string>
+    <string name="exercise_detail_source_custom">Custom</string>
+    <string name="exercise_detail_source_builtin">Built-in</string>
+    <string name="exercise_detail_pr_header">Personal record</string>
+    <string name="exercise_detail_pr_weight_label">%1$s %2$s</string>
+    <plurals name="exercise_detail_pr_reps_count">
+        <item quantity="one">%1$d rep</item>
+        <item quantity="other">%1$d reps</item>
+    </plurals>
+    <string name="exercise_detail_no_records_yet">No records yet — log a workout to set one.</string>
+    <string name="exercise_detail_history_header">History</string>
+    <string name="exercise_detail_no_sessions_logged">No sessions logged yet.</string>
+    <string name="exercise_detail_not_found">Exercise not found.</string>
+
+    <!-- Exercise Library -->
+    <string name="exercise_library_custom_label">Custom</string>
+    <string name="exercise_library_back_description">Back</string>
+    <string name="exercise_library_filters_label">Filters</string>
+    <string name="exercise_library_add_custom_description">Add custom exercise</string>
+    <string name="exercise_library_clear_search_description">Clear search</string>
+    <string name="exercise_library_search_placeholder">Search exercises</string>
+    <string name="exercise_library_remove_filter_description">Remove %1$s filter</string>
+    <string name="exercise_library_clear_all_button">Clear all</string>
+    <string name="exercise_library_type_filter_title">Type</string>
+    <string name="exercise_library_muscle_group_filter_title">Muscle group</string>
+    <string name="exercise_library_equipment_filter_title">Equipment</string>
+    <string name="exercise_library_empty_state">No exercises match your filters.</string>
+    <string name="exercise_library_clear_filters_button">Clear filters</string>
+</resources>

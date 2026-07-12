@@ -116,7 +116,7 @@ import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.util.UnitConverter
-import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
+import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
 import dev.gouthaman.regimen.ui.routines.ExercisePickerSheet
 import dev.gouthaman.regimen.ui.util.text
 import kotlinx.coroutines.delay

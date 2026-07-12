@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -59,7 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.designsystem.EmptyState
 import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.RegimenPosture

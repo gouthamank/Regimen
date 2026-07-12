@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

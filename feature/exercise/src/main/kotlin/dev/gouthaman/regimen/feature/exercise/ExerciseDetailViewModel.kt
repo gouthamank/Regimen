@@ -1,10 +1,11 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType
@@ -19,7 +20,6 @@ import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.domain.util.UnitLabel
 import dev.gouthaman.regimen.navigation.ExerciseDetailRoute
-import dev.gouthaman.regimen.ui.history.SessionFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

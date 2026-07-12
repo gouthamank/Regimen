@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.exercise
+package dev.gouthaman.regimen.feature.exercise
 
 /**
  * Shared-bounds key linking a Library row's card to the Exercise Detail screen's root

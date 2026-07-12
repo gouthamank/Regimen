@@ -31,9 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.matchesSearch
-import dev.gouthaman.regimen.ui.exercise.label
 
 /**
  * Reusable multi-select exercise picker (S16). Callers pass the addable [exercises] (already

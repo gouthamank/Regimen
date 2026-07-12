@@ -60,7 +60,7 @@ import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.designsystem.SaveAsRoutineDialog
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
-import dev.gouthaman.regimen.ui.exercise.ExerciseIcon
+import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
 import kotlinx.coroutines.launch
 
 @Composable
