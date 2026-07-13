@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.routines
+package dev.gouthaman.regimen.feature.routines
 
 /**
  * Shared-bounds key linking a Routines row's card to the Routine Editor screen's root container

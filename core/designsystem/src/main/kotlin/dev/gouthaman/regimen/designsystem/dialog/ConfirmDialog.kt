@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.designsystem
+package dev.gouthaman.regimen.designsystem.dialog
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults

@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.designsystem
+package dev.gouthaman.regimen.designsystem.theme
 
 import android.app.Activity
 import android.os.Build

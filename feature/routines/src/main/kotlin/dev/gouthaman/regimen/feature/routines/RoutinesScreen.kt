@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.routines
+package dev.gouthaman.regimen.feature.routines
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -50,11 +50,12 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.designsystem.ConfirmDialog
-import dev.gouthaman.regimen.designsystem.EmptyState
-import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.designsystem.RegimenPosture
+import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.component.EmptyState
+import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
+import dev.gouthaman.regimen.designsystem.dragdrop.dragHandle
+import dev.gouthaman.regimen.designsystem.dragdrop.rememberDragDropState
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 
 @Composable

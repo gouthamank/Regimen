@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.routines
+package dev.gouthaman.regimen.designsystem.dragdrop
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy

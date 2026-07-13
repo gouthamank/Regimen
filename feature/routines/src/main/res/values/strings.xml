@@ -1,0 +1,34 @@
+<resources>
+    <string name="routines_title">Routines</string>
+    <string name="routines_new_fab">New routine</string>
+    <string name="routines_no_exercises_yet">No exercises yet</string>
+    <string name="routines_reorder_description">Reorder %1$s</string>
+    <string name="routines_delete_description">Delete routine</string>
+    <string name="routines_card_summary">%1$s · %2$s</string>
+    <plurals name="routines_exercise_count">
+        <item quantity="one">%1$d exercise</item>
+        <item quantity="other">%1$d exercises</item>
+    </plurals>
+    <string name="routines_delete_dialog_title">Delete routine?</string>
+    <string name="routines_delete_dialog_text">\"%1$s\" will be removed. This can\'t be undone.</string>
+    <string name="routines_delete_confirm_button">Delete</string>
+    <string name="routines_cancel_button">Cancel</string>
+    <string name="routines_empty_state">No routines yet. Build one to start working out from a template.</string>
+
+    <string name="routine_editor_edit_title">Edit routine</string>
+    <string name="routine_editor_new_title">New routine</string>
+    <string name="routine_editor_back_description">Back</string>
+    <string name="routine_editor_save_description">Save</string>
+    <string name="routine_editor_add_description">Add</string>
+    <string name="routine_editor_name_field_label">Routine name</string>
+    <string name="routine_editor_empty_state">Add strength exercises to build this routine.</string>
+    <string name="routine_editor_add_exercise_button">Add exercise</string>
+    <string name="routine_editor_reorder_description">Reorder %1$s</string>
+    <string name="routine_editor_remove_description">Remove</string>
+    <string name="routine_editor_sets_label">Sets</string>
+    <string name="routine_editor_reps_label">Reps</string>
+    <string name="routine_editor_rest_label">Rest</string>
+    <string name="routine_editor_decrease_description">Decrease %1$s</string>
+    <string name="routine_editor_increase_description">Increase %1$s</string>
+    <string name="routine_editor_rest_off">Off</string>
+</resources>

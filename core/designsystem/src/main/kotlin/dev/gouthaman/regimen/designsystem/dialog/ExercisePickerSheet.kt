@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.routines
+package dev.gouthaman.regimen.designsystem.dialog
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -30,8 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.common.label
+import dev.gouthaman.regimen.designsystem.R
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.matchesSearch
 

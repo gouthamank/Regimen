@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.designsystem
+package dev.gouthaman.regimen.designsystem.dialog
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth

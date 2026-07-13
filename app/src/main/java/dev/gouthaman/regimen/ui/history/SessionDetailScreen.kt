@@ -54,10 +54,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.designsystem.ConfirmDialog
-import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.designsystem.RegimenPosture
-import dev.gouthaman.regimen.designsystem.SaveAsRoutineDialog
+import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
+import dev.gouthaman.regimen.designsystem.dialog.SaveAsRoutineDialog
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.feature.exercise.ExerciseIcon

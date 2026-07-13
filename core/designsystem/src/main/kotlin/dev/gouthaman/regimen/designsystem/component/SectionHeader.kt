@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.designsystem
+package dev.gouthaman.regimen.designsystem.component
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text

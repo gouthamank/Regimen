@@ -60,9 +60,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.label
-import dev.gouthaman.regimen.designsystem.EmptyState
-import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.designsystem.RegimenPosture
+import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.component.EmptyState
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType

@@ -1,0 +1,7 @@
+<resources>
+    <string name="exercise_picker_title">Add exercises</string>
+    <string name="exercise_picker_search_placeholder">Search</string>
+    <string name="exercise_picker_create_custom">Create custom exercise</string>
+    <string name="exercise_picker_save_button">Save</string>
+    <string name="exercise_picker_save_with_count_button">Save (%1$d)</string>
+</resources>

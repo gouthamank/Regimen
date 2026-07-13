@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.designsystem
+package dev.gouthaman.regimen.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -44,10 +44,10 @@ import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.common.text
-import dev.gouthaman.regimen.designsystem.ConfirmDialog
-import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.designsystem.RegimenPosture
-import dev.gouthaman.regimen.designsystem.SectionHeader
+import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.component.SectionHeader
+import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.UnitSystem
 

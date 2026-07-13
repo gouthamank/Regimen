@@ -42,9 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.designsystem.LocalRegimenWindowInfo
-import dev.gouthaman.regimen.designsystem.RegimenPosture
-import dev.gouthaman.regimen.designsystem.RegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
+import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.adaptive.RegimenWindowInfo
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences

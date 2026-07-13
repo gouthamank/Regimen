@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.designsystem
+package dev.gouthaman.regimen.designsystem.chart
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
