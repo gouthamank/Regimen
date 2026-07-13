@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.progress
+package dev.gouthaman.regimen.feature.progress
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.EmptyState
 import dev.gouthaman.regimen.designsystem.HistoryRangeSelector
 import dev.gouthaman.regimen.designsystem.LineChart
@@ -45,7 +45,6 @@ import dev.gouthaman.regimen.designsystem.RegimenPosture
 import dev.gouthaman.regimen.designsystem.SectionHeader
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.WeekCount
-import dev.gouthaman.regimen.ui.util.text
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 

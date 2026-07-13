@@ -50,6 +50,7 @@ dependencies {
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:exercise"))
     implementation(project(":feature:measurements"))
+    implementation(project(":feature:progress"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

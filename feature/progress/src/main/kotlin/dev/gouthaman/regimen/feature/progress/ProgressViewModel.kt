@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.progress
+package dev.gouthaman.regimen.feature.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

@@ -1,0 +1,26 @@
+<resources>
+    <string name="progress_title">Progress</string>
+    <string name="progress_measurements_link_title">Body measurements</string>
+    <string name="progress_measurements_link_subtitle">Bodyweight and custom measurement trends</string>
+    <string name="progress_frequency_header">Workout frequency</string>
+    <string name="progress_records_header">Personal records</string>
+    <string name="progress_empty_state">Finish a workout to see your personal records and weekly activity here.</string>
+    <string name="progress_frequency_summary">%1$s in the last %2$s</string>
+    <plurals name="progress_workout_count">
+        <item quantity="one">%d workout</item>
+        <item quantity="other">%d workouts</item>
+    </plurals>
+    <plurals name="progress_week_count">
+        <item quantity="one">%d week</item>
+        <item quantity="other">%d weeks</item>
+    </plurals>
+    <plurals name="progress_this_week_count">
+        <item quantity="one">%d workout this week</item>
+        <item quantity="other">%d workouts this week</item>
+    </plurals>
+    <string name="progress_weight_value_label">%1$s %2$s</string>
+    <plurals name="progress_reps_count">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
+</resources>
