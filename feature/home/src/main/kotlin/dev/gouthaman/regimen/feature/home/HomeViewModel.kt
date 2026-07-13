@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.home
+package dev.gouthaman.regimen.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

@@ -1,0 +1,45 @@
+<resources>
+    <string name="home_greeting_fallback">Hi!</string>
+    <string name="home_start_workout_button">Start Workout</string>
+    <string name="home_start_workout_sheet_title">Start a workout</string>
+    <string name="home_quick_workout_title">Quick workout</string>
+    <string name="home_quick_workout_subtitle">Freeform — no routine</string>
+    <string name="home_stat_workouts_label">Workouts</string>
+    <string name="home_stat_volume_label">Volume</string>
+    <string name="home_stat_time_label">Time</string>
+    <string name="home_this_week_header">This week</string>
+    <string name="home_this_month_header">This month</string>
+    <string name="home_frequency_header">Workout frequency</string>
+    <string name="home_frequency_empty">Finish a workout to start tracking your frequency.</string>
+    <string name="home_last_4_weeks">Last 4 weeks</string>
+    <string name="home_bodyweight_title">Bodyweight</string>
+    <string name="home_bodyweight_empty">Log your bodyweight to see a trend here.</string>
+    <string name="home_log_bodyweight_button">Log bodyweight</string>
+    <string name="home_empty_state_text">Build a routine to start tracking your workouts.</string>
+    <string name="home_create_routine_button">Create your first routine</string>
+    <string name="home_streak_years_and_months">%1$s, %2$s</string>
+    <plurals name="home_streak_weeks">
+        <item quantity="one">%d-week streak</item>
+        <item quantity="other">%d-week streak</item>
+    </plurals>
+    <plurals name="home_streak_months">
+        <item quantity="one">%d-month streak</item>
+        <item quantity="other">%d-month streak</item>
+    </plurals>
+    <plurals name="home_streak_years">
+        <item quantity="one">%d-year streak</item>
+        <item quantity="other">%d-year streak</item>
+    </plurals>
+    <plurals name="home_streak_years_part">
+        <item quantity="one">%d-year</item>
+        <item quantity="other">%d-year</item>
+    </plurals>
+    <plurals name="home_streak_months_part">
+        <item quantity="one">%d-month streak</item>
+        <item quantity="other">%d-month streak</item>
+    </plurals>
+    <string name="home_greeting_morning">Good morning</string>
+    <string name="home_greeting_afternoon">Good afternoon</string>
+    <string name="home_greeting_evening">Good evening</string>
+    <string name="home_weight_value_label">%1$s %2$s</string>
+</resources>

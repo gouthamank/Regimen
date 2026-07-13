@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.home
+package dev.gouthaman.regimen.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,15 +50,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.common.SessionFormat
+import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.chart.LineChart
 import dev.gouthaman.regimen.designsystem.component.EmptyState
 import dev.gouthaman.regimen.designsystem.component.Stat
-import dev.gouthaman.regimen.ui.util.text
 
 @Composable
 fun HomeScreen(
@@ -107,7 +106,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Text(uiState.greetingPeriod?.let { greetingLabel(it) }
-                        ?: stringResource(R.string.app_name))
+                        ?: stringResource(R.string.home_greeting_fallback))
                 },
                 scrollBehavior = scrollBehavior,
             )

@@ -21,6 +21,7 @@ import dev.gouthaman.regimen.feature.exercise.ExerciseDetailScreen
 import dev.gouthaman.regimen.feature.exercise.ExerciseLibraryScreen
 import dev.gouthaman.regimen.feature.history.HistoryScreen
 import dev.gouthaman.regimen.feature.history.SessionDetailScreen
+import dev.gouthaman.regimen.feature.home.HomeScreen
 import dev.gouthaman.regimen.feature.measurements.MeasurementDetailScreen
 import dev.gouthaman.regimen.feature.measurements.MeasurementsScreen
 import dev.gouthaman.regimen.feature.progress.ProgressScreen
@@ -43,7 +44,6 @@ import dev.gouthaman.regimen.navigation.SettingsRoute
 import dev.gouthaman.regimen.navigation.WorkoutSummaryRoute
 import dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen
 import dev.gouthaman.regimen.ui.active.WorkoutSummaryScreen
-import dev.gouthaman.regimen.ui.home.HomeScreen
 
 /**
  * ─────────────────────────────────────────────────────────────────────────

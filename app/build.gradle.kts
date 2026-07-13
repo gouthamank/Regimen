@@ -53,6 +53,7 @@ dependencies {
     implementation(project(":feature:progress"))
     implementation(project(":feature:routines"))
     implementation(project(":feature:history"))
+    implementation(project(":feature:home"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
