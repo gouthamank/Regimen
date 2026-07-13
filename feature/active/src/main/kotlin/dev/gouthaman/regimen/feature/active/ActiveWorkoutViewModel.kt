@@ -1,11 +1,11 @@
-package dev.gouthaman.regimen.ui.active
+package dev.gouthaman.regimen.feature.active
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.gouthaman.regimen.di.ApplicationScope
+import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
@@ -13,6 +13,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.service.RestAlerts
 import dev.gouthaman.regimen.domain.usecase.AddExercisesToWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.AddSetUseCase
 import dev.gouthaman.regimen.domain.usecase.CancelWorkoutUseCase
@@ -29,7 +30,6 @@ import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
 import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
-import dev.gouthaman.regimen.service.RestAlerts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -84,7 +84,7 @@ data class ActiveWorkoutUiState(
     /** True once the workout has an end time — finished here or via the notification's End action. */
     val finished: Boolean = false,
     /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs
-     * in this mode — see [dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen]. */
+     * in this mode — see [dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen]. */
     val isEditingPastSession: Boolean = false,
     val loaded: Boolean = false,
     val notFound: Boolean = false,

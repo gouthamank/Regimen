@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":feature:routines"))
     implementation(project(":feature:history"))
     implementation(project(":feature:home"))
+    implementation(project(":feature:active"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

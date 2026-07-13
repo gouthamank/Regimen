@@ -2,7 +2,7 @@ package dev.gouthaman.regimen.service
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.gouthaman.regimen.di.ApplicationScope
+import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged

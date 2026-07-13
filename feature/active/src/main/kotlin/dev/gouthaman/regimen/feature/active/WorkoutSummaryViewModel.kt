@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.active
+package dev.gouthaman.regimen.feature.active
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

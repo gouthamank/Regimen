@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.active
+package dev.gouthaman.regimen.feature.active
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -104,7 +104,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
@@ -118,7 +118,6 @@ import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
-import dev.gouthaman.regimen.ui.util.text
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil

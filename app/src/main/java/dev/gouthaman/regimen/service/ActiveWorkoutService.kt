@@ -14,7 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.gouthaman.regimen.MainActivity
 import dev.gouthaman.regimen.R
-import dev.gouthaman.regimen.di.ApplicationScope
+import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.model.Workout
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase

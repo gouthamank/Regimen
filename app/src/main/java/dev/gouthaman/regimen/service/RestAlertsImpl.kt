@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.domain.service.RestAlerts
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,9 +22,9 @@ import javax.inject.Singleton
  * <13 always, and 13+ once POST_NOTIFICATIONS is granted (wired in Phase 3).
  */
 @Singleton
-class RestAlerts @Inject constructor(
+class RestAlertsImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) {
+) : RestAlerts {
     init {
         // Two channels, not one: on Android 8+ notification sound is a channel property, not
         // per-notification, so gating playChime() alone left the channel's default sound playing
@@ -46,7 +47,7 @@ class RestAlerts @Inject constructor(
         manager?.createNotificationChannel(silentChannel)
     }
 
-    fun fire(chimeEnabled: Boolean = true) {
+    override fun fire(chimeEnabled: Boolean) {
         vibrate()
         if (chimeEnabled) playChime()
         notifyDone(chimeEnabled)

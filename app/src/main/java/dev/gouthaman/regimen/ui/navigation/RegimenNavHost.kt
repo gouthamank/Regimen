@@ -16,6 +16,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
+import dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen
+import dev.gouthaman.regimen.feature.active.WorkoutSummaryScreen
 import dev.gouthaman.regimen.feature.exercise.EditExerciseSheet
 import dev.gouthaman.regimen.feature.exercise.ExerciseDetailScreen
 import dev.gouthaman.regimen.feature.exercise.ExerciseLibraryScreen
@@ -42,8 +44,6 @@ import dev.gouthaman.regimen.navigation.RoutinesRoute
 import dev.gouthaman.regimen.navigation.SessionDetailRoute
 import dev.gouthaman.regimen.navigation.SettingsRoute
 import dev.gouthaman.regimen.navigation.WorkoutSummaryRoute
-import dev.gouthaman.regimen.ui.active.ActiveWorkoutScreen
-import dev.gouthaman.regimen.ui.active.WorkoutSummaryScreen
 
 /**
  * ─────────────────────────────────────────────────────────────────────────
