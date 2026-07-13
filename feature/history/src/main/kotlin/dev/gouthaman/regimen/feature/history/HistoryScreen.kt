@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.history
+package dev.gouthaman.regimen.feature.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
+import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import java.time.LocalDate

@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.ui.history
+package dev.gouthaman.regimen.feature.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

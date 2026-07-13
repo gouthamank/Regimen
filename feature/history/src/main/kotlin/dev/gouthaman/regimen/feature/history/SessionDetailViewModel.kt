@@ -1,10 +1,11 @@
-package dev.gouthaman.regimen.ui.history
+package dev.gouthaman.regimen.feature.history
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
