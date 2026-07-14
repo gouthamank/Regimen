@@ -9,16 +9,14 @@ Context for Claude Code sessions working on this repository.
 
 ## Current status
 
-Under active development. `docs/architecture.md` is the source of truth (screen inventory,
-navigation, Active Workout spec, data model, all decisions) — **read it first.**
+Feature-complete for v1 scope: every screen in `docs/architecture.md` (source of truth for
+screen inventory, navigation, Active Workout spec, data model, all decisions — **read it
+first**) is implemented, builds, and runs on the emulator.
 
-Done so far: project scaffold, full data + domain layer (Room entities/DAOs/DB + seed,
-Hilt DI, repositories, DataStore prefs, use-cases), and the navigation shell (5-tab bottom
-bar, type-safe Compose routes, theme wired to prefs). App builds and runs on the emulator.
-
-Build order (Active Workout is built LAST): Settings → Exercise library/detail/custom →
-Routines list/editor/picker → Body measurements → Onboarding → History/Session detail →
-Progress → Home → Active Workout. **Next: the Settings screen (S9).**
+Multi-module Gradle structure: `:app` (composition root) + `:core:{domain,data,common-ui,
+designsystem,navigation-api}` + one `:feature:*` module per screen/tab (see
+`docs/architecture.md`'s "Module structure" section for the full layout and what lives where).
+A `build-logic` included build supplies the convention plugins each module applies.
 
 Build/run details (toolchain paths, AGP-9 gotchas, emulator) live in the assistant's
 project memory; see also `build.gradle.kts` / `gradle.properties`.
@@ -30,7 +28,9 @@ project memory; see also `build.gradle.kts` / `gradle.properties`.
 - **UI**: Jetpack Compose + **Material 3 Expressive**, single-Activity, bottom-tab
   navigation (Home / Routines / History / Progress / Settings).
 - **Architecture**: MVVM + UDF with a **full use-case (domain) layer**
-  (`ui → domain → data/repository → Room DAO`); ViewModels expose `StateFlow`. Hilt for DI.
+  (`ui (feature modules) → domain → data/repository → Room DAO`); ViewModels expose `StateFlow`.
+  Hilt for DI. Multi-module: `:core:domain` declares repository interfaces, `:core:data`
+  implements them.
 - **minSdk 26**, Kotlin + Gradle Kotlin DSL + version catalog + KSP.
 - **Logging**: template-driven; freeform "Quick workout" available to established users.
 - **Units**: metric/imperial preference; **store canonically** (weight in kg, distance in
@@ -48,13 +48,25 @@ pinning.
 
 ## Conventions
 
-- Keep `docs/architecture.md` up to date when scope or the data model changes.
-- **Navigation map:** `ui/navigation/RegimenNavHost.kt` has an ASCII navigation-map comment
-  at the top of `RegimenNavHost`. Compose navigation is code-only (no XML graph / visual
+- **`docs/architecture.md` is a living current-state snapshot, not a changelog.** Keep it up to
+  date when scope, screens, or the data model change — but edit it in place to describe what *is*,
+  never append a record of what changed. No "Built in #N" / milestone markers, no
+  `~~strikethrough~~ **Done.**` backlog entries, no "originally X, later revised to Y" narration,
+  no history of *how* something came to be this way. If a decision's rationale is worth keeping
+  (e.g. *why* a value is stored canonically, *why* a column is reserved-but-unused), state it as
+  a plain fact about the current design, not as a story of a past change. Not-yet-built items are
+  still current-state facts — note them inline where relevant (e.g. "data export is not
+  implemented" under Settings), not as a to-do/backlog list.
+- **Navigation map:** `:app`'s `ui/navigation/RegimenNavHost.kt` has an ASCII navigation-map
+  comment at the top of `RegimenNavHost`. Compose navigation is code-only (no XML graph / visual
   editor in Android Studio), so this comment is the human-readable overview — **update it
   whenever destinations are added, removed, or wired up** (flip `[ ]` → `[✓]` as routes land).
-- Match the existing code style. UI lives in feature packages under `ui/`; ViewModels expose
-  `StateFlow` UI state and call use-cases (never DAOs/repositories directly from Compose).
+  Each feature module owns its own destinations via a `NavGraphBuilder.xGraph()` extension
+  function that `RegimenNavHost` calls — add new destinations there, not by inlining a
+  `composable<Route>` block directly in `RegimenNavHost.kt`.
+- Match the existing code style. UI lives in per-feature Gradle modules (`:feature:*`), each under
+  its own `dev.gouthaman.regimen.feature.<name>` package; ViewModels expose `StateFlow` UI state
+  and call use-cases (never DAOs/repositories directly from Compose).
 - **Strings:** all user-facing text (labels, button text, dialog copy, content descriptions,
   Snackbar/Toast messages) goes in `res/values/strings.xml` — never a hardcoded string literal in
   a Composable. Use `stringResource()` / `pluralStringResource()`; use `<plurals>` for anything a
@@ -71,7 +83,7 @@ pinning.
   parameter that calls a now-`@Composable` formatter (e.g. an enum's `.label()`) must itself be
   typed `@Composable (T) -> String`, not a plain `(T) -> String`.
   `UnitConverter`/`SessionFormat`/`MeasurementFormat`/`ExerciseLabels` are the shared formatters for
-  this — `UnitConverter.weightLabel`/`distanceLabel` return a `UnitLabel` enum, resolved to text via
-  `ui/util/UnitLabelText.kt`'s `UnitLabel.text()`. Exempt from all this: date/time
-  `SimpleDateFormat` patterns, purely numeric formatters (mm:ss, elapsed-time), and punctuation
-  separators ("·", "×") — none of that is translatable prose.
+  this — `UnitConverter` (`:core:domain`) `.weightLabel`/`.distanceLabel` return a `UnitLabel`
+  enum, resolved to text via `:core:common-ui`'s `UnitLabelText.kt`'s `UnitLabel.text()`. Exempt
+  from all this: date/time `SimpleDateFormat` patterns, purely numeric formatters (mm:ss,
+  elapsed-time), and punctuation separators ("·", "×") — none of that is translatable prose.

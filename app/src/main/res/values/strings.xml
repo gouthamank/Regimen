@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Regimen</string>
+    <string name="workout_in_progress_banner_message">Workout in progress</string>
+    <string name="workout_in_progress_banner_view_label">View</string>
 </resources>

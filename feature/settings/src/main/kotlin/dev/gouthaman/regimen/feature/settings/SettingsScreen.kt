@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -21,9 +20,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -45,11 +41,12 @@ import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.component.SectionHeader
+import dev.gouthaman.regimen.designsystem.component.ThemeModeSelector
+import dev.gouthaman.regimen.designsystem.component.UnitSystemSelector
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
 import kotlin.math.roundToInt
-import dev.gouthaman.regimen.common.R as CommonR
 
 /** Bounds for the rest-timer default slider (seconds). */
 private const val REST_MIN_SEC = 30
@@ -222,66 +219,6 @@ private fun SettingRow(
             )
         }
         Column(modifier = Modifier.padding(top = 8.dp)) { control() }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun UnitSystemSelector(
-    selected: UnitSystem,
-    onChange: (UnitSystem) -> Unit,
-    weightLabels: Boolean,
-) {
-    val options = UnitSystem.entries
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == selected,
-                onClick = { onChange(option) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) {
-                Text(
-                    stringResource(
-                        if (weightLabels) {
-                            when (option) {
-                                UnitSystem.METRIC -> CommonR.string.unit_system_metric_weight
-                                UnitSystem.IMPERIAL -> CommonR.string.unit_system_imperial_weight
-                            }
-                        } else {
-                            when (option) {
-                                UnitSystem.METRIC -> CommonR.string.unit_system_metric_distance
-                                UnitSystem.IMPERIAL -> CommonR.string.unit_system_imperial_distance
-                            }
-                        },
-                    ),
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ThemeModeSelector(selected: ThemeMode, onChange: (ThemeMode) -> Unit) {
-    val options = ThemeMode.entries
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == selected,
-                onClick = { onChange(option) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) {
-                Text(
-                    stringResource(
-                        when (option) {
-                            ThemeMode.LIGHT -> CommonR.string.theme_mode_light
-                            ThemeMode.DARK -> CommonR.string.theme_mode_dark
-                            ThemeMode.SYSTEM -> CommonR.string.theme_mode_system
-                        },
-                    ),
-                )
-            }
-        }
     }
 }
 
