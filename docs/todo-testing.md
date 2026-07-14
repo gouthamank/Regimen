@@ -1,57 +1,76 @@
-# Testing strategy (discussion draft)
+# Testing strategy
 
-Not an actionable plan yet — this lays out what could be tested, with which tools, and the real
-tradeoffs of each, so we can decide together what's worth doing. The app currently has **zero**
-tests (no `app/src/test/` or `app/src/androidTest/` content beyond the default template, if that).
+The app has **zero** tests today — no populated `src/test/`/`src/androidTest/` source set in any
+module, and no test-related Gradle wiring in any convention plugin or the version catalog. The
+multi-module migration (`docs/todo-multi-module-migration.md`) that this work was gated on is
+complete, so nothing blocks starting. Test-writing itself has not started yet; this doc is the
+plan to pick up when it does.
 
-## Sequencing
-
-**Actual test-writing is deferred until after `docs/todo-multi-module-migration.md` completes.**
-This doc stays a discussion/decisions record in the meantime — everything below is agreed
-direction, not yet-written code. One consequence: the "where do fakes live" question resolves
-itself for free — by the time any fake gets written, `:core:testing` (or equivalent) already
-exists as part of the migration, so there's no separate location to pick now.
-
-## Decisions made so far
+## Decisions
 
 - **§1 (pure unit tests):** skip testing one-line repository pass-through use cases individually;
   reserve unit tests for use cases with actual branching/logic.
-- **§3 (fakes vs. MockK):** fakes-first. See "Reference: the fake pattern" below for a worked
-  example against `RoutineRepository`/`RoutineEditorViewModel`.
+- **§3 (fakes vs. MockK):** fakes-first. See "Reference: the fake pattern" below. Shared fakes live
+  in a new `:core:testing` module (pure Kotlin, applies `regimen.jvm.library` +
+  `regimen.jvm.test`), depended on via `testImplementation` from each `:feature:*` module that
+  needs them — resolves the "where do fakes live" question the migration was originally deferring.
 - **JUnit4** over JUnit5 (Android's own tooling — Compose test rules, `AndroidJUnit4` runner —
   is built around it most smoothly; nothing here needs JUnit5's extension model badly).
-- **§4 (screenshot testing):** yes, Paparazzi — given `docs/todo-foldable-rollout.md` already
-  tracks a lot of hand-verified-on-AVD posture-specific layout decisions that screenshot tests
-  would catch automatically.
 - **Turbine**: yes — standard tool for asserting `StateFlow`/`Flow` emission sequences, cheap
   dependency, avoids hand-rolled `flow.take(n).toList()` assertions.
-- **§2 (Room DAO test scope):** see below — resolved with a concrete per-DAO breakdown.
+- **`kotlinx-coroutines-test`**: yes, for `TestDispatcher`/`runTest` control of `viewModelScope`
+  timing.
+- **§2 (Room DAO test scope):** resolved with a concrete per-DAO breakdown, see below.
+  `androidTest` (real device/AVD) over Robolectric for both Room DAO tests and Compose UI tests —
+  this repo already has a working AVD workflow and no CI, so Robolectric's main selling point
+  (no device needed, fast/parallel in CI) doesn't pay for its integration risk right now
+  (Robolectric-on-AGP-9 compatibility for this repo's compileSdk 37 is unproven). Revisit if CI is
+  ever introduced.
+- **§4 (screenshot testing): deferred.** Paparazzi has no released version confirmed compatible
+  with this repo's AGP 9.2.1 — stable `1.3.5` targets AGP `8.4.2`; the latest alpha
+  (`2.0.0-alpha05`) explicitly states "supports pre-AGP 9.0 consumers" only. Screenshot testing for
+  the adaptive/posture variants (`RegimenPosture.Compact/BookOrExpanded/Tabletop`) and
+  `LineChart`/`Sparkline` is dropped from the active plan; revisit once a Paparazzi release
+  explicitly supports AGP 9.x. No substitute screenshot mechanism is planned for these in the
+  meantime — they stay hand-verified on the AVD as today.
+
+## Gradle infrastructure
+
+None of this exists yet; build incrementally as each tier below is actually written, not all at
+once.
+
+- **Version catalog additions** (`gradle/libs.versions.toml`): `turbine = "1.2.1"`,
+  `mockk = "1.14.11"`, `kotlinx-coroutines-test` (reuses the existing `coroutines = "1.11.0"`
+  version ref), `androidx-room-testing` (reuses the existing `room = "2.8.4"` version ref),
+  `androidx-test-core = "1.7.0"`.
+- **`regimen.jvm.test.gradle.kts`** (new convention plugin) — adds
+  `testImplementation(junit, kotlinx-coroutines-test, turbine)`. Applied by `:core:domain`,
+  `:core:testing`.
+- **`regimen.android.library.gradle.kts`** (modify existing) — add the same JVM test deps directly
+  here so every Android module (`:core:data`, every `:feature:*` via `regimen.android.feature`)
+  gets ViewModel-test deps for free, matching this plugin's existing role as the shared Android
+  baseline.
+- **`regimen.android.instrumented-test.gradle.kts`** (new, small fragment) — adds
+  `androidTestImplementation(androidx-test-core, androidx-junit, androidx-room-testing)`. Applied
+  explicitly only by `:core:data` (Room DAO tests) and `:core:designsystem` (Compose UI tests) —
+  not blanket-applied via `regimen.android.feature`, since most feature modules only need JVM
+  ViewModel tests.
+- **`:core:testing`** (new module) — `include(":core:testing")` in `settings.gradle.kts`. Applies
+  `regimen.jvm.library` + `regimen.jvm.test`, `api(project(":core:domain"))`. Houses
+  `FakeRoutineRepository`, `FakeWorkoutRepository`, `FakeExerciseRepository`,
+  `FakeMeasurementRepository`, `FakePreferencesRepository` — all implementing `:core:domain`'s
+  repository interfaces, which already exist as proper interfaces with `*Impl` implementations in
+  `:core:data` (no interface-extraction work needed first).
+- **Gotchas to watch**: `:core:designsystem`'s new `androidTest` Compose tests need
+  `androidTestImplementation(platform(libs.androidx.compose.bom))` added explicitly (the compose
+  convention plugin only wires the BOM for `implementation` today); `core/data/schemas/` needs
+  committed schema JSONs for both v4 and v5 before writing the `MIGRATION_4_5`
+  `MigrationTestHelper` test.
 
 ## Reference: the fake pattern
 
-Fakes need a repository *interface* to implement — that's Phase 2/3 of
-`docs/todo-multi-module-migration.md`, but introducing one interface at a time is low-risk and
-doesn't require waiting for the full migration:
-
 ```kotlin
-// domain/repository/RoutineRepository.kt — interface, owned by domain
-interface RoutineRepository {
-    fun observeAll(): Flow<List<RoutineWithExercises>>
-    fun observeRoutine(id: Long): Flow<RoutineWithExercises?>
-    suspend fun getRoutine(id: Long): RoutineWithExercises?
-    suspend fun isExerciseUsed(exerciseId: Long): Boolean
-    suspend fun saveRoutine(routineId: Long?, name: String, specs: List<ExerciseSpec>): Long
-    suspend fun delete(routine: Routine)
-    suspend fun reorder(orderedIds: List<Long>)
-}
-
-// data/repository/RoutineRepositoryImpl.kt — today's class, renamed, implements it
-@Singleton
-class RoutineRepositoryImpl @Inject constructor(private val dao: RoutineDao) : RoutineRepository {
-    // same bodies as today, just `override`
-}
-
-// test fixtures — real in-memory behavior, not stubbed returns
+// core/testing — implements the domain interface with real in-memory behavior
 class FakeRoutineRepository : RoutineRepository {
     private val routines = MutableStateFlow<List<RoutineWithExercises>>(emptyList())
     override fun observeAll(): Flow<List<RoutineWithExercises>> = routines
@@ -67,30 +86,7 @@ class FakeRoutineRepository : RoutineRepository {
 
 The distinguishing feature versus a mock: `isExerciseUsed` actually searches the in-memory list —
 a mock would need `every { mock.isExerciseUsed(any()) } returns true` stubbed per test scenario,
-so it only covers cases you thought to stub. `RoutineEditorViewModel.setExercises()`'s
-reconciliation logic (keep customized entries for still-checked ids, drop unchecked, append new)
-is a good first real target — it's pure in-memory state logic with no repository call at all,
-exactly the kind of use-case-adjacent logic §1 said is worth testing directly.
-
----
-
-## What exists today, and what it implies
-
-- No test source sets are populated. Every use case, ViewModel, formatter, and Composable in the
-  app is currently unverified except by manual/emulator checking.
-- The just-finished string-externalization pass changed the *testability shape* of several
-  functions worth flagging up front:
-    - `UnitConverter.formatValue/kgToDisplay/displayToKg/metersToDisplay/displayToMeters` are still
-      plain pure functions (`Double -> Double`, `Double -> String`) — trivially unit-testable with
-      no framework at all.
-    - `SessionFormat.duration/setLabel/cardioLabel`, `MeasurementFormat.unitLabel/format`,
-      `ExerciseLabels`' `.label()` extensions, and `UnitConverter.weightLabel/distanceLabel` are now
-      all `@Composable` (they call `stringResource`/`pluralStringResource`). **This means testing
-      them requires a Compose test rule (`createComposeRule`), not a plain JUnit test** — a
-      reasonable tradeoff for correct localization, but worth naming explicitly: these went from
-      "test in milliseconds with zero Android dependency" to "test through Compose's test harness."
-      Worth discussing whether that tradeoff is accepted as-is, or whether it changes your appetite
-      for testing these specific functions.
+so it only covers cases you thought to stub.
 
 ## The testing pyramid, mapped to this codebase
 
@@ -101,122 +97,128 @@ exactly the kind of use-case-adjacent logic §1 said is worth testing directly.
      ╱─────╲ Pure unit tests (use cases, formatters) — fast, many
 ```
 
-### 1. Pure unit tests — no framework beyond JUnit
+## Module-by-module plan
 
-Candidates: `UnitConverter`'s math functions, any use case that's pure transformation logic (not
-all of them are — most call through to a repository). Fast, zero setup, highest value-per-effort.
-**Decided:** skip the one-line repository pass-throughs (e.g.
-`ObserveRoutinesUseCase(): Flow<...> = repo.observeAll()`) — no logic in them to regress. Reserve
-unit tests for use cases/ViewModel logic that actually branches (`RoutineEditorViewModel`'s
-reconciliation, `HomeViewModel`'s quick-start ordering, `ProgressViewModel`'s PR-hit detection).
+### `:core:domain` — pure JUnit, no Android. Write first.
 
-### 2. Room DAO tests — in-memory database
+- **`UnitConverter`** (`util/UnitConverter.kt`) — all 6 conversion/format functions, pure
+  `Double`/`UnitSystem` math, no setup required. First thing written, since it needs no fakes.
+- **High priority** (real branching): `GetHomeSummaryUseCase` (date/streak math),
+  `StartWorkoutUseCase` (session-init branching + prefill), `RepeatWorkoutUseCase` (clone
+  branching), `SaveWorkoutAsRoutineUseCase` (spec derivation), `AddExercisesToWorkoutUseCase`
+  (per-type prefill), `GetPersonalRecordsUseCase` (weight/reps PR merge),
+  `GetWorkoutFrequencyUseCase`
+  (week grouping), `DeleteExerciseUseCase` (cross-repo guard logic).
+- **Medium**: `HasRoutinesUseCase`, `FinishWorkoutUseCase`, `ResumeWorkoutUseCase`,
+  `ObserveExercisesUseCase` (filter chain).
+- **Low**: `AddSetUseCase`, `UpdateWorkoutNoteUseCase`.
+- **Skip** (one-line repository pass-throughs): everything else in `RoutineUseCases`,
+  `MeasurementUseCases`, `PreferenceUseCases`, plus the simple observe/delete one-liners in
+  `WorkoutUseCases`/`ExerciseUseCases`.
 
-`Room.inMemoryDatabaseBuilder(...)` gives a real (if ephemeral) SQLite instance — these are the
-highest-confidence tests for query correctness since they exercise real SQL, not a fake.
-**Decided, per-DAO:**
+### `:core:testing` — stand up alongside the first use-case test that needs a fake
 
-- **Skip:** `ExerciseDao`, `MeasurementDao` — pure single-table CRUD, no `@Relation`/`@Transaction`,
-  no hand-written joins. Room's generated code for `@Insert`/`@Update`/`@Delete`/simple
-  `@Query`-by-id has a low enough bug surface that testing it mostly re-verifies Room itself.
-- **Test:** `RoutineDao`'s `@Transaction` relation queries (`observeRoutinesWithExercises`,
-  `observeRoutine`, `getRoutineWithExercises` — assemble `RoutineWithExercises` across tables) and
-  its two hand-rolled `@Transaction` methods (`applyOrder`, `replaceRoutineExercises` — multi-step
-  writes where a partial-failure or ordering bug can't be caught by inspection or by a fake).
-- **Test, highest priority:** `WorkoutDao`'s hand-written raw-SQL queries —
-  `observeBestWeight`/`observePersonalRecords`/`observeBestReps` (multi-table `JOIN` +
-  `GROUP BY`, gated on `w.endTime IS NOT NULL AND se.isComplete = 1`, and splitting weight-PRs
-  from bodyweight-rep-PRs on `se.weightKg IS NULL` vs. `IS NOT NULL`), plus
-  `getMostRecentSetForExercise`, `observeExerciseHistory`, `getMostRecentCompletedForRoutine`.
-  These directly implement the app's personal-record and history logic across Home/Progress/
-  Exercise Detail/Workout Summary — a wrong `JOIN` condition or a dropped filter here silently
-  corrupts a user's PRs with zero compile-time signal. This is the single highest-value DAO
-  testing target in the app. Also test `WorkoutDao`'s other `@Transaction`/`@Relation` queries
+Start with `FakeRoutineRepository` (the worked example above) — needed for
+`RoutineEditorViewModel`'s test in `:feature:routines` and any `RoutineUseCases` test. Add the
+other fakes on demand as each module's tests need them, not all five upfront.
+
+### `:core:data` — Room DAO tests, `androidTest`
+
+- **Highest priority**: `WorkoutDao`'s raw-SQL JOIN queries — `observeBestWeight`,
+  `observePersonalRecords`, `observeBestReps`, `getMostRecentSetForExercise`,
+  `observeExerciseHistory`, `getMostRecentCompletedForRoutine` — these directly drive PR/history
+  correctness with zero compile-time signal if wrong.
+- **Also test**: `WorkoutDao`'s other `@Transaction`/`@Relation` queries
   (`observeCompletedWithDetails`, `observeWorkout`, `getWorkoutWithDetails`,
-  `getInProgressWorkout`) for the same reason as `RoutineDao`'s relation queries.
-- **Migration test suite: yes.** Only one migration exists today (`MIGRATION_4_5`), and it's not
-  a simple Room-generated `ALTER TABLE` — it's hand-written raw SQL doing a full table rebuild
-  (`CREATE workouts_new` → copy rows → `DROP` → `RENAME` → recreate the index), specifically
-  because `ALTER TABLE ... DROP COLUMN` isn't reliable across Android's SQLite versions. That's
-  exactly the shape of migration most likely to have a copy-paste column-list bug or a forgotten
-  index. Worth a `MigrationTestHelper`-based test now, while it's the only migration — establishes
-  the pattern so every future migration gets the same treatment as a matter of course rather than
-  re-litigating "should we test this one."
+  `getInProgressWorkout`); `RoutineDao`'s relation queries (`observeRoutinesWithExercises`,
+  `observeRoutine`, `getRoutineWithExercises`) and hand-rolled `@Transaction` methods
+  (`applyOrder`, `replaceRoutineExercises`).
+- **Migration test**: `MIGRATION_4_5` via `MigrationTestHelper` — establishes the pattern for
+  future migrations.
+- **Skip**: `ExerciseDao`, `MeasurementDao` — pure single-table CRUD, no `@Relation`/`@Transaction`/
+  hand-written joins; low enough bug surface that testing mostly re-verifies Room itself.
 
-### 3. ViewModel tests — the highest-value tier for this app specifically
+### `:feature:routines` — first ViewModel tests, JVM-only
 
-Given the architecture (ViewModels combine multiple `Flow`s from use cases into one
-`StateFlow<UiState>`),
-this is where most of the app's actual logic lives — reconciliation, formatting decisions,
-conditional UI state (e.g. `ExerciseDetailUiState.pr`, `HomeViewModel`'s quick-start ordering,
-`ActiveWorkoutViewModel`'s rest-timer countdown logic). Needs:
+- **`RoutineEditorViewModel.setExercises()`** reconciliation (keep customized entries for
+  still-checked ids, drop unchecked, append new) — pure in-memory logic, no repository call. Write
+  this right after `:core:testing`'s first fake lands.
+- **`RoutinesListViewModel`**'s optimistic drag-reorder overlay — medium priority.
 
-- **Fakes vs. mocks for use cases/repositories. Decided: fakes-first** (see "Reference: the fake
-  pattern" above) — reach for MockK only where a fake would be disproportionate work (e.g. a use
-  case with many methods you'd only stub one of for a single test).
-- **Turbine** (`app.cash.turbine`) for asserting `StateFlow`/`Flow` emissions in tests — the
-  de facto standard for this in Kotlin coroutines codebases, avoids hand-rolled
-  `runTest { flow.take(n).toList() }` boilerplate.
-- **`kotlinx-coroutines-test`**'s `TestDispatcher`/`runTest` for controlling `viewModelScope`
-  timing (several ViewModels use `delay()` — `ActiveWorkoutViewModel`'s rest timer,
-  `RestAlerts`) — needs a virtual-time-aware dispatcher or these tests will be flaky/slow.
-- **Rest-timer specifically**: `ActiveWorkoutViewModel.startRest`'s
-  `while (isActive) { delay(...) }`
-  loop is a good candidate for demonstrating `TestDispatcher`'s virtual time (advance time by 15s
-  instantly instead of actually waiting), but is also inherently one of the fussier things to test
-  correctly — worth calling out as a "do this one carefully, maybe last" item rather than a first
-  example.
+### `:feature:home`
 
-### 4. Compose UI tests — screen-level, semantics-based
+- **`HomeViewModel`**'s quick-start ordering (most-recently-used + manual position) and
+  multi-source aggregation — high priority.
 
-`createComposeRule()` (or `createAndroidComposeRule<ComponentActivity>()`) + `onNodeWithText`/
-`onNodeWithContentDescription` + `performClick()`. High confidence, slow to write and run relative
-to the tiers above. **Open questions:**
+### `:feature:progress`
 
-- Full screens (e.g. does tapping "Delete" in Exercise Detail's dialog actually call `onDelete`?)
-  or just the newly-extracted shared components from the multi-module plan (`ConfirmDialog`,
-  `StatTile`, `EmptyState`) once those exist — testing the shared component once instead of every
-  screen that uses it is much higher leverage.
-- Golden/screenshot tests — **decided: Paparazzi** (no emulator dependency, runs as a plain JVM
-  test) — for the adaptive/foldable posture variants
-  (`RegimenPosture.Compact/BookOrExpanded/Tabletop`). `docs/todo-foldable-rollout.md` describes a
-  lot of layout-shape decisions per posture that are currently only verified by hand on an AVD;
-  screenshot tests catch layout regressions automatically instead.
+- **`ProgressViewModel`**'s PR value resolution (weight vs. reps branching) — high priority.
 
-### 5. What's explicitly NOT proposed (unless you want it)
+### `:feature:exercise`
+
+- **`ExerciseDetailViewModel`**'s PR branching (same shape as Progress's) — medium.
+- **`ExerciseLibraryViewModel`**'s filter-toggle chain — medium.
+- **Skip**: `EditExerciseViewModel` (simple edit-vs-new branching, no reconciliation).
+
+### `:feature:active` — last, deliberately
+
+- **`ActiveWorkoutViewModel`**'s rest-timer countdown (`while (isActive) { delay(...) }` loop,
+  auto-complete, time-add clamping) — needs `kotlinx-coroutines-test`'s `TestDispatcher`/virtual
+  time. Fussier than the rest of the tier; do this after there's practice with fakes/Turbine on
+  simpler ViewModels above.
+- **`WorkoutSummaryViewModel`**'s volume summation + PR comparison — medium, can go earlier if
+  convenient.
+
+### `:feature:history`
+
+- **`SessionDetailViewModel`**'s save-as-routine eligibility check — medium.
+- **Skip**: `HistoryViewModel` (grouping/sorting only, no branching).
+
+### `:feature:measurements`
+
+- **`MeasurementsViewModel`**'s type-driven aggregation — medium.
+- **Skip**: `MeasurementDetailViewModel` (flow mapping + unit conversion only).
+
+### `:feature:onboarding`, `:feature:settings` — skip entirely
+
+Pure preference pass-through setters, no branching logic to protect.
+
+### `:core:designsystem` / `:core:common-ui` — Compose UI tests, `androidTest`
+
+Best ROI in the plan — test each shared component once, get coverage for every screen that uses
+it. Independent of the ViewModel tier; can be written in parallel with it.
+
+- **Test**: `ConfirmDialog`, `ExercisePickerSheet`, `SaveAsRoutineDialog`, `Stat`, `EmptyState`,
+  `SectionHeader`, `UnitSystemSelector`, `ThemeModeSelector`, `WorkoutInProgressBanner`,
+  `ReorderableList`/`DragDropState`.
+- **Skip**: pure theme composition (`Color.kt`/`Type.kt`/`Theme.kt`), `core/navigation-api`'s
+  `Routes.kt` (pure `@Serializable` data classes, no logic).
+- **Not covered this round** (Paparazzi deferred, see above): adaptive posture variants
+  (`RegimenPosture.Compact/BookOrExpanded/Tabletop`), `LineChart`/`Sparkline` Canvas rendering —
+  stay hand-verified on the AVD for now.
+
+## What's explicitly NOT proposed (unless wanted)
 
 - End-to-end instrumented tests driving the real foreground service (`ActiveWorkoutService`) —
-  high value but high setup cost (needs a running emulator, real notification permission flow);
-  flagging as "probably last, if ever."
+  high value but high setup cost (needs a running emulator, real notification permission flow).
 - Full coverage-percentage targets — coverage numbers as a goal tend to produce low-value tests
   written to hit a number. Better to pick specific logic worth protecting (per tier above) and
   stop there.
 
----
+## Sequencing
 
-## Multi-module implications (if the migration plan is also undertaken)
+1. `:core:domain` — `UnitConverter` (no deps needed yet).
+2. Stand up `:core:testing` with `FakeRoutineRepository`; return to `:core:domain` for
+   `RoutineUseCases`/high-priority use-case tests using it.
+3. `:core:data` — `WorkoutDao` JOIN queries (highest value), then `RoutineDao` relation queries,
+   then `MIGRATION_4_5`.
+4. `:feature:routines` — `RoutineEditorViewModel` reconciliation (add fakes to `:core:testing` as
+   needed).
+5. `:feature:home`, `:feature:progress`, `:feature:exercise` — remaining high/medium ViewModels,
+   adding fakes to `:core:testing` incrementally.
+6. `:feature:active` — rest-timer virtual-time test, last, deliberately.
+7. `:core:designsystem`/`:core:common-ui` — Compose UI tests for shared components (can run in
+   parallel with 4–6).
 
-Each module gets its own test source set, which is itself one of the real benefits of
-modularization worth experiencing:
-
-- `:core:domain` — pure JUnit, no Android/Robolectric needed at all (fast).
-- `:core:data` — Room in-memory DB tests, needs `androidTest` or Robolectric.
-- `:core:common-ui` / `:core:designsystem` — Compose UI tests for the newly-shared components
-  (this is arguably the best ROI in the whole plan: test `ConfirmDialog`/`StatTile` once, get
-  coverage for every screen that uses them).
-- `:feature:*` — ViewModel tests (fast, JVM-only) + a handful of Compose UI tests for
-  screen-specific interaction the shared components don't cover.
-
-## Tooling decisions
-
-- [x] **JUnit4** over JUnit5.
-- [x] **Fakes-first**, MockK as the exception, not the default.
-- [x] **Turbine**, yes.
-- [x] **Paparazzi** for screenshot testing.
-- [x] Where do fakes live — resolved by sequencing: no test code is written until after the
-  module migration, so fakes land directly in whatever `:core:testing`-equivalent module the
-  migration plan establishes.
-- [x] §2 (Room DAO test scope) — resolved per-DAO above; migration test suite: yes.
-
-Nothing left open in this doc. Next real step is the multi-module migration
-(`docs/todo-multi-module-migration.md`); this doc gets revisited once that's done.
+Nothing left open in this doc's decisions. Next real step is executing step 1 of the sequencing
+above, whenever that's picked up.
