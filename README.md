@@ -1,43 +1,57 @@
 # Regimen
 
-A local-only Android gym tracker. Build your workout **routines**, then record what you
-actually lift — sets, reps, and weight — with cardio, rest timing, and progress tracking.
-Your data stays on your device.
+Regimen is a local-only Android gym-tracking application. Users define workout **routines**
+(templates) in advance, then record actual **sessions** against them: sets, reps, and weight,
+plus optional cardio. There is no backend, account system, or network dependency; all data
+resides on the device.
 
 ## Features
 
-- **Template-driven logging** — create routines ahead of time and start workouts from them
-  with your last session's numbers pre-filled.
-- **Active workout** — a live session with a running timer, manual rest timer, per-set
-  reps/weight, skip/un-skip, and a persistent notification (pause / end) so it survives
-  backgrounding.
-- **Cardio** — log cardio activities (treadmill, running, cycling…) with duration + distance
-  into any session.
-- **History** — a calendar of past workouts; repeat a workout or save it as a routine.
-- **Progress** — personal records and a workout-frequency chart.
-- **Body measurements** — track bodyweight and your own custom measurement types over time.
-- **Custom exercises** on top of a curated ~50–100 built-in exercise library.
-- **Material 3 Expressive** UI with dynamic color, light/dark, and kg/lb + km/mi units.
-
-No backend, no account, no network — everything is stored locally. Data export (JSON) is
-planned for a later version.
-
-## Tech stack
-
-- **Kotlin** · Gradle Kotlin DSL · version catalog · KSP
-- **Jetpack Compose** + **Material 3 Expressive**, single-Activity
-- **Navigation Compose** (type-safe routes)
-- **MVVM + UDF** with a full use-case / domain layer
-- **Hilt** for dependency injection
-- **Room** for local persistence (Coroutines / Flow)
-- **minSdk 26** (Android 8)
+- Template-driven logging: routines are built ahead of time, and workouts start from them with
+  the previous session's numbers pre-filled.
+- A freeform Quick workout entry point for established users who don't want to log against a
+  routine.
+- Active Workout runs behind a foreground service with a persistent pause/end notification, and
+  survives process death.
+- Cardio activities (treadmill, running, cycling, etc.) log duration and distance into any
+  session.
+- History is a calendar of past workouts; a session can be repeated or saved back as a routine.
+- Progress tracks personal records and a workout-frequency chart.
+- Body measurements track bodyweight and user-defined custom measurement types over time.
+- A curated built-in exercise library, extendable with custom exercises.
+- Material 3 Expressive UI with dynamic color, light/dark theming, and a metric/imperial unit
+  preference (weight and distance are stored canonically and converted only for display).
 
 ## Documentation
 
-See **[docs/architecture.md](docs/architecture.md)** for the full screen inventory,
-navigation, the Active Workout spec, data model, and the key product/technical decisions.
+`docs/architecture.md` is the source of truth for the screen inventory, navigation, the Active
+Workout spec, the data model, and the key product and technical decisions. Read it before making
+structural changes.
+
+## Module structure
+
+Multi-module Gradle project: `:app` is the composition root. `:core:domain`, `:core:data`,
+`:core:common-ui`, `:core:designsystem`, and `:core:navigation-api` hold shared layers. Each
+screen or tab lives in its own `:feature:*` module (`settings`, `onboarding`, `exercise`,
+`measurements`, `progress`, `routines`, `history`, `home`, `active`). A `build-logic` included
+build supplies convention plugins that centralize each module's Compose/Hilt/Kotlin setup. See
+`docs/architecture.md`'s "Module structure" section for what lives where.
+
+Architecture is MVVM + UDF with a full use-case (domain) layer: UI (feature modules) calls
+domain, domain calls the data layer's repositories, repositories call Room DAOs. ViewModels
+expose `StateFlow` UI state. Hilt provides dependency injection throughout.
+
+## Tech stack
+
+- Kotlin, Gradle Kotlin DSL, version catalog, KSP
+- Jetpack Compose + Material 3 Expressive, single-Activity
+- Navigation Compose (type-safe routes)
+- Room for local persistence (Coroutines / Flow)
+- Hilt for dependency injection
+- minSdk 26 (Android 8)
 
 ## Building
 
-> ⚠️ **No code scaffold yet.** This repository currently contains documentation only. Build
-> and run instructions will be added once the Android/Gradle project is scaffolded.
+Open the project in Android Studio and run the `app` configuration on a device or emulator
+running Android 8.0 (API 26) or later, or build from the command line with `./gradlew
+:app:assembleDebug`.
