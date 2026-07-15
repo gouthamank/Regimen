@@ -70,6 +70,7 @@ class HistoryViewModel @Inject constructor(
             routineName = w.routineId?.let { routineNames[it] },
             startMillis = w.startTime,
         )
+
         val byDay = workouts
             .map { w ->
                 Instant.ofEpochMilli(w.startTime).atZone(zone).toLocalDate() to toDaySession(w)
