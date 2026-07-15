@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.feature.active
 
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,13 +26,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,6 +47,11 @@ import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.component.Stat
 import dev.gouthaman.regimen.designsystem.dialog.SaveAsRoutineDialog
+import nl.dionsegijn.konfetti.compose.KonfettiView
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.emitter.Emitter
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun WorkoutSummaryScreen(
@@ -71,6 +80,35 @@ fun WorkoutSummaryScreen(
     var savedName by remember { mutableStateOf<String?>(null) }
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    // One-shot celebratory burst on first successful load — skipped entirely under system
+    // "remove animations" (Settings.Global.ANIMATOR_DURATION_SCALE == 0), never replayed on
+    // recomposition/rotation since confettiParties only ever gets set once.
+    var confettiParties by remember { mutableStateOf<List<Party>>(emptyList()) }
+    val context = LocalContext.current
+    val confettiColors = listOf(
+        MaterialTheme.colorScheme.primary.toArgb(),
+        MaterialTheme.colorScheme.secondary.toArgb(),
+        MaterialTheme.colorScheme.tertiary.toArgb(),
+    )
+    LaunchedEffect(uiState.loaded, uiState.notFound) {
+        if (!uiState.loaded || uiState.notFound || confettiParties.isNotEmpty()) return@LaunchedEffect
+        val reduceMotion = Settings.Global.getFloat(
+            context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f
+        ) == 0f
+        if (reduceMotion) return@LaunchedEffect
+        confettiParties = listOf(
+            Party(
+                speed = 10f,
+                maxSpeed = 30f,
+                damping = 0.9f,
+                spread = 360,
+                colors = confettiColors,
+                emitter = Emitter(duration = 150, TimeUnit.MILLISECONDS).max(120),
+                position = Position.Relative(0.5, 0.0),
+            )
+        )
+    }
 
     Scaffold(
         modifier = modifier
@@ -195,6 +233,13 @@ fun WorkoutSummaryScreen(
                     onClick = onDone,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.workout_summary_done_button)) }
+            }
+
+            // Composed only once confettiParties is non-empty (rather than always-mounted with a
+            // mutated parties list) — matches Konfetti's own Compose sample, which recomposes
+            // KonfettiView in/out of the tree rather than updating `parties` on a mounted instance.
+            if (confettiParties.isNotEmpty()) {
+                KonfettiView(modifier = Modifier.fillMaxSize(), parties = confettiParties)
             }
         }
     }

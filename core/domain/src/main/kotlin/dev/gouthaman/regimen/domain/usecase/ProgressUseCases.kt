@@ -31,11 +31,11 @@ class GetPersonalRecordsUseCase @Inject constructor(
             val byId = exercises.associateBy { it.id }
             val weightRecords = weightPrs.mapNotNull { row ->
                 val ex = byId[row.exerciseId] ?: return@mapNotNull null
-                PersonalRecord(ex.id, ex.name, bestWeightKg = row.bestWeightKg)
+                PersonalRecord(ex.id, ex.name, ex.muscleGroup, bestWeightKg = row.bestWeightKg)
             }
             val repsRecords = repsPrs.mapNotNull { row ->
                 val ex = byId[row.exerciseId] ?: return@mapNotNull null
-                PersonalRecord(ex.id, ex.name, bestReps = row.bestReps)
+                PersonalRecord(ex.id, ex.name, ex.muscleGroup, bestReps = row.bestReps)
             }
             (weightRecords + repsRecords).sortedWith(
                 compareByDescending<PersonalRecord> { it.bestWeightKg ?: -1.0 }

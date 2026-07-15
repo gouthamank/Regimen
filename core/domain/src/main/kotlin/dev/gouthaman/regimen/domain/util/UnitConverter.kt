@@ -1,6 +1,8 @@
 package dev.gouthaman.regimen.domain.util
 
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.util.UnitConverter.formatValue
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -43,4 +45,12 @@ object UnitConverter {
         val rounded = (value * 100).roundToInt() / 100.0
         return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
     }
+
+    /** Like [formatValue], but abbreviates values over 1000 as "XX.XXk" (e.g. volume totals). */
+    fun formatCompact(value: Double): String =
+        if (value > 1000.0) {
+            String.format(Locale.US, "%.2fk", value / 1000.0)
+        } else {
+            formatValue(value)
+        }
 }

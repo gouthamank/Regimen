@@ -6,11 +6,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import dev.gouthaman.regimen.common.SessionFormat.time
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
@@ -18,6 +22,7 @@ import java.util.Locale
 object SessionFormat {
 
     private val dayFormatter = SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault())
+    private val shortDateFormatter = SimpleDateFormat("MMM d", Locale.getDefault())
 
     fun fullDate(millis: Long): String = dayFormatter.format(millis)
 
@@ -27,6 +32,26 @@ object SessionFormat {
         val context = LocalContext.current
         val formatter = remember(context) { DateFormat.getTimeFormat(context) }
         return formatter.format(Date(millis))
+    }
+
+    /** [time], prefixed with a short date ("MMM d") when [millis] isn't today — for lists that
+     * can span multiple days (e.g. a "recent workouts" list), where time alone would be ambiguous. */
+    @Composable
+    fun timeWithDateIfNotToday(millis: Long): String {
+        val timeText = time(millis)
+        val isToday = remember(millis) {
+            Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate() ==
+                    LocalDate.now()
+        }
+        return if (isToday) {
+            timeText
+        } else {
+            stringResource(
+                R.string.session_format_date_time,
+                shortDateFormatter.format(Date(millis)),
+                timeText
+            )
+        }
     }
 
     /** "45 min", "1h 05m", or "—" when the session has no recorded end. Excludes paused time. */

@@ -2,6 +2,7 @@ package dev.gouthaman.regimen.domain.usecase
 
 import dev.gouthaman.regimen.domain.model.HomeSummary
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
+import dev.gouthaman.regimen.domain.model.loggedVolumeKg
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -11,10 +12,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
-
-private fun WorkoutWithDetails.loggedVolumeKg(): Double = exercises.sumOf { we ->
-    we.sets.filter { it.isComplete }.sumOf { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
-}
 
 private fun WorkoutWithDetails.durationMillis(): Long {
     val end = workout.endTime ?: workout.startTime

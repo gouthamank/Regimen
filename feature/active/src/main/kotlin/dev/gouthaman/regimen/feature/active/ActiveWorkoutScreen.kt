@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -62,6 +63,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -74,6 +76,8 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -139,6 +143,7 @@ fun ActiveWorkoutScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Navigates off the observed workout state, so ending/discarding via the notification (not
     // just in-app buttons) also moves the screen. Skipped while editing a past session — endTime
@@ -149,11 +154,20 @@ fun ActiveWorkoutScreen(
     LaunchedEffect(uiState.loaded, uiState.notFound) {
         if (uiState.loaded && uiState.notFound) onDiscarded()
     }
+    val restSetInvalidMessage = stringResource(R.string.workout_rest_set_invalid_snackbar)
+    LaunchedEffect(Unit) {
+        viewModel.restSetInvalidEvents.collect {
+            snackbarHostState.showSnackbar(
+                restSetInvalidMessage
+            )
+        }
+    }
 
     ActiveWorkoutScreen(
         uiState = uiState,
         addableExercises = allExercises,
         rest = rest,
+        snackbarHostState = snackbarHostState,
         onUpdateSet = viewModel::updateSet,
         onAddSet = viewModel::addSet,
         onDeleteSet = viewModel::deleteSet,
@@ -198,6 +212,7 @@ fun ActiveWorkoutScreen(
     uiState: ActiveWorkoutUiState,
     addableExercises: List<Exercise>,
     rest: RestTimerState?,
+    snackbarHostState: SnackbarHostState,
     onUpdateSet: (SetEntry) -> Unit,
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
@@ -254,6 +269,13 @@ fun ActiveWorkoutScreen(
         modifier = modifier
             .fillMaxSize()
             .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
+        snackbarHost = {
+            // The floating ActiveWorkoutToolbar (Pause/Resume/Finish) isn't a Scaffold bottomBar
+            // (it's positioned BottomCenter inside the content Box, over the scrollable list), so
+            // the default snackbar placement doesn't know to avoid it — pad above its footprint
+            // (16.dp bottom padding + 64.dp height = 80.dp) with a little breathing room.
+            SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = 96.dp))
+        },
         topBar = {
             MediumTopAppBar(
                 title = {
@@ -850,7 +872,7 @@ private fun ExerciseCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.Start,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 TextButton(
@@ -868,21 +890,28 @@ private fun ExerciseCard(
                                         modifier = Modifier.padding(start = 8.dp)
                                     )
                                 }
-                                if (showRestTimer) TextButton(
-                                    onClick = {
-                                        onStartRest(
-                                            exercise.workoutExerciseId,
-                                            exercise.restTargetSec
-                                        )
-                                    },
-                                    enabled = enabled,
-                                ) {
-                                    Icon(Icons.Filled.Timer, contentDescription = null)
-                                    Text(
-                                        stringResource(R.string.workout_rest_label),
-                                        modifier = Modifier.padding(start = 8.dp)
+                            }
+                            // Own full-width row + filled-tonal styling (not a TextButton sharing
+                            // a row with Add set) — bigger, easier-to-hit target after gym-use
+                            // feedback that the shared-row TextButton was fiddly to tap.
+                            if (showRestTimer) FilledTonalButton(
+                                onClick = {
+                                    onStartRest(
+                                        exercise.workoutExerciseId,
+                                        exercise.restTargetSec
                                     )
-                                }
+                                },
+                                enabled = enabled,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                                    .heightIn(min = 48.dp),
+                            ) {
+                                Icon(Icons.Filled.Timer, contentDescription = null)
+                                Text(
+                                    stringResource(R.string.workout_rest_label),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
                             }
                         }
                     } else {

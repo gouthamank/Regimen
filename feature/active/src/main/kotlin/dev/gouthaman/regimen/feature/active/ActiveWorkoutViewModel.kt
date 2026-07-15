@@ -38,12 +38,15 @@ import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
 import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -133,6 +136,12 @@ class ActiveWorkoutViewModel @Inject constructor(
     val workoutId: Long = savedStateHandle.toRoute<ActiveWorkoutRoute>().workoutId
 
     private var restWatchJob: Job? = null
+
+    // Rest-timeout/skip-rest tries to auto-complete the exercise's next set, but that set may not
+    // have valid fields yet (see completeRestSet) — surfaced to the UI as a one-shot snackbar
+    // rather than silently failing.
+    private val restSetInvalidEvent = Channel<Unit>(Channel.BUFFERED)
+    val restSetInvalidEvents: Flow<Unit> = restSetInvalidEvent.receiveAsFlow()
 
     /** All exercises, for the add-exercise picker (all types, including cardio). */
     val allExercises: StateFlow<List<Exercise>> =
@@ -283,12 +292,20 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-    /** Ticks the exercise's first unchecked set (the just-performed set) when a rest ends. */
+    /** Ticks the exercise's first unchecked set (the just-performed set) when a rest ends. Mirrors
+     * the manual checkbox's validation (SetRow's `fieldsValid`) so a rest-timeout/skip can't mark a
+     * set done with missing weight/reps — if the set isn't valid yet, it's left unchecked and the
+     * UI is notified via [restSetInvalidEvents] instead. */
     private suspend fun completeRestSet(workoutExerciseId: Long) {
-        val target = uiState.value.exercises
-            .firstOrNull { it.workoutExerciseId == workoutExerciseId }
-            ?.sets?.firstOrNull { !it.isComplete }
-            ?: return
+        val exercise = uiState.value.exercises
+            .firstOrNull { it.workoutExerciseId == workoutExerciseId } ?: return
+        val target = exercise.sets.firstOrNull { !it.isComplete } ?: return
+        val isBodyweight = exercise.equipment == Equipment.BODYWEIGHT
+        val fieldsValid = (isBodyweight || target.weightKg != null) && target.reps != null
+        if (!fieldsValid) {
+            restSetInvalidEvent.send(Unit)
+            return
+        }
         val updated = target.copy(isComplete = true)
         upsertSet(updated)
         autoMarkDoneIfAllComplete(updated)

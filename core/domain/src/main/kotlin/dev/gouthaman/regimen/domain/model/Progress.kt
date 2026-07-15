@@ -7,6 +7,7 @@ import java.time.LocalDate
 data class PersonalRecord(
     val exerciseId: Long,
     val exerciseName: String,
+    val muscleGroup: MuscleGroup,
     val bestWeightKg: Double? = null,
     val bestReps: Int? = null,
 )

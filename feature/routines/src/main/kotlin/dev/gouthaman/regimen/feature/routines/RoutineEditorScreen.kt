@@ -157,7 +157,7 @@ fun RoutineEditorScreen(
                 actions = {
                     FilledIconButton(onClick = onSave, enabled = uiState.canSave) {
                         Icon(
-                            if (uiState.isEditing) Icons.Filled.Check else Icons.Filled.Add,
+                            Icons.Filled.Check,
                             contentDescription = stringResource(
                                 if (uiState.isEditing) R.string.routine_editor_save_description else R.string.routine_editor_add_description,
                             ),

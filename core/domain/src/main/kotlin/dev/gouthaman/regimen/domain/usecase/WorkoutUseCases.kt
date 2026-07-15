@@ -5,6 +5,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseHistorySession
 import dev.gouthaman.regimen.domain.model.ExerciseSpec
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
+import dev.gouthaman.regimen.domain.model.Workout
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
@@ -244,6 +245,16 @@ class ObserveHistoryUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
     operator fun invoke(): Flow<List<WorkoutWithDetails>> = workoutRepo.observeCompleted()
+}
+
+/** Completed workouts within [start, end] (inclusive), lightweight (no exercises/sets/cardio) —
+ * scopes History's calendar + recent-workouts list to just the visible month, instead of loading
+ * every workout ever logged with its full details. */
+class ObserveWorkoutsInRangeUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    operator fun invoke(start: Long, end: Long): Flow<List<Workout>> =
+        workoutRepo.observeCompletedBetween(start, end)
 }
 
 /** Every finished session that logged a specific exercise, most recent first — used by

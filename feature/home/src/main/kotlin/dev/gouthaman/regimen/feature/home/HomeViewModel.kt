@@ -155,7 +155,7 @@ class HomeViewModel @Inject constructor(
             isEstablished = history.isNotEmpty(),
             workoutsThisWeek = summary.workoutsThisWeek,
             volumeThisWeek = WeightValue(
-                displayValue = UnitConverter.formatValue(
+                displayValue = UnitConverter.formatCompact(
                     UnitConverter.kgToDisplay(summary.volumeKgThisWeek, system)
                 ),
                 unitLabel = UnitConverter.weightLabel(system),
@@ -164,7 +164,7 @@ class HomeViewModel @Inject constructor(
             weekStreak = summary.weekStreak,
             workoutsThisMonth = summary.workoutsThisMonth,
             volumeThisMonth = WeightValue(
-                displayValue = UnitConverter.formatValue(
+                displayValue = UnitConverter.formatCompact(
                     UnitConverter.kgToDisplay(summary.volumeKgThisMonth, system)
                 ),
                 unitLabel = UnitConverter.weightLabel(system),

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.domain.model.HistoryRange
+import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
@@ -36,11 +37,19 @@ data class PersonalRecordItem(
     val value: PersonalRecordValue,
 )
 
+/** Personal records for one muscle group, in the same order [GetPersonalRecordsUseCase] sorted
+ * them overall (heaviest/highest first) — grouping never re-sorts. */
+data class PersonalRecordGroup(
+    val muscleGroup: MuscleGroup,
+    val records: List<PersonalRecordItem>,
+)
+
 data class ProgressUiState(
     /** Weekly workout counts, oldest week first (for the frequency chart). */
     val frequency: List<WeekCount> = emptyList(),
     val range: HistoryRange = HistoryRange.THREE_MONTHS,
-    val personalRecords: List<PersonalRecordItem> = emptyList(),
+    /** Non-empty muscle groups only, in [MuscleGroup] declaration order. */
+    val personalRecordGroups: List<PersonalRecordGroup> = emptyList(),
     val loaded: Boolean = false,
 ) {
     /** Total workouts across the whole frequency window. */
@@ -50,7 +59,7 @@ data class ProgressUiState(
     val thisWeekCount: Int get() = frequency.lastOrNull()?.count ?: 0
 
     val hasFrequency: Boolean get() = totalInWindow > 0
-    val hasRecords: Boolean get() = personalRecords.isNotEmpty()
+    val hasRecords: Boolean get() = personalRecordGroups.isNotEmpty()
     val isEmpty: Boolean get() = !hasFrequency && !hasRecords
 }
 
@@ -72,12 +81,10 @@ class ProgressViewModel @Inject constructor(
         observePreferences(),
     ) { prs, frequency, range, prefs ->
         val system: UnitSystem = prefs.weightUnit
-        ProgressUiState(
-            frequency = frequency,
-            range = range,
-            personalRecords = prs.map { pr ->
+        val itemsByGroup: Map<MuscleGroup, List<PersonalRecordItem>> = prs
+            .map { pr ->
                 val bestWeightKg = pr.bestWeightKg
-                PersonalRecordItem(
+                pr.muscleGroup to PersonalRecordItem(
                     exerciseId = pr.exerciseId,
                     exerciseName = pr.exerciseName,
                     value = when {
@@ -91,6 +98,14 @@ class ProgressViewModel @Inject constructor(
                         else -> PersonalRecordValue.Reps(pr.bestReps ?: 0)
                     },
                 )
+            }
+            // groupBy is stable, so each group keeps prs' overall heaviest/highest-first order.
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+        ProgressUiState(
+            frequency = frequency,
+            range = range,
+            personalRecordGroups = MuscleGroup.entries.mapNotNull { group ->
+                itemsByGroup[group]?.let { PersonalRecordGroup(group, it) }
             },
             loaded = true,
         )

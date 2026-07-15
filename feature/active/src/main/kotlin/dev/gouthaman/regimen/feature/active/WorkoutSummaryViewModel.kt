@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.loggedVolumeKg
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
@@ -70,7 +71,7 @@ class WorkoutSummaryViewModel @Inject constructor(
             val routineName = workout.workout.routineId
                 ?.let { id -> routines.firstOrNull { it.routine.id == id }?.routine?.name }
             val completedSets = workout.exercises.flatMap { it.sets }.filter { it.isComplete }
-            val volumeKg = completedSets.sumOf { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
+            val volumeKg = workout.loggedVolumeKg()
 
             val overallBestWeight = prs.mapNotNull { pr ->
                 pr.bestWeightKg?.let { pr.exerciseId to it }
@@ -102,7 +103,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 endTime = workout.workout.endTime,
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 volume = WeightValue(
-                    displayValue = UnitConverter.formatValue(
+                    displayValue = UnitConverter.formatCompact(
                         UnitConverter.kgToDisplay(
                             volumeKg,
                             system

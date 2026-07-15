@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
@@ -154,17 +155,28 @@ fun ProgressScreen(
                             ),
                         )
                     }
-                    items(uiState.personalRecords, key = { it.exerciseId }) { pr ->
-                        ListItem(
-                            headlineContent = { Text(pr.exerciseName) },
-                            trailingContent = {
-                                Text(
-                                    personalRecordValueLabel(pr.value),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                        )
+                    uiState.personalRecordGroups.forEach { group ->
+                        item(key = "muscle_group_${group.muscleGroup.name}") {
+                            SectionHeader(
+                                group.muscleGroup.label(),
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.padding(
+                                    start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp,
+                                ),
+                            )
+                        }
+                        items(group.records, key = { it.exerciseId }) { pr ->
+                            ListItem(
+                                headlineContent = { Text(pr.exerciseName) },
+                                trailingContent = {
+                                    Text(
+                                        personalRecordValueLabel(pr.value),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }

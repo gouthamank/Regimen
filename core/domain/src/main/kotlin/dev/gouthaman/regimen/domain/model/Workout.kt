@@ -68,6 +68,12 @@ data class WorkoutWithDetails(
     val exercises: List<WorkoutExerciseWithDetails>,
 )
 
+/** Total weight lifted across completed sets (same "logged work" semantics as the PR derivation);
+ * bodyweight sets contribute no load. */
+fun WorkoutWithDetails.loggedVolumeKg(): Double = exercises.sumOf { we ->
+    we.sets.filter { it.isComplete }.sumOf { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
+}
+
 /** Aggregate result: heaviest weight lifted per exercise (the PR definition). */
 data class PersonalRecordRow(
     val exerciseId: Long,

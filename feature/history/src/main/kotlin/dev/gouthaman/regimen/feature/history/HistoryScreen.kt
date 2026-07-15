@@ -5,15 +5,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -50,6 +51,7 @@ import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.component.SectionHeader
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -62,7 +64,12 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    HistoryScreen(uiState = uiState, onOpenSession = onOpenSession, modifier = modifier)
+    HistoryScreen(
+        uiState = uiState,
+        onOpenSession = onOpenSession,
+        onMonthChange = viewModel::setMonth,
+        modifier = modifier,
+    )
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -70,12 +77,9 @@ fun HistoryScreen(
 fun HistoryScreen(
     uiState: HistoryUiState,
     onOpenSession: (Long) -> Unit,
+    onMonthChange: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Saveable (not remember) so the visible month survives navigating to a session's detail and
-    // back — composable<Route> disposes this screen while Session Detail is on top, and remember
-    // would reset to the current month on return.
-    var month by rememberSaveable { mutableStateOf(YearMonth.now()) }
     // A day tapped with more than one session surfaces a picker dialog. Stored as an explicit
     // ArrayList since Bundle-backed rememberSaveable needs the list container itself to be
     // Serializable too, not just its elements (DaySession is Serializable).
@@ -110,37 +114,70 @@ fun HistoryScreen(
             } else {
                 Modifier.fillMaxWidth()
             }
-            Column(
-                modifier = contentModifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
+            // Horizontal inset lives on the calendar/header themselves (not LazyColumn's
+            // contentPadding) — ListItem's classic overload bakes in its own 16dp start/end with
+            // no override, so adding it again here would double the inset on list rows only.
+            LazyColumn(
+                modifier = contentModifier,
+                contentPadding = PaddingValues(bottom = 16.dp),
             ) {
-                MonthHeader(
-                    month = month,
-                    canGoNext = month.isBefore(YearMonth.now()),
-                    onPrev = { month = month.minusMonths(1) },
-                    onNext = { month = month.plusMonths(1) },
-                )
-                WeekdayHeader()
-                MonthGrid(
-                    month = month,
-                    sessionsByDay = uiState.sessionsByDay,
-                    onDayClick = { sessions ->
-                        if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
-                        else pickerDay = ArrayList(sessions)
-                    },
-                )
+                item(key = "calendar") {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        MonthHeader(
+                            month = uiState.month,
+                            canGoNext = uiState.month.isBefore(YearMonth.now()),
+                            onPrev = { onMonthChange(uiState.month.minusMonths(1)) },
+                            onNext = { onMonthChange(uiState.month.plusMonths(1)) },
+                        )
+                        WeekdayHeader()
+                        MonthGrid(
+                            month = uiState.month,
+                            sessionsByDay = uiState.sessionsByDay,
+                            onDayClick = { sessions ->
+                                if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
+                                else pickerDay = ArrayList(sessions)
+                            },
+                        )
 
-                if (uiState.loaded && uiState.isEmpty) {
-                    Text(
-                        stringResource(R.string.history_empty_state),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 32.dp),
-                    )
+                        if (uiState.loaded && uiState.isEmpty) {
+                            Text(
+                                stringResource(R.string.history_empty_state),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 32.dp),
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.recentSessions.isNotEmpty()) {
+                    item(key = "recent_header") {
+                        SectionHeader(
+                            stringResource(R.string.history_month_workouts_header),
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp,
+                            ),
+                        )
+                    }
+                    items(uiState.recentSessions, key = { it.workoutId }) { session ->
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    session.routineName
+                                        ?: stringResource(R.string.history_quick_workout_fallback)
+                                )
+                            },
+                            supportingContent = {
+                                Text(SessionFormat.timeWithDateIfNotToday(session.startMillis))
+                            },
+                            modifier = Modifier
+                                .animateItem()
+                                .clickable { onOpenSession(session.workoutId) },
+                        )
+                    }
                 }
             }
         }

@@ -8,6 +8,7 @@
     <string name="history_day_view_sessions_click_label">View sessions</string>
     <string name="history_day_not_yet_available_description">%1$d, not yet available</string>
     <string name="history_quick_workout_fallback">Quick workout</string>
+    <string name="history_month_workouts_header">Workouts</string>
 
     <string name="session_detail_title_fallback">Session</string>
     <string name="session_detail_quick_workout_fallback">Quick workout</string>
