@@ -12,6 +12,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.EditWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
@@ -72,6 +73,7 @@ class SessionDetailViewModel @Inject constructor(
     private val saveAsRoutineUseCase: SaveWorkoutAsRoutineUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
     private val repeatWorkoutUseCase: RepeatWorkoutUseCase,
+    private val editWorkoutUseCase: EditWorkoutUseCase,
 ) : ViewModel() {
 
     private val workoutId = savedStateHandle.toRoute<SessionDetailRoute>().workoutId
@@ -144,6 +146,9 @@ class SessionDetailViewModel @Inject constructor(
      * ActiveWorkoutViewModel.isEditingPastSession), so it can't conflict with a genuinely live workout.
      */
     fun edit() {
-        viewModelScope.launch { openActiveWorkout.send(workoutId) }
+        viewModelScope.launch {
+            editWorkoutUseCase(workoutId)
+            openActiveWorkout.send(workoutId)
+        }
     }
 }

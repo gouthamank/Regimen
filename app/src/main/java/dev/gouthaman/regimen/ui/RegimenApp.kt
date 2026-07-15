@@ -1,5 +1,10 @@
 package dev.gouthaman.regimen.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -16,14 +21,17 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -48,6 +56,8 @@ import dev.gouthaman.regimen.ui.navigation.topLevelDestinations
 @Composable
 fun RegimenApp(
     viewModel: RegimenAppViewModel = hiltViewModel(),
+    deepLinkWorkoutId: Long? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val inProgressWorkoutId by viewModel.inProgressWorkoutId.collectAsStateWithLifecycle()
@@ -88,6 +98,42 @@ fun RegimenApp(
         }
         navController.addOnDestinationChangedListener(listener)
         onDispose { navController.removeOnDestinationChangedListener(listener) }
+    }
+
+    // Tapping the in-progress/rest-complete notification (MainActivity's EXTRA_WORKOUT_ID) lands
+    // here the same way the "Resume" banner's onResume does — anchored under Home regardless of
+    // the current tab. Skipped if already inside the workout flow (e.g. re-tapping the
+    // notification while the screen's already open) to avoid pushing a duplicate destination.
+    LaunchedEffect(deepLinkWorkoutId) {
+        if (deepLinkWorkoutId != null) {
+            if (!inWorkoutFlow) {
+                onNavigateToTab(HomeRoute)
+                navController.navigateToTab(HomeRoute)
+                navController.navigate(ActiveWorkoutRoute(deepLinkWorkoutId))
+            }
+            onDeepLinkConsumed()
+        }
+    }
+
+    // Requested here (app launch, right after onboarding gates past MainActivity) rather than
+    // inside Active Workout, so it's always resolved (granted or denied) well before a workout
+    // can ever start — the system dialog is modal, so the user can't reach Home/Start Workout
+    // while it's showing. This closes a real race (item 11 of the Active Workout punch list):
+    // asking from inside Active Workout meant the foreground service's first startForeground()
+    // call — fired the instant the workout's DB row is written, before Compose even navigates
+    // there — could beat the permission grant, silently suppressing that first notification with
+    // nothing to retroactively re-post it.
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     NavigationSuiteScaffold(

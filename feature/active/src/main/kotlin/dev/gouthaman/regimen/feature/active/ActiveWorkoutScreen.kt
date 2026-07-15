@@ -1,10 +1,5 @@
 package dev.gouthaman.regimen.feature.active
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -29,6 +24,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,8 +47,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveCircleOutline
@@ -67,9 +66,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -78,6 +79,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -91,19 +93,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
@@ -145,20 +150,6 @@ fun ActiveWorkoutScreen(
         if (uiState.loaded && uiState.notFound) onDiscarded()
     }
 
-    // Rest-complete + (Phase 3) foreground-service notifications need POST_NOTIFICATIONS on 13+.
-    val context = LocalContext.current
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { }
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
     ActiveWorkoutScreen(
         uiState = uiState,
         addableExercises = allExercises,
@@ -166,7 +157,10 @@ fun ActiveWorkoutScreen(
         onUpdateSet = viewModel::updateSet,
         onAddSet = viewModel::addSet,
         onDeleteSet = viewModel::deleteSet,
+        onAutofillWeight = viewModel::autofillWeightBelow,
+        onAutofillReps = viewModel::autofillRepsBelow,
         onToggleSkip = viewModel::toggleSkip,
+        onToggleDone = viewModel::toggleDone,
         onAddExercises = viewModel::addExercises,
         onUpdateCardio = viewModel::updateCardio,
         onUpdateNote = viewModel::updateNote,
@@ -177,14 +171,22 @@ fun ActiveWorkoutScreen(
         onResume = viewModel::resume,
         // Discard only flips state; the LaunchedEffect above navigates. Finish is edit-aware: a
         // live workout goes through finishWorkoutUseCase + that same LaunchedEffect; an edit
-        // never touched endTime, so it just navigates to the summary directly.
+        // flips back out of EDITING (endTime is untouched) and navigates to the summary directly.
         onFinish = {
-            if (uiState.isEditingPastSession) onFinished(viewModel.workoutId) else viewModel.finish()
+            if (uiState.isEditingPastSession) {
+                viewModel.doneEditing()
+                onFinished(viewModel.workoutId)
+            } else {
+                viewModel.finish()
+            }
         },
         onDiscard = viewModel::discard,
-        // Cancel-edit wrote nothing (editing doesn't touch endTime), so it navigates straight
-        // back rather than to Workout Summary.
-        onCancelEdit = onDiscarded,
+        // Cancel-edit flips back out of EDITING (editing doesn't touch endTime) and navigates
+        // straight back rather than to Workout Summary.
+        onCancelEdit = {
+            viewModel.doneEditing()
+            onDiscarded()
+        },
         onCreateCustomExercise = onCreateCustomExercise,
         modifier = modifier,
     )
@@ -199,7 +201,10 @@ fun ActiveWorkoutScreen(
     onUpdateSet: (SetEntry) -> Unit,
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
+    onAutofillWeight: (Long, Long, Double) -> Unit,
+    onAutofillReps: (Long, Long, Int) -> Unit,
     onToggleSkip: (WorkoutExercise) -> Unit,
+    onToggleDone: (WorkoutExercise) -> Unit,
     onAddExercises: (List<Long>) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onUpdateNote: (String) -> Unit,
@@ -220,6 +225,14 @@ fun ActiveWorkoutScreen(
     val isEditing = uiState.isEditingPastSession
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    // Ephemeral (item 10) — resets every time this screen is (re)opened, not a saved preference.
+    var keepScreenOn by remember { mutableStateOf(false) }
+    val view = LocalView.current
+    DisposableEffect(keepScreenOn) {
+        view.keepScreenOn = keepScreenOn
+        onDispose { view.keepScreenOn = false }
+    }
 
     // Elapsed derives from startTime (survives rotation/process death); unused while re-editing a past session.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -262,6 +275,27 @@ fun ActiveWorkoutScreen(
                         )
                     }
                 },
+                actions = {
+                    // Ephemeral (item 10) — resets every time this screen is (re)opened, not a
+                    // saved preference. Tinted primary while on, like a lit toggle.
+                    IconButton(onClick = { keepScreenOn = !keepScreenOn }) {
+                        Icon(
+                            Icons.Filled.Coffee,
+                            contentDescription = stringResource(
+                                if (keepScreenOn) {
+                                    R.string.workout_allow_screen_sleep_description
+                                } else {
+                                    R.string.workout_keep_screen_on_description
+                                },
+                            ),
+                            tint = if (keepScreenOn) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                LocalContentColor.current
+                            },
+                        )
+                    }
+                },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -282,10 +316,16 @@ fun ActiveWorkoutScreen(
         // capped with the list, same convention as RegimenNavHost + WorkoutInProgressBanner. No
         // Onboarding-style hinge split for Tabletop: the toolbar anchors to the bottom edge
         // regardless of content, same reasoning as the bottom nav bar in RegimenApp.kt.
+        val focusManager = LocalFocusManager.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                // Taps that land on a button/text field/checkbox are consumed by that element's
+                // own pointer input before this ever sees them, so this only fires for blank
+                // space (card backgrounds, padding, labels) — exactly "anywhere that isn't one
+                // of those."
+                .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) },
             contentAlignment = Alignment.TopCenter,
         ) {
             val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
@@ -326,10 +366,18 @@ fun ActiveWorkoutScreen(
                             onUpdateSet = onUpdateSet,
                             onAddSet = onAddSet,
                             onDeleteSet = onDeleteSet,
+                            onAutofillWeight = { setId, kg ->
+                                onAutofillWeight(exercise.workoutExerciseId, setId, kg)
+                            },
+                            onAutofillReps = { setId, reps ->
+                                onAutofillReps(exercise.workoutExerciseId, setId, reps)
+                            },
                             onToggleSkip = onToggleSkip,
+                            onToggleDone = onToggleDone,
                             onUpdateCardio = onUpdateCardio,
                             onStartRest = onStartRest,
                             showRestTimer = !isEditing,
+                            enabled = !uiState.isPaused,
                             // Animates a newly-added exercise's appearance (also reorder/removal, though neither happens here yet).
                             modifier = Modifier.animateItem(),
                         )
@@ -338,6 +386,7 @@ fun ActiveWorkoutScreen(
                     item {
                         OutlinedButton(
                             onClick = { showPicker = true },
+                            enabled = !uiState.isPaused,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null)
@@ -633,6 +682,10 @@ private fun ActiveWorkoutToolbar(
     }
 }
 
+/** Which body [ExerciseCard] shows — skipped and done are mutually exclusive at the toggle level
+ * (see ExerciseCard's header icons), skipped wins if both were ever somehow true. */
+private enum class ExerciseCardBody { SKIPPED, DONE, NORMAL }
+
 @Composable
 private fun ExerciseCard(
     exercise: ActiveExercise,
@@ -641,25 +694,48 @@ private fun ExerciseCard(
     onUpdateSet: (SetEntry) -> Unit,
     onAddSet: (Long, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
+    onAutofillWeight: (Long, Double) -> Unit,
+    onAutofillReps: (Long, Int) -> Unit,
     onToggleSkip: (WorkoutExercise) -> Unit,
+    onToggleDone: (WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (Long, Int) -> Unit,
     showRestTimer: Boolean = true,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    // Cross-fades the container tint on skip/unskip (no instant cut), same duration as the toolbar's pause/resume tint fade.
+    val bodyState = when {
+        exercise.isSkipped -> ExerciseCardBody.SKIPPED
+        exercise.isDone -> ExerciseCardBody.DONE
+        else -> ExerciseCardBody.NORMAL
+    }
+    // Cross-fades the container tint on skip/unskip/done (no instant cut), same duration as the toolbar's pause/resume tint fade.
+    // Content color rides along so text/icons keep proper contrast against the tinted (done)
+    // background, rather than the default card content color (meant for a plain surface).
     val containerColor by animateColorAsState(
-        targetValue = if (exercise.isSkipped) {
-            MaterialTheme.colorScheme.surfaceVariant
-        } else {
-            CardDefaults.cardColors().containerColor
+        targetValue = when (bodyState) {
+            ExerciseCardBody.SKIPPED -> MaterialTheme.colorScheme.surfaceVariant
+            ExerciseCardBody.DONE -> MaterialTheme.colorScheme.tertiaryContainer
+            ExerciseCardBody.NORMAL -> CardDefaults.cardColors().containerColor
         },
         animationSpec = tween(300),
         label = "exerciseCardContainer",
     )
+    val contentColor by animateColorAsState(
+        targetValue = if (bodyState == ExerciseCardBody.DONE) {
+            MaterialTheme.colorScheme.onTertiaryContainer
+        } else {
+            CardDefaults.cardColors().contentColor
+        },
+        animationSpec = tween(300),
+        label = "exerciseCardContent",
+    )
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -674,102 +750,150 @@ private fun ExerciseCard(
                     modifier = Modifier.weight(1f),
                 )
                 if (exercise.isStrength) {
-                    IconButton(onClick = { onToggleSkip(exercise.workoutExercise) }) {
-                        // Same scale+fade swap the toolbar uses for its pause/resume icon.
-                        AnimatedContent(
-                            targetState = exercise.isSkipped,
-                            transitionSpec = {
-                                (scaleIn(initialScale = 0.6f) + fadeIn())
-                                    .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
-                            },
-                            label = "skipToggleIcon",
-                        ) { skipped ->
-                            Icon(
-                                if (skipped) Icons.Filled.AddCircleOutline
-                                else Icons.Filled.RemoveCircleOutline,
-                                contentDescription = stringResource(
-                                    if (skipped) R.string.workout_include_description else R.string.workout_skip_description,
-                                ),
-                            )
+                    // Hidden while done — can't skip something already marked done without
+                    // reopening it for editing first (Edit clears isDone).
+                    if (!exercise.isDone) {
+                        IconButton(
+                            onClick = { onToggleSkip(exercise.workoutExercise) },
+                            enabled = enabled
+                        ) {
+                            // Same scale+fade swap the toolbar uses for its pause/resume icon.
+                            AnimatedContent(
+                                targetState = exercise.isSkipped,
+                                transitionSpec = {
+                                    (scaleIn(initialScale = 0.6f) + fadeIn())
+                                        .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
+                                },
+                                label = "skipToggleIcon",
+                            ) { skipped ->
+                                Icon(
+                                    if (skipped) Icons.Filled.AddCircleOutline
+                                    else Icons.Filled.RemoveCircleOutline,
+                                    contentDescription = stringResource(
+                                        if (skipped) R.string.workout_include_description else R.string.workout_skip_description,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                    // Hidden while skipped — same reasoning, mirrored.
+                    if (!exercise.isSkipped) {
+                        val canMarkDone =
+                            exercise.sets.isNotEmpty() && exercise.sets.all { it.isComplete }
+                        IconButton(
+                            onClick = { onToggleDone(exercise.workoutExercise) },
+                            enabled = enabled && (exercise.isDone || canMarkDone),
+                        ) {
+                            AnimatedContent(
+                                targetState = exercise.isDone,
+                                transitionSpec = {
+                                    (scaleIn(initialScale = 0.6f) + fadeIn())
+                                        .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
+                                },
+                                label = "doneToggleIcon",
+                            ) { done ->
+                                Icon(
+                                    if (done) Icons.Filled.Edit else Icons.Filled.CheckCircle,
+                                    contentDescription = stringResource(
+                                        if (done) R.string.workout_edit_exercise_description else R.string.workout_mark_done_description,
+                                    ),
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Cross-fades "Skipped" label vs sets/cardio body, resizing smoothly instead of an abrupt height
-            // jump — bodies differ a lot in height (one line vs. full set list).
+            // Cross-fades skipped/done labels vs the sets/cardio body, resizing smoothly instead
+            // of an abrupt height jump — bodies differ a lot in height (one line vs. full set list).
             AnimatedContent(
-                targetState = exercise.isSkipped,
+                targetState = bodyState,
                 transitionSpec = {
                     fadeIn(tween(220)).togetherWith(fadeOut(tween(150)))
                         .using(SizeTransform(clip = false))
                 },
                 label = "exerciseCardBody",
-            ) { skipped ->
-                when {
-                    skipped -> Text(
+            ) { state ->
+                when (state) {
+                    ExerciseCardBody.SKIPPED -> Text(
                         stringResource(R.string.workout_skipped_label),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
                     )
 
-                    exercise.isStrength -> Column {
-                        exercise.sets.forEach { set ->
-                            key(set.id) {
-                                AnimatedSetRow(
-                                    set = set,
-                                    weightUnit = weightUnit,
-                                    isBodyweight = exercise.equipment == Equipment.BODYWEIGHT,
-                                    onUpdate = onUpdateSet,
-                                    onDelete = { onDeleteSet(set) },
-                                )
-                            }
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    onAddSet(
-                                        exercise.workoutExerciseId,
-                                        exercise.sets.lastOrNull()
-                                    )
-                                },
-                            ) {
-                                Icon(Icons.Filled.Add, contentDescription = null)
-                                Text(
-                                    stringResource(R.string.workout_add_set_button),
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                            if (showRestTimer) TextButton(
-                                onClick = {
-                                    onStartRest(
-                                        exercise.workoutExerciseId,
-                                        exercise.restTargetSec
-                                    )
-                                },
-                            ) {
-                                Icon(Icons.Filled.Timer, contentDescription = null)
-                                Text(
-                                    stringResource(R.string.workout_rest_label),
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    else -> CardioRow(
-                        cardio = exercise.cardio,
-                        workoutExerciseId = exercise.workoutExerciseId,
-                        distanceUnit = distanceUnit,
-                        onUpdate = onUpdateCardio,
+                    ExerciseCardBody.DONE -> Text(
+                        exercise.sets.map { SessionFormat.setLabel(it, weightUnit) }
+                            .joinToString(" · "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
+
+                    ExerciseCardBody.NORMAL -> if (exercise.isStrength) {
+                        Column {
+                            exercise.sets.forEach { set ->
+                                key(set.id) {
+                                    AnimatedSetRow(
+                                        set = set,
+                                        weightUnit = weightUnit,
+                                        isBodyweight = exercise.equipment == Equipment.BODYWEIGHT,
+                                        enabled = enabled,
+                                        onUpdate = onUpdateSet,
+                                        onDelete = { onDeleteSet(set) },
+                                        onAutofillWeight = { kg -> onAutofillWeight(set.id, kg) },
+                                        onAutofillReps = { reps -> onAutofillReps(set.id, reps) },
+                                    )
+                                }
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        onAddSet(
+                                            exercise.workoutExerciseId,
+                                            exercise.sets.lastOrNull()
+                                        )
+                                    },
+                                    enabled = enabled,
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null)
+                                    Text(
+                                        stringResource(R.string.workout_add_set_button),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                                if (showRestTimer) TextButton(
+                                    onClick = {
+                                        onStartRest(
+                                            exercise.workoutExerciseId,
+                                            exercise.restTargetSec
+                                        )
+                                    },
+                                    enabled = enabled,
+                                ) {
+                                    Icon(Icons.Filled.Timer, contentDescription = null)
+                                    Text(
+                                        stringResource(R.string.workout_rest_label),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        CardioRow(
+                            cardio = exercise.cardio,
+                            workoutExerciseId = exercise.workoutExerciseId,
+                            distanceUnit = distanceUnit,
+                            enabled = enabled,
+                            onUpdate = onUpdateCardio,
+                        )
+                    }
                 }
             }
         }
@@ -787,8 +911,11 @@ private fun AnimatedSetRow(
     set: SetEntry,
     weightUnit: UnitSystem,
     isBodyweight: Boolean,
+    enabled: Boolean,
     onUpdate: (SetEntry) -> Unit,
     onDelete: () -> Unit,
+    onAutofillWeight: (Double) -> Unit,
+    onAutofillReps: (Int) -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf(false) }
@@ -810,8 +937,11 @@ private fun AnimatedSetRow(
             set = set,
             weightUnit = weightUnit,
             isBodyweight = isBodyweight,
+            enabled = enabled,
             onUpdate = onUpdate,
             onDelete = { removing = true },
+            onAutofillWeight = onAutofillWeight,
+            onAutofillReps = onAutofillReps,
         )
     }
 }
@@ -823,12 +953,17 @@ private fun SetRow(
     set: SetEntry,
     weightUnit: UnitSystem,
     isBodyweight: Boolean,
+    enabled: Boolean,
     onUpdate: (SetEntry) -> Unit,
     onDelete: () -> Unit,
+    onAutofillWeight: (Double) -> Unit,
+    onAutofillReps: (Int) -> Unit,
 ) {
-    // Fields are local, seeded once per set id, so flow emissions don't clobber a field mid-edit.
-    // Every write rebuilds the entry from local state, so editing one field can't revert another
-    // not yet round-tripped through Room.
+    // Fields are local (seeded once per set id) rather than reading `set` directly, so a
+    // same-row round-trip through Room mid-edit can't clobber what's being typed; every write
+    // rebuilds the entry from local state, so editing one field can't revert another not yet
+    // round-tripped. Resynced from `set` while unfocused below, so an external write (e.g.
+    // another row's autofill-on-blur) still reaches an already-composed, non-active row.
     var weight by remember(set.id) {
         mutableStateOf(set.weightKg?.let {
             UnitConverter.formatValue(
@@ -854,6 +989,31 @@ private fun SetRow(
         )
     )
 
+    // Trims the raw typed text to its canonical formatting (e.g. "10.00" -> "10") and, if it's a
+    // real value, fills every later empty set in the same column (item 3 of the punch list).
+    var weightWasFocused by remember(set.id) { mutableStateOf(false) }
+    var repsWasFocused by remember(set.id) { mutableStateOf(false) }
+    // Picks up an autofill written into THIS row from another row's blur — guarded by "not
+    // currently focused" so a same-row round-trip mid-keystroke (this row's own push()
+    // reflected back through Room) can't clobber what's still being typed here.
+    LaunchedEffect(set.weightKg) {
+        if (!weightWasFocused) {
+            weight = set.weightKg?.let {
+                UnitConverter.formatValue(UnitConverter.kgToDisplay(it, weightUnit))
+            } ?: ""
+        }
+    }
+    LaunchedEffect(set.reps) {
+        if (!repsWasFocused) reps = set.reps?.toString() ?: ""
+    }
+
+    // A set can only be checked complete once every numeric field it shows is actually filled in
+    // (unchecking is always allowed, no validation). Once checked, the fields lock — uncheck to
+    // edit them again.
+    val fieldsValid =
+        (isBodyweight || weight.toDoubleOrNull() != null) && reps.toIntOrNull() != null
+    val fieldsEnabled = enabled && !complete
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -870,26 +1030,51 @@ private fun SetRow(
         if (!isBodyweight) {
             OutlinedTextField(
                 value = weight,
-                onValueChange = { weight = it; push() },
+                // Discards anything that isn't a digit or a decimal point on every keystroke.
+                onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' }; push() },
                 label = { Text(UnitConverter.weightLabel(weightUnit).text()) },
                 singleLine = true,
+                enabled = fieldsEnabled,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        if (weightWasFocused && !focusState.isFocused) {
+                            val parsed = weight.toDoubleOrNull()
+                            weight = parsed?.let { UnitConverter.formatValue(it) } ?: ""
+                            if (parsed != null) {
+                                onAutofillWeight(UnitConverter.displayToKg(parsed, weightUnit))
+                            }
+                        }
+                        weightWasFocused = focusState.isFocused
+                    },
             )
         }
         OutlinedTextField(
             value = reps,
-            onValueChange = { reps = it; push() },
+            // Reps are a whole-number count, so only digits survive each keystroke (no period).
+            onValueChange = { reps = it.filter { c -> c.isDigit() }; push() },
             label = { Text(stringResource(R.string.workout_reps_label)) },
             singleLine = true,
+            enabled = fieldsEnabled,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { focusState ->
+                    if (repsWasFocused && !focusState.isFocused) {
+                        val parsed = reps.toIntOrNull()
+                        reps = parsed?.toString() ?: ""
+                        if (parsed != null) onAutofillReps(parsed)
+                    }
+                    repsWasFocused = focusState.isFocused
+                },
         )
         Checkbox(
             checked = complete,
             onCheckedChange = { complete = it; push() },
+            enabled = enabled && (complete || fieldsValid),
         )
-        IconButton(onClick = onDelete) {
+        IconButton(onClick = onDelete, enabled = enabled) {
             Icon(
                 Icons.Filled.Delete,
                 contentDescription = stringResource(R.string.workout_delete_set_description)
@@ -903,6 +1088,7 @@ private fun CardioRow(
     cardio: CardioEntry?,
     workoutExerciseId: Long,
     distanceUnit: UnitSystem,
+    enabled: Boolean,
     onUpdate: (CardioEntry) -> Unit,
 ) {
     val base = cardio ?: CardioEntry(workoutExerciseId = workoutExerciseId, durationSec = 0)
@@ -939,6 +1125,7 @@ private fun CardioRow(
             onValueChange = { minutes = it; push() },
             label = { Text(stringResource(R.string.workout_minutes_label)) },
             singleLine = true,
+            enabled = enabled,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
         )
@@ -954,6 +1141,7 @@ private fun CardioRow(
                 )
             },
             singleLine = true,
+            enabled = enabled,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),
         )
@@ -979,12 +1167,23 @@ private fun RestTimerSheet(
     val remainingSec = ceil(remainingMs / 1000.0).toInt()
     val progress = if (rest.totalSec > 0) (remainingMs / 1000f) / rest.totalSec else 0f
 
-    ModalBottomSheet(onDismissRequest = onStop, sheetState = sheetState) {
+    // Undismissable except via the explicit "Skip rest" button below: no scrim-tap/back-press
+    // dismiss, no swipe-to-dismiss, no drag handle (there's nothing left to drag for).
+    ModalBottomSheet(
+        onDismissRequest = {},
+        sheetState = sheetState,
+        sheetGesturesEnabled = false,
+        dragHandle = null,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = false,
+            shouldDismissOnClickOutside = false,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(top = 24.dp, bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

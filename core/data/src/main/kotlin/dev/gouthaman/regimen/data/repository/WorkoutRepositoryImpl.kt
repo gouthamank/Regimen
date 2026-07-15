@@ -65,10 +65,6 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun updateWorkout(workout: Workout) = dao.updateWorkout(workout.toEntity())
     override suspend fun deleteWorkout(workout: Workout) = dao.deleteWorkout(workout.toEntity())
 
-    override suspend fun setPausedAt(id: Long, pausedAt: Long?) = dao.setPausedAt(id, pausedAt)
-    override suspend fun clearPause(id: Long, accumulatedMs: Long) =
-        dao.clearPause(id, accumulatedMs)
-
     override suspend fun addExercise(item: WorkoutExercise): Long =
         dao.insertWorkoutExercise(item.toEntity())
 

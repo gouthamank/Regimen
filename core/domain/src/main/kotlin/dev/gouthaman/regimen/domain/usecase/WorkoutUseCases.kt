@@ -6,6 +6,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseSpec
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.repository.ExerciseRepository
 import dev.gouthaman.regimen.domain.repository.RoutineRepository
@@ -15,8 +16,8 @@ import javax.inject.Inject
 
 /**
  * Starts a new workout. If [routineId] is given, copies the routine's exercises in and
- * prefills each set from the most recent completed session of that same routine.
- * Returns the new workout id.
+ * prefills each set — and the session note — from the most recent completed session of that
+ * same routine. Returns the new workout id.
  */
 class StartWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
@@ -32,6 +33,14 @@ class StartWorkoutUseCase @Inject constructor(
         val priorSetsByExercise: Map<Long, List<SetEntry>> = prior?.let { p ->
             p.exercises.associate { it.exercise.id to it.sets.sortedBy { s -> s.setNumber } }
         } ?: emptyMap()
+
+        // Carries forward a personal note (e.g. "advance bench next time") from the same
+        // routine's last session, same idea as the per-set prefill below.
+        prior?.workout?.note?.takeIf { it.isNotBlank() }?.let { note ->
+            workoutRepo.getWorkout(workoutId)?.let { current ->
+                workoutRepo.updateWorkout(current.workout.copy(note = note))
+            }
+        }
 
         routine.exercises.sortedBy { it.routineExercise.position }.forEachIndexed { index, item ->
             val weId = workoutRepo.addExercise(
@@ -64,6 +73,11 @@ class FinishWorkoutUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        // Guards against a redundant re-finish (e.g. a double-tap race) and against ever
+        // clobbering a session that's being re-edited (EDITING always has endTime already set,
+        // so it can't be reached via the in-progress-scoped ACTION_END path today regardless —
+        // this is defense-in-depth, matching the same status guard every sibling use-case has).
+        if (w.workoutStatus == WorkoutStatus.COMPLETE || w.workoutStatus == WorkoutStatus.EDITING) return
         val now = System.currentTimeMillis()
         // Settle any in-progress pause into the accumulated total so recorded duration is correct.
         val settledPaused =
@@ -71,20 +85,34 @@ class FinishWorkoutUseCase @Inject constructor(
         workoutRepo.updateWorkout(
             w.copy(
                 endTime = now,
+                workoutStatus = WorkoutStatus.COMPLETE,
                 pausedAt = null,
                 accumulatedPausedMs = settledPaused,
+                restTimeEndAt = null,
+                restTotalSec = null,
+                restWorkoutExerciseId = null,
             )
         )
     }
 }
 
-/** Pauses the session timer (no-op if already paused). */
+/** Pauses the session timer (no-op if already paused). Cancels any active rest countdown rather
+ * than juggling two simultaneous timers under one mechanism. */
 class PauseWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
-        if (w.pausedAt == null) workoutRepo.setPausedAt(workoutId, System.currentTimeMillis())
+        if (w.workoutStatus == WorkoutStatus.PAUSED) return
+        workoutRepo.updateWorkout(
+            w.copy(
+                workoutStatus = WorkoutStatus.PAUSED,
+                pausedAt = System.currentTimeMillis(),
+                restTimeEndAt = null,
+                restTotalSec = null,
+                restWorkoutExerciseId = null,
+            )
+        )
     }
 }
 
@@ -94,9 +122,92 @@ class ResumeWorkoutUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        if (w.workoutStatus != WorkoutStatus.PAUSED) return
         val pausedAt = w.pausedAt ?: return
         val added = (System.currentTimeMillis() - pausedAt).coerceAtLeast(0)
-        workoutRepo.clearPause(workoutId, w.accumulatedPausedMs + added)
+        workoutRepo.updateWorkout(
+            w.copy(
+                workoutStatus = WorkoutStatus.IN_PROGRESS,
+                pausedAt = null,
+                accumulatedPausedMs = w.accumulatedPausedMs + added,
+            )
+        )
+    }
+}
+
+/** Starts (or restarts) a rest countdown tied to [workoutExerciseId], persisted so it survives
+ * process death. No-op while paused or after the workout is finished. */
+class StartRestUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(workoutId: Long, workoutExerciseId: Long, durationSec: Int) {
+        val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        if (w.workoutStatus == WorkoutStatus.PAUSED || w.workoutStatus == WorkoutStatus.COMPLETE) return
+        workoutRepo.updateWorkout(
+            w.copy(
+                workoutStatus = WorkoutStatus.IN_REST_TIME,
+                restTimeEndAt = System.currentTimeMillis() + durationSec * 1000L,
+                restTotalSec = durationSec,
+                restWorkoutExerciseId = workoutExerciseId,
+            )
+        )
+    }
+}
+
+/** Adjusts the running rest countdown by [deltaSec] (e.g. +/- 15s), clamped so remaining time
+ * can't go negative or exceed the original duration. */
+class AdjustRestUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(workoutId: Long, deltaSec: Int) {
+        val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        if (w.workoutStatus != WorkoutStatus.IN_REST_TIME) return
+        val endAt = w.restTimeEndAt ?: return
+        val totalSec = w.restTotalSec ?: return
+        val now = System.currentTimeMillis()
+        workoutRepo.updateWorkout(
+            w.copy(restTimeEndAt = (endAt + deltaSec * 1000L).coerceIn(now, now + totalSec * 1000L))
+        )
+    }
+}
+
+/** Cancels the running rest countdown (e.g. "Skip rest"). */
+class StopRestUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(workoutId: Long) {
+        val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        if (w.workoutStatus != WorkoutStatus.IN_REST_TIME) return
+        workoutRepo.updateWorkout(
+            w.copy(
+                workoutStatus = WorkoutStatus.IN_PROGRESS,
+                restTimeEndAt = null,
+                restTotalSec = null,
+                restWorkoutExerciseId = null,
+            )
+        )
+    }
+}
+
+/** Reopens a finished session for editing (see SessionDetailViewModel.edit()). */
+class EditWorkoutUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(workoutId: Long) {
+        val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        if (w.workoutStatus != WorkoutStatus.COMPLETE) return
+        workoutRepo.updateWorkout(w.copy(workoutStatus = WorkoutStatus.EDITING))
+    }
+}
+
+/** Leaves editing mode, returning a session to its finished state (endTime is untouched by editing). */
+class DoneEditingWorkoutUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(workoutId: Long) {
+        val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
+        if (w.workoutStatus != WorkoutStatus.EDITING) return
+        workoutRepo.updateWorkout(w.copy(workoutStatus = WorkoutStatus.COMPLETE))
     }
 }
 
@@ -266,6 +377,16 @@ class ToggleSkipExerciseUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(exercise: WorkoutExercise) {
         workoutRepo.updateExercise(exercise.copy(isSkipped = !exercise.isSkipped))
+    }
+}
+
+/** Marks an exercise done/reopened for editing — manually (once eligible) or auto-fired when its
+ * last set becomes complete (see ActiveWorkoutViewModel's autoMarkDoneIfAllComplete). */
+class ToggleDoneExerciseUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(exercise: WorkoutExercise) {
+        workoutRepo.updateExercise(exercise.copy(isDone = !exercise.isDone))
     }
 }
 

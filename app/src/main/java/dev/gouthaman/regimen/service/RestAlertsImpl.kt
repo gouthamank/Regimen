@@ -2,7 +2,9 @@ package dev.gouthaman.regimen.service
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
@@ -11,6 +13,7 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.gouthaman.regimen.MainActivity
 import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.service.RestAlerts
 import javax.inject.Inject
@@ -47,10 +50,10 @@ class RestAlertsImpl @Inject constructor(
         manager?.createNotificationChannel(silentChannel)
     }
 
-    override fun fire(chimeEnabled: Boolean) {
+    override fun fire(workoutId: Long, chimeEnabled: Boolean) {
         vibrate()
         if (chimeEnabled) playChime()
-        notifyDone(chimeEnabled)
+        notifyDone(workoutId, chimeEnabled)
     }
 
     private fun vibrate() {
@@ -70,12 +73,23 @@ class RestAlertsImpl @Inject constructor(
         }
     }
 
-    private fun notifyDone(chimeEnabled: Boolean) {
+    private fun notifyDone(workoutId: Long, chimeEnabled: Boolean) {
         val channelId = if (chimeEnabled) CHANNEL_ID else CHANNEL_ID_SILENT
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            // Distinct from ActiveWorkoutService's content-intent request code (0) — both target
+            // MainActivity with no distinguishing action, so sharing a request code would make
+            // Android's PendingIntent matching treat them as the same intent.
+            CONTENT_INTENT_REQUEST_CODE,
+            Intent(context, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_WORKOUT_ID, workoutId),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Rest complete")
             .setContentText("Time for your next set.")
+            .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
@@ -88,5 +102,6 @@ class RestAlertsImpl @Inject constructor(
         private const val CHANNEL_ID = "rest_timer"
         private const val CHANNEL_ID_SILENT = "rest_timer_silent"
         private const val NOTIFICATION_ID = 2001
+        private const val CONTENT_INTENT_REQUEST_CODE = 1
     }
 }

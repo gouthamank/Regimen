@@ -13,11 +13,14 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.service.RestAlerts
 import dev.gouthaman.regimen.domain.usecase.AddExercisesToWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.AddSetUseCase
+import dev.gouthaman.regimen.domain.usecase.AdjustRestUseCase
 import dev.gouthaman.regimen.domain.usecase.CancelWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.DeleteSetUseCase
+import dev.gouthaman.regimen.domain.usecase.DoneEditingWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveExercisesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
@@ -25,6 +28,9 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.PauseWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ResumeWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.StartRestUseCase
+import dev.gouthaman.regimen.domain.usecase.StopRestUseCase
+import dev.gouthaman.regimen.domain.usecase.ToggleDoneExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
@@ -33,13 +39,12 @@ import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -50,6 +55,7 @@ data class ActiveExercise(
     val isStrength: Boolean,
     val equipment: Equipment,
     val isSkipped: Boolean,
+    val isDone: Boolean,
     val sets: List<SetEntry>,
     val cardio: CardioEntry?,
     /** Default rest for this exercise (routine target, or the global default). */
@@ -78,18 +84,23 @@ data class ActiveWorkoutUiState(
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
     val restChimeEnabled: Boolean = true,
+    val status: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
     /** Non-null when the session is paused (millis at which it was paused). */
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
-    /** True once the workout has an end time — finished here or via the notification's End action. */
-    val finished: Boolean = false,
-    /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs
-     * in this mode — see [dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen]. */
-    val isEditingPastSession: Boolean = false,
+    /** Non-null while [status] is [WorkoutStatus.IN_REST_TIME] — the active rest countdown. */
+    val rest: RestTimerState? = null,
     val loaded: Boolean = false,
     val notFound: Boolean = false,
 ) {
-    val isPaused: Boolean get() = pausedAt != null
+    val isPaused: Boolean get() = status == WorkoutStatus.PAUSED
+
+    /** True once the workout has an end time — finished here or via the notification's End action. */
+    val finished: Boolean get() = status == WorkoutStatus.COMPLETE || status == WorkoutStatus.EDITING
+
+    /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs
+     * in this mode — see [dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen]. */
+    val isEditingPastSession: Boolean get() = status == WorkoutStatus.EDITING
 }
 
 @HiltViewModel
@@ -103,6 +114,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val addSetUseCase: AddSetUseCase,
     private val deleteSetUseCase: DeleteSetUseCase,
     private val toggleSkipUseCase: ToggleSkipExerciseUseCase,
+    private val toggleDoneUseCase: ToggleDoneExerciseUseCase,
     private val addExercisesUseCase: AddExercisesToWorkoutUseCase,
     private val upsertCardio: UpsertCardioUseCase,
     private val updateNoteUseCase: UpdateWorkoutNoteUseCase,
@@ -110,15 +122,17 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val cancelWorkoutUseCase: CancelWorkoutUseCase,
     private val pauseWorkoutUseCase: PauseWorkoutUseCase,
     private val resumeWorkoutUseCase: ResumeWorkoutUseCase,
+    private val startRestUseCase: StartRestUseCase,
+    private val adjustRestUseCase: AdjustRestUseCase,
+    private val stopRestUseCase: StopRestUseCase,
+    private val doneEditingWorkoutUseCase: DoneEditingWorkoutUseCase,
     private val restAlerts: RestAlerts,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     val workoutId: Long = savedStateHandle.toRoute<ActiveWorkoutRoute>().workoutId
 
-    private val _rest = MutableStateFlow<RestTimerState?>(null)
-    val rest: StateFlow<RestTimerState?> = _rest.asStateFlow()
-    private var restJob: Job? = null
+    private var restWatchJob: Job? = null
 
     /** All exercises, for the add-exercise picker (all types, including cardio). */
     val allExercises: StateFlow<List<Exercise>> =
@@ -150,13 +164,16 @@ class ActiveWorkoutViewModel @Inject constructor(
                 weightUnit = prefs.weightUnit,
                 distanceUnit = prefs.distanceUnit,
                 restChimeEnabled = prefs.restChimeEnabled,
+                status = workout.workout.workoutStatus,
                 pausedAt = workout.workout.pausedAt,
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
-                finished = workout.workout.endTime != null,
-                // A workout with endTime already set is being reopened for editing (see
-                // SessionDetailViewModel.edit(), which never touches endTime), not a genuinely
-                // live one — a fresh workout starts with endTime == null until FinishWorkoutUseCase runs.
-                isEditingPastSession = workout.workout.endTime != null,
+                rest = if (workout.workout.workoutStatus == WorkoutStatus.IN_REST_TIME) {
+                    RestTimerState(
+                        endAtMillis = workout.workout.restTimeEndAt ?: 0L,
+                        totalSec = workout.workout.restTotalSec ?: 0,
+                        workoutExerciseId = workout.workout.restWorkoutExerciseId ?: 0L,
+                    )
+                } else null,
                 exercises = workout.exercises
                     .sortedBy { it.workoutExercise.position }
                     .map { we ->
@@ -166,6 +183,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                             isStrength = we.exercise.type == ExerciseType.STRENGTH,
                             equipment = we.exercise.equipment,
                             isSkipped = we.workoutExercise.isSkipped,
+                            isDone = we.workoutExercise.isDone,
                             sets = we.sets.sortedBy { it.setNumber },
                             cardio = we.cardio.firstOrNull(),
                             restTargetSec = restByExercise[we.exercise.id] ?: prefs.restDefaultSec,
@@ -176,15 +194,46 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
-    fun updateSet(set: SetEntry) = viewModelScope.launch { upsertSet(set) }
+    fun updateSet(set: SetEntry) = viewModelScope.launch {
+        upsertSet(set)
+        if (set.isComplete) autoMarkDoneIfAllComplete(set)
+    }
 
     fun addSet(workoutExerciseId: Long, lastSet: SetEntry?) =
         viewModelScope.launch { addSetUseCase(workoutExerciseId, lastSet) }
 
     fun deleteSet(set: SetEntry) = viewModelScope.launch { deleteSetUseCase(set) }
 
+    /** On blur of a weight field (item 3): fills every later set in the same exercise whose
+     * weight is still empty with the value just entered into [fromSetId]. */
+    fun autofillWeightBelow(workoutExerciseId: Long, fromSetId: Long, weightKg: Double) {
+        viewModelScope.launch {
+            val sets = uiState.value.exercises
+                .firstOrNull { it.workoutExerciseId == workoutExerciseId }?.sets ?: return@launch
+            val fromSetNumber = sets.firstOrNull { it.id == fromSetId }?.setNumber ?: return@launch
+            sets.filter { it.setNumber > fromSetNumber && it.weightKg == null }
+                .forEach { upsertSet(it.copy(weightKg = weightKg)) }
+        }
+    }
+
+    /** Same as [autofillWeightBelow], for reps. */
+    fun autofillRepsBelow(workoutExerciseId: Long, fromSetId: Long, reps: Int) {
+        viewModelScope.launch {
+            val sets = uiState.value.exercises
+                .firstOrNull { it.workoutExerciseId == workoutExerciseId }?.sets ?: return@launch
+            val fromSetNumber = sets.firstOrNull { it.id == fromSetId }?.setNumber ?: return@launch
+            sets.filter { it.setNumber > fromSetNumber && it.reps == null }
+                .forEach { upsertSet(it.copy(reps = reps)) }
+        }
+    }
+
     fun toggleSkip(exercise: WorkoutExercise) =
         viewModelScope.launch { toggleSkipUseCase(exercise) }
+
+    /** Manual Done/Edit tap. Marking done is gated in the UI (only enabled once every set is
+     * complete); un-marking (Edit, reopening for further edits) is always allowed. */
+    fun toggleDone(exercise: WorkoutExercise) =
+        viewModelScope.launch { toggleDoneUseCase(exercise) }
 
     fun addExercises(ids: List<Long>) =
         viewModelScope.launch { addExercisesUseCase(workoutId, ids) }
@@ -204,65 +253,78 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun discard() = appScope.launch { cancelWorkoutUseCase(workoutId) }
 
-    // ── Rest timer (S14). Manual start; runs alongside the (never-paused) session timer. ──
+    /** Leaves editing mode (Done / Cancel-edit while re-editing a finished session). Runs on the
+     * app scope for the same reason as [finish]/[discard] — the screen navigates away immediately. */
+    fun doneEditing() = appScope.launch { doneEditingWorkoutUseCase(workoutId) }
 
-    /**
-     * Starts (or restarts) a rest countdown for [durationSec] tied to [workoutExerciseId]. When it
-     * runs out it fires the alert; ending it (either way — timeout or [stopRest]) auto-completes
-     * that exercise's first unchecked set (the set just performed).
-     */
-    fun startRest(workoutExerciseId: Long, durationSec: Int) {
-        restJob?.cancel()
-        _rest.value = RestTimerState(
-            endAtMillis = System.currentTimeMillis() + durationSec * 1000L,
-            totalSec = durationSec,
-            workoutExerciseId = workoutExerciseId,
-        )
-        restJob = viewModelScope.launch {
-            while (isActive) {
-                val current = _rest.value ?: break
-                val remaining = current.endAtMillis - System.currentTimeMillis()
-                if (remaining <= 0) {
-                    restAlerts.fire(chimeEnabled = uiState.value.restChimeEnabled)
-                    endRest()
-                    break
+    // ── Rest timer (S14/item 7). Persisted on Workout so it survives process death. The sheet is
+    // undismissable (see RestTimerSheet) — only Skip rest / pause / finish cancel it. ──
+
+    val rest: StateFlow<RestTimerState?> =
+        uiState.map { it.rest }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    init {
+        viewModelScope.launch {
+            uiState.map { it.rest }.distinctUntilChanged().collect { rest ->
+                restWatchJob?.cancel()
+                restWatchJob = null
+                if (rest == null) return@collect
+                restWatchJob = launch {
+                    val remaining = rest.endAtMillis - System.currentTimeMillis()
+                    if (remaining > 0) delay(remaining)
+                    restAlerts.fire(
+                        workoutId = workoutId,
+                        chimeEnabled = uiState.value.restChimeEnabled
+                    )
+                    completeRestSet(rest.workoutExerciseId)
+                    stopRestUseCase(workoutId)
                 }
-                delay(remaining.coerceAtMost(200L))
             }
         }
     }
 
-    /** Clears the rest and ticks the exercise's first unchecked set (the just-performed set). */
-    private fun endRest() {
-        val current = _rest.value ?: return
-        _rest.value = null
+    /** Ticks the exercise's first unchecked set (the just-performed set) when a rest ends. */
+    private suspend fun completeRestSet(workoutExerciseId: Long) {
         val target = uiState.value.exercises
-            .firstOrNull { it.workoutExerciseId == current.workoutExerciseId }
+            .firstOrNull { it.workoutExerciseId == workoutExerciseId }
             ?.sets?.firstOrNull { !it.isComplete }
             ?: return
-        viewModelScope.launch { upsertSet(target.copy(isComplete = true)) }
+        val updated = target.copy(isComplete = true)
+        upsertSet(updated)
+        autoMarkDoneIfAllComplete(updated)
     }
 
-    /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s). Only shifts the deadline; totalSec
-     * (the bar's max) stays fixed so it reflects remaining time, not duration, and is capped so
-     * remaining time can't exceed totalSec (bar can't overfill). */
-    fun addRestTime(deltaSec: Int) {
-        val current = _rest.value ?: return
-        val now = System.currentTimeMillis()
-        _rest.value = current.copy(
-            endAtMillis = (current.endAtMillis + deltaSec * 1000L)
-                .coerceIn(now, now + current.totalSec * 1000L),
-        )
+    /** Unified auto-done trigger: fires whether the last set was completed via the checkbox or
+     * via a rest countdown ending/being skipped. Uses [justCompleted] directly rather than
+     * re-reading [uiState] for that one row, since the Room round-trip for the write just made
+     * may not have landed in [uiState] yet. */
+    private suspend fun autoMarkDoneIfAllComplete(justCompleted: SetEntry) {
+        val exercise = uiState.value.exercises
+            .firstOrNull { it.workoutExerciseId == justCompleted.workoutExerciseId } ?: return
+        if (exercise.isDone) return
+        val sets = exercise.sets.map { if (it.id == justCompleted.id) justCompleted else it }
+        if (sets.isNotEmpty() && sets.all { it.isComplete }) {
+            toggleDoneUseCase(exercise.workoutExercise)
+        }
     }
 
-    /** Stops the rest early (skip/dismiss): no alert, but still ticks the just-performed set. */
+    /** Starts (or restarts) a rest countdown for [durationSec] tied to [workoutExerciseId]. */
+    fun startRest(workoutExerciseId: Long, durationSec: Int) =
+        viewModelScope.launch { startRestUseCase(workoutId, workoutExerciseId, durationSec) }
+
+    /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s), clamped so remaining time can't
+     * exceed the original duration (the bar can't overfill) or go negative. */
+    fun addRestTime(deltaSec: Int) =
+        viewModelScope.launch { adjustRestUseCase(workoutId, deltaSec) }
+
+    /** Stops the rest early (Skip rest): no alert, but still ticks the just-performed set. */
     fun stopRest() {
-        restJob?.cancel()
-        restJob = null
-        endRest()
-    }
-
-    override fun onCleared() {
-        restJob?.cancel()
+        val current = uiState.value.rest ?: return
+        restWatchJob?.cancel()
+        restWatchJob = null
+        viewModelScope.launch {
+            completeRestSet(current.workoutExerciseId)
+            stopRestUseCase(workoutId)
+        }
     }
 }

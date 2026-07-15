@@ -8,5 +8,7 @@ package dev.gouthaman.regimen.domain.service
  * in `domain.repository`.
  */
 interface RestAlerts {
-    fun fire(chimeEnabled: Boolean = true)
+    /** [workoutId] is used to deep-link the notification's tap target back into that session's
+     * Active Workout screen. */
+    fun fire(workoutId: Long, chimeEnabled: Boolean = true)
 }

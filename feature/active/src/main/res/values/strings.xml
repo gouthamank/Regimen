@@ -20,10 +20,14 @@
     <string name="workout_paused_status">%1$s · Paused</string>
     <string name="workout_resume_description">Resume</string>
     <string name="workout_pause_description">Pause</string>
+    <string name="workout_keep_screen_on_description">Keep screen on</string>
+    <string name="workout_allow_screen_sleep_description">Allow screen to sleep</string>
     <string name="workout_done_description">Done</string>
     <string name="workout_include_description">Include</string>
     <string name="workout_skip_description">Skip</string>
     <string name="workout_skipped_label">Skipped</string>
+    <string name="workout_mark_done_description">Mark done</string>
+    <string name="workout_edit_exercise_description">Edit</string>
     <string name="workout_add_set_button">Add set</string>
     <string name="workout_rest_label">Rest</string>
     <string name="workout_reps_label">Reps</string>

@@ -14,6 +14,7 @@ import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.Workout
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutExerciseWithDetails
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 
 /** An actual workout performed on a date. Created from a routine, or freeform (routineId null). */
@@ -35,10 +36,15 @@ data class WorkoutEntity(
     val endTime: Long? = null,
     val note: String? = null,
     val routineId: Long? = null,
+    val workoutStatus: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
     // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
     // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
+    // Rest countdown — all three non-null only while workoutStatus == IN_REST_TIME.
+    val restTimeEndAt: Long? = null,
+    val restTotalSec: Int? = null,
+    val restWorkoutExerciseId: Long? = null,
 )
 
 fun WorkoutEntity.toDomain(): Workout = Workout(
@@ -47,8 +53,12 @@ fun WorkoutEntity.toDomain(): Workout = Workout(
     endTime = endTime,
     note = note,
     routineId = routineId,
+    workoutStatus = workoutStatus,
     pausedAt = pausedAt,
     accumulatedPausedMs = accumulatedPausedMs,
+    restTimeEndAt = restTimeEndAt,
+    restTotalSec = restTotalSec,
+    restWorkoutExerciseId = restWorkoutExerciseId,
 )
 
 fun Workout.toEntity(): WorkoutEntity = WorkoutEntity(
@@ -57,8 +67,12 @@ fun Workout.toEntity(): WorkoutEntity = WorkoutEntity(
     endTime = endTime,
     note = note,
     routineId = routineId,
+    workoutStatus = workoutStatus,
     pausedAt = pausedAt,
     accumulatedPausedMs = accumulatedPausedMs,
+    restTimeEndAt = restTimeEndAt,
+    restTotalSec = restTotalSec,
+    restWorkoutExerciseId = restWorkoutExerciseId,
 )
 
 @Entity(
@@ -85,6 +99,7 @@ data class WorkoutExerciseEntity(
     val exerciseId: Long,
     val position: Int,
     val isSkipped: Boolean = false,
+    val isDone: Boolean = false,
     val supersetGroupId: Long? = null,
 )
 
@@ -94,6 +109,7 @@ fun WorkoutExerciseEntity.toDomain(): WorkoutExercise = WorkoutExercise(
     exerciseId = exerciseId,
     position = position,
     isSkipped = isSkipped,
+    isDone = isDone,
     supersetGroupId = supersetGroupId,
 )
 
@@ -103,6 +119,7 @@ fun WorkoutExercise.toEntity(): WorkoutExerciseEntity = WorkoutExerciseEntity(
     exerciseId = exerciseId,
     position = position,
     isSkipped = isSkipped,
+    isDone = isDone,
     supersetGroupId = supersetGroupId,
 )
 

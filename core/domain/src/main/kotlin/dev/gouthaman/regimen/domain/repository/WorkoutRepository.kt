@@ -34,9 +34,6 @@ interface WorkoutRepository {
     suspend fun updateWorkout(workout: Workout)
     suspend fun deleteWorkout(workout: Workout)
 
-    suspend fun setPausedAt(id: Long, pausedAt: Long?)
-    suspend fun clearPause(id: Long, accumulatedMs: Long)
-
     suspend fun addExercise(item: WorkoutExercise): Long
     suspend fun updateExercise(item: WorkoutExercise)
     suspend fun removeExercise(item: WorkoutExercise)

@@ -165,16 +165,43 @@ The core loop; users spend the majority of session time here.
 - **Session timer** — total elapsed workout time; starts on session begin and runs continuously
   until finish. Resting does not pause it. A distinct **Pause** action (available in-app and from
   the persistent notification) can pause or resume the whole session; the recorded duration
-  excludes paused time.
+  excludes paused time. Pausing while resting cancels the active rest countdown rather than
+  running two timers at once. While paused, logging surfaces are disabled — set/cardio fields,
+  add set, add exercise, skip/un-skip, and the Rest button — so no data can be logged against a
+  frozen timer; the session note field stays editable (it isn't part of the logged workout data
+  pausing is meant to freeze), and Resume/discard remain reachable.
+- **Lifecycle** — a workout's session state is an explicit, persisted `WorkoutStatus` (
+  `IN_PROGRESS`,
+  `IN_REST_TIME`, `PAUSED`, `EDITING`, `COMPLETE`), not inferred from timestamp nullability. This
+  makes the rest countdown, pause state, and editing mode independently recoverable across process
+  death.
 - **Rest mode** — started manually via a Rest button; no auto-start on set completion. Runs
-  alongside the session timer.
+  alongside the session timer, and the countdown itself is persisted (survives process death). The
+  rest sheet is undismissable — tapping the scrim, pressing back, or swiping down all do nothing;
+  only **Skip rest** closes it early (the countdown otherwise runs until it completes on its own).
 - **Per-set logging** — each exercise lists its sets with editable reps and weight. Sets can be
-  added or removed at any point. Each set has a completion checkoff, independent of the rest
-  timer.
-- **Prefill** — each exercise's sets are prefilled from the most recent session of the same
-  routine. For a freeform workout, or a newly added exercise with no history, fields start blank.
-- **Skip** — an exercise can be marked skipped (greyed out, labeled) and un-skipped mid-workout. A
-  left-skipped exercise is recorded in history as skipped (an adherence signal), not removed.
+  added or removed at any point. Each keystroke in a weight/reps field discards anything that
+  isn't a digit (weight also allows one decimal point) — no other characters can be typed. On
+  blur, the field's text is trimmed to its canonical formatting (e.g. "10.00" → "10"), and that
+  value fills every later set in the same exercise whose weight (or reps) is still empty — logging
+  one heavy top set doesn't require retyping the same number into every set below it.
+- **Per-set completion** — a set's checkbox only becomes checkable once its numeric fields are
+  actually filled in (for a non-bodyweight exercise, both weight and reps; unchecking is always
+  allowed, no validation). Once checked, the set's fields lock — uncheck to edit them again.
+- **Prefill** — each exercise's sets, and the session note, are prefilled from the most recent
+  completed session of the same routine (the note is a common place to jot which exercises to
+  advance next time). For a freeform workout, or a newly added exercise with no history, fields
+  start blank.
+- **Skip / Done** — a strength exercise can be marked skipped (bypasses all completion checks) or
+  done (only once every set is checked complete), each via its own header icon toggle; the two are
+  mutually exclusive — marking one hides the other's icon until it's undone. Marking done also
+  fires automatically the moment an exercise's last set becomes complete, whether via its checkbox
+  or via a rest countdown ending/being skipped, so the common case needs no extra tap. Both skip
+  and done collapse the card to a one-line summary (skipped: a plain "Skipped" label; done: each
+  set's logged weight/reps) with a tap target (Include / Edit) to reopen it; done additionally
+  tints the card with the theme's tertiary container color, distinct from skip's neutral
+  surfaceVariant tint. A left-skipped exercise is recorded in history as skipped (an adherence
+  signal), not removed.
 - **Cardio** — a cardio activity can be added to the session, recording duration and distance.
   Cardio entries are session-only; never part of a routine.
 - **Other** — exercises can be added or removed mid-session via the picker; per-set completion is
@@ -184,6 +211,10 @@ The core loop; users spend the majority of session time here.
 - **Persistent notification (foreground service)** — while a workout is active, an ongoing
   notification exposes **Pause** and **End workout** actions and backs the continuously running
   timer. Requires a foreground service and the `POST_NOTIFICATIONS` permission (Android 13+).
+  Tapping it (or the rest-complete notification) deep-links straight into that session's Active
+  Workout screen via an `Intent` extra (`MainActivity.EXTRA_WORKOUT_ID`) read on cold start
+  (`onCreate`) and warm start (`onNewIntent`, since `MainActivity` is `launchMode="singleTop"`) and
+  consumed by `RegimenApp` the same way the in-app "Resume" banner navigates.
 - **Editing a past session** (via Session Detail's Edit) reopens Active Workout without a live
   timer, Pause/Resume, or rest-timer button — the bottom toolbar instead shows a static "Editing
   session" label. Editing never changes the session's original timestamps and does not conflict
@@ -192,6 +223,9 @@ The core loop; users spend the majority of session time here.
   the elapsed timer, Pause/Resume, and Finish. Tinted with the theme's primary color, darkening
   while paused as a status indicator; pausing/resuming animates a circular color reveal
   originating near the Pause/Resume button.
+- **Keep screen on** — a top-app-bar action toggles `keepScreenOn` on the window for as long as
+  Active Workout is open; ephemeral (resets every time the screen is (re)opened), not a saved
+  preference.
 - **Finish** → navigates to Workout Summary.
 
 ---
@@ -200,7 +234,11 @@ The core loop; users spend the majority of session time here.
 
 ### Onboarding and empty states
 
-- Onboarding is minimal — units and theme only, always skippable.
+- Onboarding is minimal — units and theme only, always skippable. Right after it (as soon as
+  `RegimenApp` first composes, before any workout can be started), the app requests
+  `POST_NOTIFICATIONS` (Android 13+) if not already resolved — this is deliberately not requested
+  from within Active Workout itself, since the foreground service's first notification can fire
+  before Compose even navigates there.
 - Empty states are minimal and functional throughout — a short line of text and (where there's a
   concrete fix) a single CTA, no illustrations.
 
@@ -341,8 +379,13 @@ Routine(id, name, position)
 RoutineExercise(id, routineId, exerciseId, position, targetSets, targetReps, targetRestSec,
                 supersetGroupId?)
 
-Workout(id, startTime, endTime, note, routineId?, pausedAt?, accumulatedPausedMs)
-WorkoutExercise(id, workoutId, exerciseId, position, isSkipped, supersetGroupId?)
+Workout(id, startTime, endTime, note, routineId?, workoutStatus, pausedAt?, accumulatedPausedMs,
+        restTimeEndAt?, restTotalSec?, restWorkoutExerciseId?)
+    workoutStatus = IN_PROGRESS | IN_REST_TIME | PAUSED | EDITING | COMPLETE — the single source of
+        truth for session lifecycle; restTimeEndAt/restTotalSec/restWorkoutExerciseId are non-null
+        only while IN_REST_TIME, pausedAt only while PAUSED
+WorkoutExercise(id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId?)
+    isSkipped/isDone are mutually exclusive at the UI level (see Active Workout spec)
 
 SetEntry(id, workoutExerciseId, setNumber, weightKg?, reps?, isComplete)
     strength WorkoutExercises only; weight stored canonically in kg

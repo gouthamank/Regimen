@@ -1,5 +1,11 @@
 package dev.gouthaman.regimen.domain.model
 
+/**
+ * A workout's explicit lifecycle state — the single source of truth for "paused / in rest /
+ * running / done", replacing ad hoc inference from [Workout.pausedAt]/[Workout.endTime] nullability.
+ */
+enum class WorkoutStatus { IN_PROGRESS, IN_REST_TIME, PAUSED, EDITING, COMPLETE }
+
 /** An actual workout performed on a date. Created from a routine, or freeform (routineId null). */
 data class Workout(
     val id: Long = 0,
@@ -7,10 +13,15 @@ data class Workout(
     val endTime: Long? = null,
     val note: String? = null,
     val routineId: Long? = null,
+    val workoutStatus: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
     // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
     // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
+    // Rest countdown — all three non-null only while workoutStatus == IN_REST_TIME.
+    val restTimeEndAt: Long? = null,
+    val restTotalSec: Int? = null,
+    val restWorkoutExerciseId: Long? = null,
 )
 
 data class WorkoutExercise(
@@ -19,6 +30,9 @@ data class WorkoutExercise(
     val exerciseId: Long,
     val position: Int,
     val isSkipped: Boolean = false,
+    // True once every set is logged and checked complete (or auto-set when the last one is,
+    // whether via checkbox or rest-timer completion) — collapses the card until Edit reopens it.
+    val isDone: Boolean = false,
     val supersetGroupId: Long? = null,
 )
 

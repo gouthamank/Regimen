@@ -16,6 +16,7 @@ import dev.gouthaman.regimen.MainActivity
 import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.model.Workout
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
@@ -123,11 +124,16 @@ class ActiveWorkoutService : Service() {
     }
 
     private fun buildNotification(workout: Workout?): android.app.Notification {
-        val paused = workout?.pausedAt != null
+        val paused = workout?.workoutStatus == WorkoutStatus.PAUSED
+        val activityIntent = Intent(this, MainActivity::class.java).apply {
+            // Deep-links straight into this session's Active Workout instead of wherever the app
+            // last was (see MainActivity.EXTRA_WORKOUT_ID / RegimenApp's deepLinkWorkoutId).
+            if (workout != null) putExtra(MainActivity.EXTRA_WORKOUT_ID, workout.id)
+        }
         val contentIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java),
+            activityIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
