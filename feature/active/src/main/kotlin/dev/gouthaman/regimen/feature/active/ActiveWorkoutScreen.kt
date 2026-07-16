@@ -64,6 +64,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -72,6 +73,7 @@ import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ModalBottomSheet
@@ -85,6 +87,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -552,8 +555,6 @@ fun ActiveWorkoutScreen(
     }
 }
 
-private val ToolbarShape = RoundedCornerShape(percent = 50)
-
 /**
  * The session's prominent controls (timer, Pause/Resume, Finish), pulled out of the top bar so it
  * stays title-only. A plain [Surface] pill (shadow+clip+fill), not the alpha
@@ -565,6 +566,7 @@ private val ToolbarShape = RoundedCornerShape(percent = 50)
  * resizing/fading, which never quite read as one coordinated motion. Collapses to a status label +
  * Done while editing a past session.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ActiveWorkoutToolbar(
     isEditing: Boolean,
@@ -575,6 +577,12 @@ private fun ActiveWorkoutToolbar(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // MaterialShapes presets are fixed-aspect RoundedPolygons; Square's rounding stretches
+    // unevenly when scaled to this fillMaxWidth pill, so the wide running state stays on a plain
+    // RoundedCornerShape (whose rounding is aspect-independent) and only the compact, near-square
+    // paused FAB uses the Expressive polygon shape.
+    val activeToolbarShape = RoundedCornerShape(percent = 30)
+    val pausedToolbarShape = MaterialShapes.Slanted.toShape()
     // Paused swaps to the secondary Fixed pairing - a real container/content pair keeps contrast
     // guaranteed in both light/dark (a lerp toward surfaceDim, tried earlier, drifted away from
     // the tone onPrimaryFixed was designed to contrast against and read as illegible).
@@ -633,11 +641,12 @@ private fun ActiveWorkoutToolbar(
         onResume()
     }
 
+    val toolbarShape = if (isPaused) pausedToolbarShape else activeToolbarShape
     Box(
         modifier = modifier
             .scale(pressScale)
-            .shadow(elevation = 8.dp, shape = ToolbarShape)
-            .clip(ToolbarShape)
+            .shadow(elevation = 8.dp, shape = toolbarShape)
+            .clip(toolbarShape)
             .let {
                 // Tapping anywhere on the pill also triggers Pause/Resume (mini-player pattern) - disabled
                 // while editing; Finish's own click still wins as the nested target.
