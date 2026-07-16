@@ -46,6 +46,29 @@ data class SetEntry(
     val isComplete: Boolean = false,
 )
 
+/** One exercise, with its prefilled sets/cardio, to seed a new workout with - see
+ * [dev.gouthaman.regimen.domain.repository.WorkoutRepository.startWorkout]. */
+data class NewWorkoutExercise(
+    val exerciseId: Long,
+    val position: Int,
+    val sets: List<NewSetEntry> = emptyList(),
+    val cardio: NewCardioEntry? = null,
+)
+
+/** One prefilled set within a [NewWorkoutExercise] - no id/workoutExerciseId yet, those are
+ * assigned once the owning workout/exercise rows exist. */
+data class NewSetEntry(
+    val setNumber: Int,
+    val weightKg: Double? = null,
+    val reps: Int? = null,
+)
+
+/** Prefilled cardio within a [NewWorkoutExercise] - see [NewSetEntry]. */
+data class NewCardioEntry(
+    val durationSec: Long = 0,
+    val distanceMeters: Double? = null,
+)
+
 /** A logged cardio bout. Distance stored canonically in meters. */
 data class CardioEntry(
     val id: Long = 0,

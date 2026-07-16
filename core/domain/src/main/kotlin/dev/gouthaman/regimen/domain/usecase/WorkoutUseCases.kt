@@ -4,6 +4,9 @@ import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.ExerciseHistorySession
 import dev.gouthaman.regimen.domain.model.ExerciseSpec
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.NewCardioEntry
+import dev.gouthaman.regimen.domain.model.NewSetEntry
+import dev.gouthaman.regimen.domain.model.NewWorkoutExercise
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.Workout
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
@@ -28,10 +31,10 @@ class StartWorkoutUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(routineId: Long?): Long {
         val now = clock.nowMillis()
-        val workoutId = workoutRepo.createWorkout(now, routineId)
-        if (routineId == null) return workoutId
+        if (routineId == null) return workoutRepo.createWorkout(now, routineId)
 
-        val routine = routineRepo.getRoutine(routineId) ?: return workoutId
+        val routine = routineRepo.getRoutine(routineId)
+            ?: return workoutRepo.createWorkout(now, routineId)
         val prior = workoutRepo.getMostRecentForRoutine(routineId)
         val priorSetsByExercise: Map<Long, List<SetEntry>> = prior?.let { p ->
             p.exercises.associate { it.exercise.id to it.sets.sortedBy { s -> s.setNumber } }
@@ -39,35 +42,29 @@ class StartWorkoutUseCase @Inject constructor(
 
         // Carries forward a personal note (e.g. "advance bench next time") from the same
         // routine's last session, same idea as the per-set prefill below.
-        prior?.workout?.note?.takeIf { it.isNotBlank() }?.let { note ->
-            workoutRepo.getWorkout(workoutId)?.let { current ->
-                workoutRepo.updateWorkout(current.workout.copy(note = note))
-            }
-        }
+        val note = prior?.workout?.note?.takeIf { it.isNotBlank() }
 
-        routine.exercises.sortedBy { it.routineExercise.position }.forEachIndexed { index, item ->
-            val weId = workoutRepo.addExercise(
-                WorkoutExercise(
-                    workoutId = workoutId,
+        // Built up-front, then written in a single transaction (startWorkout) - the previous
+        // version awaited one DB round trip per exercise/set here, which was the dominant source
+        // of tap-to-navigate latency for routine-based workouts.
+        val exercises = routine.exercises.sortedBy { it.routineExercise.position }
+            .mapIndexed { index, item ->
+                val priorSets = priorSetsByExercise[item.exercise.id].orEmpty()
+                val setCount = maxOf(item.routineExercise.targetSets, 1)
+                NewWorkoutExercise(
                     exerciseId = item.exercise.id,
                     position = index,
-                )
-            )
-            val priorSets = priorSetsByExercise[item.exercise.id].orEmpty()
-            val setCount = maxOf(item.routineExercise.targetSets, 1)
-            for (i in 0 until setCount) {
-                val ps = priorSets.getOrNull(i)
-                workoutRepo.upsertSet(
-                    SetEntry(
-                        workoutExerciseId = weId,
-                        setNumber = i + 1,
-                        weightKg = ps?.weightKg,
-                        reps = ps?.reps ?: item.routineExercise.targetReps,
-                    )
+                    sets = (0 until setCount).map { i ->
+                        val ps = priorSets.getOrNull(i)
+                        NewSetEntry(
+                            setNumber = i + 1,
+                            weightKg = ps?.weightKg,
+                            reps = ps?.reps ?: item.routineExercise.targetReps,
+                        )
+                    },
                 )
             }
-        }
-        return workoutId
+        return workoutRepo.startWorkout(now, routineId, note, exercises)
     }
 }
 
@@ -307,32 +304,32 @@ class RepeatWorkoutUseCase @Inject constructor(
         val source = workoutRepo.getWorkout(sourceWorkoutId) ?: return null
         source.workout.routineId?.let { return startWorkoutUseCase(it) }
 
-        val newId = workoutRepo.createWorkout(clock.nowMillis(), routineId = null)
-        source.exercises.sortedBy { it.workoutExercise.position }.forEachIndexed { index, we ->
-            val weId = workoutRepo.addExercise(
-                WorkoutExercise(workoutId = newId, exerciseId = we.exercise.id, position = index)
-            )
-            if (we.exercise.type == ExerciseType.STRENGTH) {
-                val sets = we.sets.sortedBy { it.setNumber }
-                if (sets.isEmpty()) {
-                    workoutRepo.upsertSet(SetEntry(workoutExerciseId = weId, setNumber = 1))
+        // Built up-front, then written in a single transaction (startWorkout) - see
+        // StartWorkoutUseCase for why the sequential-await version of this loop was slow.
+        val exercises = source.exercises.sortedBy { it.workoutExercise.position }
+            .mapIndexed { index, we ->
+                if (we.exercise.type == ExerciseType.STRENGTH) {
+                    val sets = we.sets.sortedBy { it.setNumber }
+                    NewWorkoutExercise(
+                        exerciseId = we.exercise.id,
+                        position = index,
+                        sets = if (sets.isEmpty()) {
+                            listOf(NewSetEntry(setNumber = 1))
+                        } else {
+                            sets.mapIndexed { i, s ->
+                                NewSetEntry(setNumber = i + 1, weightKg = s.weightKg, reps = s.reps)
+                            }
+                        },
+                    )
                 } else {
-                    sets.forEachIndexed { i, s ->
-                        workoutRepo.upsertSet(
-                            SetEntry(
-                                workoutExerciseId = weId,
-                                setNumber = i + 1,
-                                weightKg = s.weightKg,
-                                reps = s.reps,
-                            )
-                        )
-                    }
+                    NewWorkoutExercise(
+                        exerciseId = we.exercise.id,
+                        position = index,
+                        cardio = NewCardioEntry(durationSec = 0),
+                    )
                 }
-            } else {
-                workoutRepo.upsertCardio(CardioEntry(workoutExerciseId = weId, durationSec = 0))
             }
-        }
-        return newId
+        return workoutRepo.startWorkout(clock.nowMillis(), routineId = null, note = null, exercises)
     }
 }
 

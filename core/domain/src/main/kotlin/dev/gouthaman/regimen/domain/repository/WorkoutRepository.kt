@@ -2,6 +2,7 @@ package dev.gouthaman.regimen.domain.repository
 
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.ExerciseHistorySession
+import dev.gouthaman.regimen.domain.model.NewWorkoutExercise
 import dev.gouthaman.regimen.domain.model.PersonalRecordRow
 import dev.gouthaman.regimen.domain.model.RepsRecordRow
 import dev.gouthaman.regimen.domain.model.SetEntry
@@ -30,6 +31,15 @@ interface WorkoutRepository {
     suspend fun isExerciseUsed(exerciseId: Long): Boolean
 
     suspend fun createWorkout(startTime: Long, routineId: Long?): Long
+
+    /** Atomically creates a workout with all its exercises and prefilled sets in one transaction,
+     * instead of the caller awaiting a separate DB round trip per exercise/set. */
+    suspend fun startWorkout(
+        startTime: Long,
+        routineId: Long?,
+        note: String?,
+        exercises: List<NewWorkoutExercise>,
+    ): Long
 
     suspend fun updateWorkout(workout: Workout)
     suspend fun deleteWorkout(workout: Workout)

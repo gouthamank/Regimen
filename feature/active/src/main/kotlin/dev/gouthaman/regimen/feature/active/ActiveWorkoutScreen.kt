@@ -420,8 +420,12 @@ fun ActiveWorkoutScreen(
                             onStartRest = onStartRest,
                             showRestTimer = !isEditing,
                             enabled = !uiState.isPaused,
-                            // Animates a newly-added exercise's appearance (also reorder/removal, though neither happens here yet).
-                            modifier = Modifier.animateItem(),
+                            // No animateItem() here: these cards are never reordered or removed
+                            // (only added/skipped/completed), so the only thing that animation
+                            // would do is fade+scale in the *entire* list at once on first load
+                            // (every card "enters" simultaneously the moment the Flow's first
+                            // emission lands) - which read as pop-in jank rather than a useful cue.
+                            modifier = Modifier,
                         )
                     }
 

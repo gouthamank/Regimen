@@ -17,6 +17,14 @@ import dev.gouthaman.regimen.data.local.entity.WorkoutExerciseEntity
 import dev.gouthaman.regimen.data.local.entity.WorkoutWithDetailsEntity
 import kotlinx.coroutines.flow.Flow
 
+/** One row to insert via [WorkoutDao.insertWorkoutWithExercises] - workoutId/workoutExerciseId
+ * placeholders in [workoutExercise]/[sets]/[cardio] are overwritten there once real ids exist. */
+data class NewWorkoutExerciseRow(
+    val workoutExercise: WorkoutExerciseEntity,
+    val sets: List<SetEntryEntity> = emptyList(),
+    val cardio: CardioEntryEntity? = null,
+)
+
 @Dao
 interface WorkoutDao {
     @Transaction
@@ -128,6 +136,25 @@ interface WorkoutDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkout(workout: WorkoutEntity): Long
+
+    /** Inserts [workout] plus every exercise (and its prefilled sets/cardio) in one transaction,
+     * instead of one round trip per row - the sequential-await version of this was the dominant
+     * latency source when starting a routine-based (or repeated freeform) workout. Each row's
+     * workoutId/workoutExerciseId placeholders are overwritten here once the real parent ids exist. */
+    @Transaction
+    suspend fun insertWorkoutWithExercises(
+        workout: WorkoutEntity,
+        exercises: List<NewWorkoutExerciseRow>,
+    ): Long {
+        val workoutId = insertWorkout(workout)
+        exercises.forEach { row ->
+            val workoutExerciseId =
+                insertWorkoutExercise(row.workoutExercise.copy(workoutId = workoutId))
+            row.sets.forEach { upsertSet(it.copy(workoutExerciseId = workoutExerciseId)) }
+            row.cardio?.let { upsertCardio(it.copy(workoutExerciseId = workoutExerciseId)) }
+        }
+        return workoutId
+    }
 
     @Update
     suspend fun updateWorkout(workout: WorkoutEntity)

@@ -6,6 +6,7 @@ import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseHistorySession
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
+import dev.gouthaman.regimen.domain.model.NewWorkoutExercise
 import dev.gouthaman.regimen.domain.model.PersonalRecordRow
 import dev.gouthaman.regimen.domain.model.RepsRecordRow
 import dev.gouthaman.regimen.domain.model.SetEntry
@@ -132,6 +133,52 @@ class FakeWorkoutRepository : WorkoutRepository {
             exercises = emptyList(),
         )
         return id
+    }
+
+    override suspend fun startWorkout(
+        startTime: Long,
+        routineId: Long?,
+        note: String?,
+        exercises: List<NewWorkoutExercise>,
+    ): Long {
+        val workoutId = createWorkout(startTime, routineId)
+        if (note != null) updateWorkout(
+            Workout(
+                id = workoutId,
+                startTime = startTime,
+                routineId = routineId,
+                note = note
+            )
+        )
+        exercises.forEach { ex ->
+            val weId = addExercise(
+                WorkoutExercise(
+                    workoutId = workoutId,
+                    exerciseId = ex.exerciseId,
+                    position = ex.position
+                )
+            )
+            ex.sets.forEach { set ->
+                upsertSet(
+                    SetEntry(
+                        workoutExerciseId = weId,
+                        setNumber = set.setNumber,
+                        weightKg = set.weightKg,
+                        reps = set.reps,
+                    )
+                )
+            }
+            ex.cardio?.let { cardio ->
+                upsertCardio(
+                    CardioEntry(
+                        workoutExerciseId = weId,
+                        durationSec = cardio.durationSec,
+                        distanceMeters = cardio.distanceMeters,
+                    )
+                )
+            }
+        }
+        return workoutId
     }
 
     override suspend fun updateWorkout(workout: Workout) {
