@@ -29,7 +29,7 @@ fun NavGraphBuilder.exerciseGraph(
     }
     composable<ExerciseDetailRoute>(
         // Detail is the destination of the Library row's container transform, so its own
-        // entrance/exit-back-to-Library slide would fight that growth/shrink — suppress it.
+        // entrance/exit-back-to-Library slide would fight that growth/shrink - suppress it.
         enterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None },
     ) {
@@ -42,7 +42,7 @@ fun NavGraphBuilder.exerciseGraph(
     }
     dialog<EditExerciseRoute>(
         // A real dialog destination: unlike composable<Route>, it does NOT replace/dispose
-        // the screen that launched it (Library, Detail, Active Workout, Routine Editor) —
+        // the screen that launched it (Library, Detail, Active Workout, Routine Editor) -
         // that screen stays composed and visible underneath. Content is a plain
         // ModalBottomSheet (same as StartWorkoutSheet/FilterSheet elsewhere).
         dialogProperties = DialogProperties(usePlatformDefaultWidth = false),

@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
-    // Set from onCreate/onNewIntent, consumed (and cleared) once RegimenApp navigates to it —
+    // Set from onCreate/onNewIntent, consumed (and cleared) once RegimenApp navigates to it -
     // see extractWorkoutDeepLink. Compose state (not a plain var) so a warm-start onNewIntent
     // triggers recomposition/navigation without needing to recreate the Activity.
     private var pendingWorkoutDeepLink by mutableStateOf<Long?>(null)

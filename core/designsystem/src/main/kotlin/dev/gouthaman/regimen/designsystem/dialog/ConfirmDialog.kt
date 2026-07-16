@@ -8,7 +8,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 
 /**
- * A title/text confirmation with a confirm action and an optional dismiss action — shared by
+ * A title/text confirmation with a confirm action and an optional dismiss action - shared by
  * every delete/discard/finish confirmation across the app. Omit [dismissLabel] for an
  * acknowledgment-only dialog with a single button (e.g. an info dialog explaining why an action
  * was blocked). [destructive] colors the confirm button with the error color, for actions that

@@ -29,13 +29,13 @@ import kotlinx.coroutines.channels.Channel
  * handed the dragged/target *keys*, not indices, so the caller resolves them against its own
  * always-current working list. This matters because [LazyListState.layoutInfo] can be a
  * recomposition frame stale relative to a just-applied swap (state writes here don't relayout
- * synchronously) — if the caller trusted this class's *indices* for the next swap instead of
+ * synchronously) - if the caller trusted this class's *indices* for the next swap instead of
  * looking the keys up fresh, a burst of touch-move events arriving faster than layout catches up
  * would compound stale swaps into wildly wrong positions (observed as the dragged item rocketing
  * to the end of the list after the very first swap).
  *
  * [draggableIndices] bounds which *global* LazyColumn item indices are valid swap targets (and
- * valid drag starts) — needed whenever the list has non-reorderable items (headers, trailing
+ * valid drag starts) - needed whenever the list has non-reorderable items (headers, trailing
  * "add" buttons, etc.) alongside the reorderable ones, so a drag can't match one of those as a
  * target. Defaults to unbounded (every visible item is a valid target), which is correct when the
  * whole list is reorderable.
@@ -90,7 +90,7 @@ class DragDropState internal constructor(
         }
 
         if (target != null) {
-            // No offset recalibration here — draggingItemInitialOffset stays fixed at the value
+            // No offset recalibration here - draggingItemInitialOffset stays fixed at the value
             // captured once in onDragStart. draggingItemOffset's formula (initial position + total
             // raw finger delta - item's current reported offset) already self-corrects as layout
             // catches up, regardless of swap count; recalibrating on every match compounded
@@ -134,7 +134,7 @@ fun rememberDragDropState(
  * Attach to a drag-handle composable. [index] is the item's current index; [onDragStopped] fires
  * once the gesture ends (drop or cancel) so the caller can persist the final order.
  *
- * The gesture detector is keyed only on [state] — never on [index] — because a reorder changes an
+ * The gesture detector is keyed only on [state] - never on [index] - because a reorder changes an
  * item's index mid-drag, and re-keying `pointerInput` there would cancel the in-flight gesture and
  * swallow the pointer-up (leaving the item stuck lifted). We read the latest index/callback via
  * [rememberUpdatedState] instead. Only the index at drag *start* matters; subsequent swaps are

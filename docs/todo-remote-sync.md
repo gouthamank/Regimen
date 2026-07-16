@@ -1,8 +1,8 @@
-# Remote sync (future — not started)
+# Remote sync (future - not started)
 
 Regimen is local-only today (see `docs/architecture.md`); this doc tracks two pieces of
 groundwork discussed for eventual multi-device sync, kept separate until either is actually
-picked up. Not scheduled — revisit before starting either.
+picked up. Not scheduled - revisit before starting either.
 
 ## Status legend
 
@@ -14,7 +14,7 @@ picked up. Not scheduled — revisit before starting either.
 
 ## Option A: UUID primary-key migration
 
-Prerequisite for *any* real backend sync (custom server or Firestore) — autoincrement `Long`
+Prerequisite for *any* real backend sync (custom server or Firestore) - autoincrement `Long`
 IDs collide across devices, since two offline devices can independently generate the same next
 ID. Worth doing before a backend exists, since it's a local-only schema change either way.
 
@@ -34,13 +34,13 @@ ID. Worth doing before a backend exists, since it's a local-only schema change e
       then `SetEntry`/`CardioEntry`).
     - Generate a UUID per old row, maintain an old-`Long`-ID → new-UUID map per entity type, and
       remap every FK column using that map before dropping the old tables.
-    - Test against a real pre-migration DB snapshot, not just a fresh install — remap-order bugs
+  - Test against a real pre-migration DB snapshot, not just a fresh install - remap-order bugs
       silently corrupt relationships rather than crashing.
 - [ ] Bump `Database version` past the current 5 and note it in `docs/architecture.md`'s data
   model section once done.
 
 **Scope estimate:** multi-day, wide-but-mechanical (touches every module in the ID path) but
-low design risk — the only genuinely delicate part is the migration's FK remapping.
+low design risk - the only genuinely delicate part is the migration's FK remapping.
 
 ---
 
@@ -56,7 +56,7 @@ is done first, since Firestore document IDs need the same global-uniqueness prop
   `users/{uid}/workouts/{workoutId}`).
 - [ ] Decide the sync direction/trigger: Firestore's offline cache + listener model handles most
   of what a hand-rolled delta-sync engine would need (local cache, background sync, reconnect
-  handling) — confirm this covers Regimen's actual read/write patterns before assuming it's a
+  handling) - confirm this covers Regimen's actual read/write patterns before assuming it's a
   full replacement for Room, or whether Room stays the local source of truth with a sync layer
   bridging to Firestore.
 - [ ] Conflict resolution: Firestore's default last-write-wins per-document is probably
@@ -65,14 +65,14 @@ is done first, since Firestore document IDs need the same global-uniqueness prop
   Firestore on first sign-in.
 
 **Cost:** free at personal-use scale. Firebase Auth is free for Google Sign-In. Firestore's
-Spark (free) tier — 1 GiB storage, 50K reads/day, 20K writes/day, 20K deletes/day, 10 GiB
-egress/month, no credit card required — comfortably covers a single-user (or small handful of
+Spark (free) tier - 1 GiB storage, 50K reads/day, 20K writes/day, 20K deletes/day, 10 GiB
+egress/month, no credit card required - comfortably covers a single-user (or small handful of
 users) workout log. Only exceeding those quotas (real multi-user scale) would require the
 pay-as-you-go Blaze plan.
 
 **Open question:** whether this fully replaces the "build a custom backend" idea, or is only
 the auth/sync transport with a custom backend still doing something else. Revisit once actual
 sync requirements (multi-device simultaneous use? sharing data between users? none of the
-above, just disaster recovery?) are clearer — if it's just disaster recovery, Android's Auto
-Backup for Apps (see `docs/architecture.md`'s Settings section — data export is deferred) may
+above, just disaster recovery?) are clearer - if it's just disaster recovery, Android's Auto
+Backup for Apps (see `docs/architecture.md`'s Settings section - data export is deferred) may
 be sufficient without any of this.

@@ -30,7 +30,7 @@
     <string name="workout_edit_exercise_description">Edit</string>
     <string name="workout_add_set_button">Add set</string>
     <string name="workout_rest_label">Rest</string>
-    <string name="workout_rest_set_invalid_snackbar">Couldn\'t mark set done — fill in its weight/reps first</string>
+    <string name="workout_rest_set_invalid_snackbar">Couldn\'t mark set done - fill in its weight/reps first</string>
     <string name="workout_reps_label">Reps</string>
     <string name="workout_delete_set_description">Delete set</string>
     <string name="workout_minutes_label">Minutes</string>

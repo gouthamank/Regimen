@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * A centered "nothing here yet" message, with an optional icon and an optional single action
- * button — shared by every screen's empty list/search-result state. Sizing is the caller's
+ * button - shared by every screen's empty list/search-result state. Sizing is the caller's
  * responsibility (e.g. `Modifier.fillMaxSize()` when this is the screen's sole content,
  * `Modifier.fillMaxWidth()` when it's one item inside a scrollable list).
  */

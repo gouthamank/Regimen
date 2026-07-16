@@ -1,7 +1,7 @@
 package dev.gouthaman.regimen.domain.model
 
 /**
- * A workout's explicit lifecycle state — the single source of truth for "paused / in rest /
+ * A workout's explicit lifecycle state - the single source of truth for "paused / in rest /
  * running / done", replacing ad hoc inference from [Workout.pausedAt]/[Workout.endTime] nullability.
  */
 enum class WorkoutStatus { IN_PROGRESS, IN_REST_TIME, PAUSED, EDITING, COMPLETE }
@@ -18,7 +18,7 @@ data class Workout(
     // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
-    // Rest countdown — all three non-null only while workoutStatus == IN_REST_TIME.
+    // Rest countdown - all three non-null only while workoutStatus == IN_REST_TIME.
     val restTimeEndAt: Long? = null,
     val restTotalSec: Int? = null,
     val restWorkoutExerciseId: Long? = null,
@@ -31,7 +31,7 @@ data class WorkoutExercise(
     val position: Int,
     val isSkipped: Boolean = false,
     // True once every set is logged and checked complete (or auto-set when the last one is,
-    // whether via checkbox or rest-timer completion) — collapses the card until Edit reopens it.
+    // whether via checkbox or rest-timer completion) - collapses the card until Edit reopens it.
     val isDone: Boolean = false,
     val supersetGroupId: Long? = null,
 )
@@ -80,7 +80,7 @@ data class PersonalRecordRow(
     val bestWeightKg: Double,
 )
 
-/** Aggregate result: best reps in a single set for bodyweight exercises — PR definition when there's no [PersonalRecordRow]. */
+/** Aggregate result: best reps in a single set for bodyweight exercises - PR definition when there's no [PersonalRecordRow]. */
 data class RepsRecordRow(
     val exerciseId: Long,
     val bestReps: Int,

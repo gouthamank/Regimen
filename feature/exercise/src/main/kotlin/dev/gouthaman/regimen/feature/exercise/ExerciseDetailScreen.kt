@@ -38,7 +38,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
@@ -91,9 +91,9 @@ fun ExerciseDetailScreen(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
     deleteBlockedInfo: ExerciseDeleteBlockedInfo? = null,
     onDismissDeleteBlocked: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val exercise = uiState.exercise
@@ -238,19 +238,19 @@ private fun ExerciseDetailContent(
     distanceUnit: UnitSystem,
 ) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.exercise_detail_type_label)) },
+        content = { Text(stringResource(R.string.exercise_detail_type_label)) },
         trailingContent = { Text(exercise.type.label()) },
     )
     ListItem(
-        headlineContent = { Text(stringResource(R.string.exercise_detail_muscle_group_label)) },
+        content = { Text(stringResource(R.string.exercise_detail_muscle_group_label)) },
         trailingContent = { Text(exercise.muscleGroup.label()) },
     )
     ListItem(
-        headlineContent = { Text(stringResource(R.string.exercise_detail_equipment_label)) },
+        content = { Text(stringResource(R.string.exercise_detail_equipment_label)) },
         trailingContent = { Text(exercise.equipment.label()) },
     )
     ListItem(
-        headlineContent = { Text(stringResource(R.string.exercise_detail_source_label)) },
+        content = { Text(stringResource(R.string.exercise_detail_source_label)) },
         trailingContent = {
             Text(
                 stringResource(
@@ -300,7 +300,7 @@ private fun ExerciseDetailContent(
             val entryLabels = item.sets.map { SessionFormat.setLabel(it, weightUnit) } +
                     item.cardio.map { SessionFormat.cardioLabel(it, distanceUnit) }
             ListItem(
-                headlineContent = { Text(item.dateLabel) },
+                content = { Text(item.dateLabel) },
                 supportingContent = { Text(entryLabels.joinToString(" · ")) },
             )
         }

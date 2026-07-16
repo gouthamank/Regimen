@@ -49,7 +49,7 @@ fun BodyMetricEntity.toDomain(): BodyMetric =
 fun BodyMetric.toEntity(): BodyMetricEntity =
     BodyMetricEntity(id = id, measurementTypeId = measurementTypeId, date = date, value = value)
 
-/** A body metric with its measurement type resolved. Currently unused (no DAO query returns it) —
+/** A body metric with its measurement type resolved. Currently unused (no DAO query returns it) -
  * kept as a Room-only type with no domain mirror since nothing consumes it. */
 data class BodyMetricWithTypeEntity(
     @Embedded val metric: BodyMetricEntity,

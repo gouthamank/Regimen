@@ -9,7 +9,7 @@ import dev.gouthaman.regimen.domain.util.UnitConverter
 /**
  * Bodyweight (the built-in type) is stored canonically in kg and displayed in the user's chosen
  * weight unit. Custom types carry their own free-text unit (e.g. "cm", "%") and are stored and
- * shown as-entered — no conversion.
+ * shown as-entered - no conversion.
  */
 object MeasurementFormat {
 

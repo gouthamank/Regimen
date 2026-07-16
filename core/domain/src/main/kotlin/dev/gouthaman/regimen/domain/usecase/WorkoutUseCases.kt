@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 /**
  * Starts a new workout. If [routineId] is given, copies the routine's exercises in and
- * prefills each set — and the session note — from the most recent completed session of that
+ * prefills each set - and the session note - from the most recent completed session of that
  * same routine. Returns the new workout id.
  */
 class StartWorkoutUseCase @Inject constructor(
@@ -79,7 +79,7 @@ class FinishWorkoutUseCase @Inject constructor(
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         // Guards against a redundant re-finish (e.g. a double-tap race) and against ever
         // clobbering a session that's being re-edited (EDITING always has endTime already set,
-        // so it can't be reached via the in-progress-scoped ACTION_END path today regardless —
+        // so it can't be reached via the in-progress-scoped ACTION_END path today regardless -
         // this is defense-in-depth, matching the same status guard every sibling use-case has).
         if (w.workoutStatus == WorkoutStatus.COMPLETE || w.workoutStatus == WorkoutStatus.EDITING) return
         val now = clock.nowMillis()
@@ -254,7 +254,7 @@ class ObserveHistoryUseCase @Inject constructor(
     operator fun invoke(): Flow<List<WorkoutWithDetails>> = workoutRepo.observeCompleted()
 }
 
-/** Completed workouts within [start, end] (inclusive), lightweight (no exercises/sets/cardio) —
+/** Completed workouts within [start, end] (inclusive), lightweight (no exercises/sets/cardio) -
  * scopes History's calendar + recent-workouts list to just the visible month, instead of loading
  * every workout ever logged with its full details. */
 class ObserveWorkoutsInRangeUseCase @Inject constructor(
@@ -264,7 +264,7 @@ class ObserveWorkoutsInRangeUseCase @Inject constructor(
         workoutRepo.observeCompletedBetween(start, end)
 }
 
-/** Every finished session that logged a specific exercise, most recent first — used by
+/** Every finished session that logged a specific exercise, most recent first - used by
  * Exercise Detail's History section. */
 class ObserveExerciseHistoryUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
@@ -399,7 +399,7 @@ class ToggleSkipExerciseUseCase @Inject constructor(
     }
 }
 
-/** Marks an exercise done/reopened for editing — manually (once eligible) or auto-fired when its
+/** Marks an exercise done/reopened for editing - manually (once eligible) or auto-fired when its
  * last set becomes complete (see ActiveWorkoutViewModel's autoMarkDoneIfAllComplete). */
 class ToggleDoneExerciseUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
@@ -426,7 +426,7 @@ class AddExercisesToWorkoutUseCase @Inject constructor(
                 WorkoutExercise(workoutId = workoutId, exerciseId = exId, position = position)
             )
             if (exercise.type == ExerciseType.STRENGTH) {
-                // Prefill from this exercise's own most recent logged set (any past workout) —
+                // Prefill from this exercise's own most recent logged set (any past workout) -
                 // same idea as StartWorkoutUseCase's prefill, keyed by exercise instead of slot.
                 val lastSet = workoutRepo.getMostRecentSetForExercise(exId)
                 workoutRepo.upsertSet(

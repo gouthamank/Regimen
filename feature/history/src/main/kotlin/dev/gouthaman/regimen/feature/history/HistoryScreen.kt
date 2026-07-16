@@ -45,7 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
@@ -80,10 +80,11 @@ fun HistoryScreen(
     onMonthChange: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // A day tapped with more than one session surfaces a picker dialog. Stored as an explicit
-    // ArrayList since Bundle-backed rememberSaveable needs the list container itself to be
-    // Serializable too, not just its elements (DaySession is Serializable).
-    var pickerDay by rememberSaveable { mutableStateOf<ArrayList<DaySession>?>(null) }
+    // A day tapped with more than one session surfaces a picker dialog. Assigned an ArrayList
+    // since Bundle-backed rememberSaveable needs the list container itself to be Serializable
+    // too, not just its elements (DaySession is Serializable) - but typed as List so the state
+    // can't be mutated in place without going through the setter.
+    var pickerDay by rememberSaveable { mutableStateOf<List<DaySession>?>(null) }
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -99,7 +100,7 @@ fun HistoryScreen(
         },
     ) { innerPadding ->
         // BookOrExpanded caps and centers the calendar at the same 600dp breakpoint as
-        // Onboarding/Routines — a 7-column grid stretched full-bleed on a wide window would
+        // Onboarding/Routines - a 7-column grid stretched full-bleed on a wide window would
         // blow up each day cell far beyond a useful tap target. Compact/Tabletop unchanged.
         Box(
             modifier = Modifier
@@ -115,7 +116,7 @@ fun HistoryScreen(
                 Modifier.fillMaxWidth()
             }
             // Horizontal inset lives on the calendar/header themselves (not LazyColumn's
-            // contentPadding) — ListItem's classic overload bakes in its own 16dp start/end with
+            // contentPadding) - ListItem's classic overload bakes in its own 16dp start/end with
             // no override, so adding it again here would double the inset on list rows only.
             LazyColumn(
                 modifier = contentModifier,
@@ -164,7 +165,7 @@ fun HistoryScreen(
                     }
                     items(uiState.recentSessions, key = { it.workoutId }) { session ->
                         ListItem(
-                            headlineContent = {
+                            content = {
                                 Text(
                                     session.routineName
                                         ?: stringResource(R.string.history_quick_workout_fallback)
@@ -192,7 +193,7 @@ fun HistoryScreen(
                 Column {
                     sessions.forEach { session ->
                         ListItem(
-                            headlineContent = {
+                            content = {
                                 Text(
                                     session.routineName
                                         ?: stringResource(R.string.history_quick_workout_fallback)
@@ -246,7 +247,7 @@ private fun MonthHeader(
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f),
         )
-        // Can't page into future months — there's nothing there to see yet.
+        // Can't page into future months - there's nothing there to see yet.
         IconButton(onClick = onNext, enabled = canGoNext) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -322,7 +323,7 @@ private fun DayCell(
     sessions: List<DaySession>,
     onClick: (List<DaySession>) -> Unit,
 ) {
-    // Future dates can't have a logged session yet — dim them so they read as not-yet-available, not just empty.
+    // Future dates can't have a logged session yet - dim them so they read as not-yet-available, not just empty.
     val hasWorkout = sessions.isNotEmpty() && !isFuture
     var cell = Modifier
         .padding(4.dp)
@@ -334,7 +335,7 @@ private fun DayCell(
         isToday -> cell.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
         else -> cell
     }
-    // Always clickable (enabled = hasWorkout) rather than conditionally adding the modifier — that's
+    // Always clickable (enabled = hasWorkout) rather than conditionally adding the modifier - that's
     // how Compose exposes a proper disabled state to accessibility services (TalkBack), instead
     // of the node silently not existing.
     val viewSessionsLabel = stringResource(R.string.history_day_view_sessions_click_label)

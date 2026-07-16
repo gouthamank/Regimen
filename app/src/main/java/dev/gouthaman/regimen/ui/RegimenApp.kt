@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -65,13 +65,13 @@ fun RegimenApp(
 
     // Tracks which bottom tab stays highlighted. Routes live in one flat NavHost (no per-tab
     // nested graphs), so a pushed detail screen (e.g. Session Detail) has no graph-level tie back
-    // to its tab — and restoreState can land back on that detail screen rather than the tab root,
+    // to its tab - and restoreState can land back on that detail screen rather than the tab root,
     // so this can't be inferred from the resolved destination alone. Set eagerly at the point of
     // intent (see onNavigateToTab / navigateToTab call sites); the listener below only fills in
     // non-explicit cases (cold start, popping back to a tab's own root).
     //
     // Saved as an index into topLevelDestinations via rememberSaveable, not remember or the route
-    // object itself — plain `remember` was lost on rotation (Activity recreation), resetting this
+    // object itself - plain `remember` was lost on rotation (Activity recreation), resetting this
     // to null with no tab highlighted after rotating on a non-top-level screen like Session
     // Detail. The listener's immediate re-add callback only matches top-level destinations
     // directly, so it couldn't recover the value either.
@@ -101,7 +101,7 @@ fun RegimenApp(
     }
 
     // Tapping the in-progress/rest-complete notification (MainActivity's EXTRA_WORKOUT_ID) lands
-    // here the same way the "Resume" banner's onResume does — anchored under Home regardless of
+    // here the same way the "Resume" banner's onResume does - anchored under Home regardless of
     // the current tab. Skipped if already inside the workout flow (e.g. re-tapping the
     // notification while the screen's already open) to avoid pushing a duplicate destination.
     LaunchedEffect(deepLinkWorkoutId) {
@@ -117,11 +117,11 @@ fun RegimenApp(
 
     // Requested here (app launch, right after onboarding gates past MainActivity) rather than
     // inside Active Workout, so it's always resolved (granted or denied) well before a workout
-    // can ever start — the system dialog is modal, so the user can't reach Home/Start Workout
+    // can ever start - the system dialog is modal, so the user can't reach Home/Start Workout
     // while it's showing. This closes a real race (item 11 of the Active Workout punch list):
     // asking from inside Active Workout meant the foreground service's first startForeground()
-    // call — fired the instant the workout's DB row is written, before Compose even navigates
-    // there — could beat the permission grant, silently suppressing that first notification with
+    // call - fired the instant the workout's DB row is written, before Compose even navigates
+    // there - could beat the permission grant, silently suppressing that first notification with
     // nothing to retroactively re-post it.
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -138,7 +138,7 @@ fun RegimenApp(
 
     NavigationSuiteScaffold(
         layoutType = windowInfo.posture.toNavigationSuiteType(),
-        // NavigationRail defaults to colorScheme.surface, NavigationBar to surfaceContainer — the
+        // NavigationRail defaults to colorScheme.surface, NavigationBar to surfaceContainer - the
         // same tone a MediumTopAppBar collapses to on scroll. Pinned to surfaceContainer here so
         // the rail (BookOrExpanded) matches that tone too, not just the bottom bar (Compact/Tabletop).
         navigationSuiteColors = NavigationSuiteDefaults.colors(
@@ -164,7 +164,7 @@ fun RegimenApp(
         },
     ) {
         // Resume banner sits directly below RegimenNavHost regardless of bottom bar vs. side rail
-        // — same "docked next to navigation" convention as a mini-player. Grouped with
+        // - same "docked next to navigation" convention as a mini-player. Grouped with
         // RegimenNavHost as one unit so both get the same width treatment below; otherwise a
         // capped/centered NavHost with a full-bleed banner looked inconsistent, banner visibly
         // wider than the content above it.
@@ -177,7 +177,7 @@ fun RegimenApp(
                     viewLabel = stringResource(R.string.workout_in_progress_banner_view_label),
                     onResume = {
                         // Active Workout is Home's child exclusively (see the nav map in
-                        // RegimenNavHost.kt) — Resume always anchors there regardless of which tab
+                        // RegimenNavHost.kt) - Resume always anchors there regardless of which tab
                         // it's tapped from, not whichever tab is current. The tab you were on is
                         // saved, not lost, same as tapping a different tab in the bar/rail.
                         onNavigateToTab(HomeRoute)
@@ -190,7 +190,7 @@ fun RegimenApp(
 
         // NavigationSuiteScaffold doesn't pad the content pane for the bottom system-bar inset
         // (only the nav bar/rail/drawer consume insets for themselves), so this pane does it
-        // directly — otherwise the banner sits flush against the gesture-nav area.
+        // directly - otherwise the banner sits flush against the gesture-nav area.
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -200,7 +200,7 @@ fun RegimenApp(
             // stable call site regardless of posture. A `when` previously calling it from two
             // branches (bare vs. wrapped in Box/Column) tore down and recomposed the whole
             // nav-host subtree on every posture change, orphaning/restoring-stale every
-            // rememberSaveable underneath — the actual cause of sheets spuriously
+            // rememberSaveable underneath - the actual cause of sheets spuriously
             // closing/reopening when rotating in and out of Tabletop (see "Modal/dialog dismissed
             // on rotation fix" below). Only the width-cap Modifier value varies by posture now,
             // not the composable structure.
@@ -211,7 +211,7 @@ fun RegimenApp(
             // width-based Rail decision. Cap and center content in both cases rather than
             // stretching edge-to-edge under phone-like chrome. The cap is the same Medium-width
             // breakpoint classify() uses to decide "promote to BookOrExpanded"
-            // (androidx.window.core.layout.WindowSizeClass) — not arbitrary, and a no-op for the
+            // (androidx.window.core.layout.WindowSizeClass) - not arbitrary, and a no-op for the
             // common Compact case since a normal phone is already narrower than this.
             Box(
                 modifier = Modifier
@@ -232,10 +232,10 @@ fun RegimenApp(
     }
 }
 
-/** Regimen's own posture buckets drive the nav layout choice for now — kept as its own named
+/** Regimen's own posture buckets drive the nav layout choice for now - kept as its own named
  *  mapping (rather than inlined) so a future override (e.g. a user-facing settings toggle) has
  *  one obvious seam to hook into. Tabletop stays on the bottom bar since it's already anchored
- *  to the physical bottom edge, landing in the reachable pane below the hinge — notably, this
+ *  to the physical bottom edge, landing in the reachable pane below the hinge - notably, this
  *  matches what `NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo` does by default too. */
 private fun RegimenPosture.toNavigationSuiteType(): NavigationSuiteType = when (this) {
     RegimenPosture.Compact, RegimenPosture.Tabletop -> NavigationSuiteType.NavigationBar

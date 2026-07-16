@@ -25,7 +25,7 @@ fun NavGraphBuilder.measurementsGraph(
     }
     composable<MeasurementDetailRoute>(
         // Detail is the destination of the Measurements row's container transform, so its
-        // own entrance/exit-back-to-list slide would fight that growth/shrink — suppress it.
+        // own entrance/exit-back-to-list slide would fight that growth/shrink - suppress it.
         enterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None },
     ) {

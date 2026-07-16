@@ -22,12 +22,12 @@ import kotlin.math.roundToInt
 
 /**
  * A minimal line chart plotting [points] (already sorted by x, e.g. chronological). Self-contained
- * on [Canvas] — no third-party charting dependency — so it can be shared by Body Measurements
+ * on [Canvas] - no third-party charting dependency - so it can be shared by Body Measurements
  * (trend), Progress (frequency), and Home (frequency + bodyweight).
  *
  * X is treated as evenly spaced by index (dates aren't laid out to scale in v1). Y is scaled to
  * the value range and always labeled with a top/bottom gridline so the scale reads on its own
- * rather than only relative to itself — without this, a flat series is indistinguishable from any
+ * rather than only relative to itself - without this, a flat series is indistinguishable from any
  * other flat series regardless of its actual value (including all-zero). A single point renders as
  * a lone dot.
  *
@@ -78,7 +78,7 @@ fun LineChart(
 
 /**
  * Compact inline trend used in list rows. No fill, thinner stroke, fixed small height, and no
- * axis/gridlines — it's a glanceable indicator next to a value that's already shown as text.
+ * axis/gridlines - it's a glanceable indicator next to a value that's already shown as text.
  */
 @Composable
 fun Sparkline(
@@ -103,7 +103,7 @@ private fun defaultValueFormatter(value: Float): String {
     return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
 }
 
-/** Plain trend line/fill with no axis — shared core used by [drawAxisChart]. */
+/** Plain trend line/fill with no axis - shared core used by [drawAxisChart]. */
 private fun DrawScope.drawSparkline(
     points: List<Float>,
     line: Color,

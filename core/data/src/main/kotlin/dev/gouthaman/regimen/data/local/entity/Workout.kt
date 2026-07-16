@@ -41,7 +41,7 @@ data class WorkoutEntity(
     // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
-    // Rest countdown — all three non-null only while workoutStatus == IN_REST_TIME.
+    // Rest countdown - all three non-null only while workoutStatus == IN_REST_TIME.
     val restTimeEndAt: Long? = null,
     val restTotalSec: Int? = null,
     val restWorkoutExerciseId: Long? = null,
@@ -241,7 +241,7 @@ data class PersonalRecordRowEntity(
 fun PersonalRecordRowEntity.toDomain(): PersonalRecordRow =
     PersonalRecordRow(exerciseId = exerciseId, bestWeightKg = bestWeightKg)
 
-/** Aggregate result: best reps in a single set for bodyweight exercises — PR definition when there's no [PersonalRecordRowEntity]. */
+/** Aggregate result: best reps in a single set for bodyweight exercises - PR definition when there's no [PersonalRecordRowEntity]. */
 data class RepsRecordRowEntity(
     val exerciseId: Long,
     val bestReps: Int,

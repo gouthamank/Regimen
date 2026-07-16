@@ -43,7 +43,7 @@ data class SessionExercise(
 )
 
 /** Null routineName means it was a freeform/"Quick workout" session, not that it isn't loaded yet
- * (SessionDetailUiState.loaded distinguishes that) — resolved to display text by the Composable. */
+ * (SessionDetailUiState.loaded distinguishes that) - resolved to display text by the Composable. */
 data class SessionDetailUiState(
     val routineName: String? = null,
     val dateLabel: String = "",
@@ -132,7 +132,7 @@ class SessionDetailViewModel @Inject constructor(
         viewModelScope.launch { saveAsRoutineUseCase(workoutId, name, restDefaultSec) }
     }
 
-    /** Start the same workout again (resumes an in-progress one if there is one — single-active). */
+    /** Start the same workout again (resumes an in-progress one if there is one - single-active). */
     fun repeat() {
         viewModelScope.launch {
             val id = getInProgressWorkoutId() ?: repeatWorkoutUseCase(workoutId) ?: return@launch
@@ -141,7 +141,7 @@ class SessionDetailViewModel @Inject constructor(
     }
 
     /**
-     * Reopen this finished session for editing. Not gated on another workout in progress — editing
+     * Reopen this finished session for editing. Not gated on another workout in progress - editing
      * historical data never touches timer/in-progress state (see
      * ActiveWorkoutViewModel.isEditingPastSession), so it can't conflict with a genuinely live workout.
      */

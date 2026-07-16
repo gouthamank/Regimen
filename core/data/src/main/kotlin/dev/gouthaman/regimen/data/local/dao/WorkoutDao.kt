@@ -48,7 +48,7 @@ interface WorkoutDao {
     )
     fun observeInProgressId(): Flow<Long?>
 
-    /** Most recent completed session of a routine — source for prefill. */
+    /** Most recent completed session of a routine - source for prefill. */
     @Transaction
     @Query(
         "SELECT * FROM workouts WHERE routineId = :routineId " +
@@ -63,7 +63,7 @@ interface WorkoutDao {
     )
     fun observeCompletedBetween(start: Long, end: Long): Flow<List<WorkoutEntity>>
 
-    /** Heaviest weight ever lifted for an exercise — the PR definition. */
+    /** Heaviest weight ever lifted for an exercise - the PR definition. */
     @Query(
         "SELECT MAX(se.weightKg) FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
@@ -84,7 +84,7 @@ interface WorkoutDao {
     )
     fun observePersonalRecords(): Flow<List<PersonalRecordRowEntity>>
 
-    /** Best reps per exercise for sets logged without weight (bodyweight) — PR definition
+    /** Best reps per exercise for sets logged without weight (bodyweight) - PR definition
      * when [SetEntryEntity.weightKg] is never stored. */
     @Query(
         "SELECT we.exerciseId AS exerciseId, MAX(se.reps) AS bestReps FROM set_entries se " +
@@ -96,7 +96,7 @@ interface WorkoutDao {
     )
     fun observeBestReps(): Flow<List<RepsRecordRowEntity>>
 
-    /** Most recent logged set for an exercise, from any finished workout — prefill source
+    /** Most recent logged set for an exercise, from any finished workout - prefill source
      * when adding it ad hoc, outside a routine's own history-based prefill. */
     @Query(
         "SELECT se.* FROM set_entries se " +
@@ -108,7 +108,7 @@ interface WorkoutDao {
     )
     suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntryEntity?
 
-    /** Every finished session that logged this exercise, most recent first — source for Exercise Detail's History section. */
+    /** Every finished session that logged this exercise, most recent first - source for Exercise Detail's History section. */
     @Transaction
     @Query(
         "SELECT we.*, w.startTime AS startTime FROM workout_exercises we " +

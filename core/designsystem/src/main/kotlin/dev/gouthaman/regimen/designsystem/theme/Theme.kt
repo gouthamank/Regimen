@@ -52,7 +52,7 @@ fun RegimenTheme(
         else -> LightColorScheme
     }
 
-    // Keep system-bar icon appearance in sync with the *app* theme, not the OS setting —
+    // Keep system-bar icon appearance in sync with the *app* theme, not the OS setting -
     // enableEdgeToEdge()'s default auto style keys off system dark mode, so an in-app override
     // would otherwise leave dark-on-dark (or light-on-light) bar icons.
     val view = LocalView.current

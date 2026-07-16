@@ -15,5 +15,5 @@
     <string name="settings_exercise_library_headline">Exercise library</string>
     <string name="settings_exercise_library_description">Browse and add exercises</string>
     <string name="settings_export_data_headline">Export data</string>
-    <string name="settings_export_data_description">JSON backup — planned</string>
+    <string name="settings_export_data_description">JSON backup - planned</string>
 </resources>

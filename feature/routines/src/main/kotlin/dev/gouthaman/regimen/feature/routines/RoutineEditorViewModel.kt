@@ -45,7 +45,7 @@ data class RoutineEditorUiState(
 ) {
     val canSave: Boolean get() = name.isNotBlank() && exercises.isNotEmpty()
 
-    /** Exercise ids already in the routine — what the picker should show pre-checked. */
+    /** Exercise ids already in the routine - what the picker should show pre-checked. */
     val usedIds: Set<Long> get() = exercises.map { it.exerciseId }.toSet()
 }
 
@@ -141,7 +141,7 @@ class RoutineEditorViewModel @Inject constructor(
 
     /**
      * Commits a drag-and-drop reorder's final order (by exercise id). Intermediate swaps during
-     * the drag are handled entirely in the screen's own local working copy — not routed through
+     * the drag are handled entirely in the screen's own local working copy - not routed through
      * this StateFlow per-swap, which lagged a frame behind the LazyColumn's layout and made the
      * drag look like it stalled as soon as an item swapped.
      */

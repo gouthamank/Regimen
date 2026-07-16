@@ -34,7 +34,7 @@ fun WorkoutInProgressBanner(
     onResume: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Rounded only on top — reads as a mini-player peeking up from the nav-bar edge it's flush
+    // Rounded only on top - reads as a mini-player peeking up from the nav-bar edge it's flush
     // against, rather than a sharp-edged strip.
     Card(
         onClick = onResume,

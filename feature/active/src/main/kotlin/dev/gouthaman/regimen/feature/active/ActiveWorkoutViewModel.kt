@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 /** One exercise in the active session with its logged data, ready to edit. */
 data class ActiveExercise(
@@ -80,7 +81,7 @@ data class RestTimerState(
 data class ActiveWorkoutUiState(
     val workoutId: Long = 0,
     /** Null means it's a freeform/"Quick workout" session, not that it isn't loaded yet ([loaded]
-     * distinguishes that) — resolved to display text by the Composable. */
+     * distinguishes that) - resolved to display text by the Composable. */
     val routineName: String? = null,
     val startTime: Long = 0,
     val exercises: List<ActiveExercise> = emptyList(),
@@ -92,18 +93,18 @@ data class ActiveWorkoutUiState(
     /** Non-null when the session is paused (millis at which it was paused). */
     val pausedAt: Long? = null,
     val accumulatedPausedMs: Long = 0,
-    /** Non-null while [status] is [WorkoutStatus.IN_REST_TIME] — the active rest countdown. */
+    /** Non-null while [status] is [WorkoutStatus.IN_REST_TIME] - the active rest countdown. */
     val rest: RestTimerState? = null,
     val loaded: Boolean = false,
     val notFound: Boolean = false,
 ) {
     val isPaused: Boolean get() = status == WorkoutStatus.PAUSED
 
-    /** True once the workout has an end time — finished here or via the notification's End action. */
+    /** True once the workout has an end time - finished here or via the notification's End action. */
     val finished: Boolean get() = status == WorkoutStatus.COMPLETE || status == WorkoutStatus.EDITING
 
     /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs
-     * in this mode — see [dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen]. */
+     * in this mode - see [dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen]. */
     val isEditingPastSession: Boolean get() = status == WorkoutStatus.EDITING
 }
 
@@ -140,7 +141,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private var restWatchJob: Job? = null
 
     // Rest-timeout/skip-rest tries to auto-complete the exercise's next set, but that set may not
-    // have valid fields yet (see completeRestSet) — surfaced to the UI as a one-shot snackbar
+    // have valid fields yet (see completeRestSet) - surfaced to the UI as a one-shot snackbar
     // rather than silently failing.
     private val restSetInvalidEvent = Channel<Unit>(Channel.BUFFERED)
     val restSetInvalidEvents: Flow<Unit> = restSetInvalidEvent.receiveAsFlow()
@@ -257,7 +258,7 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun resume() = viewModelScope.launch { resumeWorkoutUseCase(workoutId) }
 
-    // Terminal actions run on the app scope, not viewModelScope — navigating away clears the
+    // Terminal actions run on the app scope, not viewModelScope - navigating away clears the
     // ViewModel, which would cancel the write mid-flight and leave the workout stuck in-progress.
     // The app scope outlives the screen, so the write always lands.
     fun finish() = appScope.launch { finishWorkoutUseCase(workoutId) }
@@ -265,11 +266,11 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun discard() = appScope.launch { cancelWorkoutUseCase(workoutId) }
 
     /** Leaves editing mode (Done / Cancel-edit while re-editing a finished session). Runs on the
-     * app scope for the same reason as [finish]/[discard] — the screen navigates away immediately. */
+     * app scope for the same reason as [finish]/[discard] - the screen navigates away immediately. */
     fun doneEditing() = appScope.launch { doneEditingWorkoutUseCase(workoutId) }
 
     // ── Rest timer (S14/item 7). Persisted on Workout so it survives process death. The sheet is
-    // undismissable (see RestTimerSheet) — only Skip rest / pause / finish cancel it. ──
+    // undismissable (see RestTimerSheet) - only Skip rest / pause / finish cancel it. ──
 
     val rest: StateFlow<RestTimerState?> =
         uiState.map { it.rest }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -282,7 +283,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 if (rest == null) return@collect
                 restWatchJob = launch {
                     val remaining = rest.endAtMillis - clock.nowMillis()
-                    if (remaining > 0) delay(remaining)
+                    if (remaining > 0) delay(remaining.milliseconds)
                     restAlerts.fire(
                         workoutId = workoutId,
                         chimeEnabled = uiState.value.restChimeEnabled
@@ -296,7 +297,7 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     /** Ticks the exercise's first unchecked set (the just-performed set) when a rest ends. Mirrors
      * the manual checkbox's validation (SetRow's `fieldsValid`) so a rest-timeout/skip can't mark a
-     * set done with missing weight/reps — if the set isn't valid yet, it's left unchecked and the
+     * set done with missing weight/reps - if the set isn't valid yet, it's left unchecked and the
      * UI is notified via [restSetInvalidEvents] instead. */
     private suspend fun completeRestSet(workoutExerciseId: Long) {
         val exercise = uiState.value.exercises

@@ -48,7 +48,7 @@ enum class GreetingPeriod { MORNING, AFTERNOON, EVENING }
 data class HomeUiState(
     val greetingPeriod: GreetingPeriod? = null,
     val hasRoutines: Boolean = false,
-    /** Has at least one completed workout — unlocks the freeform Quick workout entry. */
+    /** Has at least one completed workout - unlocks the freeform Quick workout entry. */
     val isEstablished: Boolean = false,
     val workoutsThisWeek: Int = 0,
     val volumeThisWeek: WeightValue = WeightValue("0", UnitLabel.KG),
@@ -59,19 +59,17 @@ data class HomeUiState(
     val durationMillisThisMonth: Long = 0L,
     /** All routines (recency-ordered) for the "Start a workout" chooser. */
     val routines: List<QuickStartRoutine> = emptyList(),
-    /** Workouts per week, oldest first — fixed to the last 4 weeks. */
+    /** Workouts per week, oldest first - fixed to the last 4 weeks. */
     val workoutFrequency: List<Int> = emptyList(),
     /** Bodyweight entries in the last 4 weeks, oldest first, in display units. */
     val bodyweightTrend: List<Float> = emptyList(),
     /** Most recent bodyweight entry, e.g. displayValue="72" unitLabel="kg"; null if none logged. */
     val bodyweightLatest: WeightValue? = null,
-    /** A workout is already running — Start Workout resumes it via the banner instead of launching
+    /** A workout is already running - Start Workout resumes it via the banner instead of launching
      * a fresh pick-a-routine flow. */
     val hasWorkoutInProgress: Boolean = false,
     val loaded: Boolean = false,
 )
-
-private const val MAX_QUICK_START = 4
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -92,7 +90,7 @@ class HomeViewModel @Inject constructor(
     val startedWorkout: Flow<Long> = startedWorkouts.receiveAsFlow()
 
     // Bodyweight is the built-in measurement type, resolved dynamically since it's a seeded row,
-    // not a fixed id — no type yet (fresh install) means an empty trend.
+    // not a fixed id - no type yet (fresh install) means an empty trend.
     private val bodyweightTrend: Flow<List<Float>> = combine(
         observeMeasurementTypes(),
         observePreferences(),
@@ -111,7 +109,7 @@ class HomeViewModel @Inject constructor(
         }
 
     /**
-     * Opens the active workout: resumes one already in progress (single-active — avoids
+     * Opens the active workout: resumes one already in progress (single-active - avoids
      * orphaning a session), or starts a new one from [routineId] (null = freeform).
      */
     fun startWorkout(routineId: Long?) {

@@ -10,7 +10,7 @@ import dev.gouthaman.regimen.navigation.RoutinesRoute
 
 /**
  * [onSwitchToTab] is a single combined callback for "act like tapping the Routines tab" (updates
- * the bottom-bar's own selected-tab state *and* the NavHost's tab back stack) — both halves of
+ * the bottom-bar's own selected-tab state *and* the NavHost's tab back stack) - both halves of
  * that live in `:app` (`RegimenApp`'s tab state, `NavHostController.navigateToTab`), so the
  * composition root builds this callback and hands it down rather than this module depending on
  * either directly.

@@ -27,7 +27,7 @@ fun NavGraphBuilder.routinesGraph(
     composable<RoutineEditorRoute>(
         // Editor is the destination of the Routines row's (or "New routine" FAB's)
         // container transform, so its own entrance/exit-back-to-list slide would fight
-        // that growth/shrink — suppress it.
+        // that growth/shrink - suppress it.
         enterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None },
     ) {

@@ -10,7 +10,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -22,7 +21,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 /** One past session as shown on a calendar day (and in the day picker when a day has several).
- * Null [routineName] means it was a freeform/"Quick workout" session — resolved to display text by
+ * Null [routineName] means it was a freeform/"Quick workout" session - resolved to display text by
  * the Composable. */
 data class DaySession(
     val workoutId: Long,
@@ -34,7 +33,7 @@ data class HistoryUiState(
     val month: YearMonth = YearMonth.now(),
     /** Local calendar day → the sessions completed that day (earliest first). Scoped to [month]. */
     val sessionsByDay: Map<LocalDate, List<DaySession>> = emptyMap(),
-    /** [month]'s sessions, most recent first — for the "recent workouts" list under the calendar. */
+    /** [month]'s sessions, most recent first - for the "recent workouts" list under the calendar. */
     val recentSessions: List<DaySession> = emptyList(),
     val loaded: Boolean = false,
 ) {
@@ -50,11 +49,10 @@ class HistoryViewModel @Inject constructor(
 
     private val zone: ZoneId = ZoneId.systemDefault()
 
-    // Drives which month's data is loaded — only the visible month is ever queried/held in
+    // Drives which month's data is loaded - only the visible month is ever queried/held in
     // memory (not the entire history), so this stays small regardless of how long the app's
     // been used for.
     private val _month = MutableStateFlow(YearMonth.now())
-    val month: StateFlow<YearMonth> = _month.asStateFlow()
 
     val uiState: StateFlow<HistoryUiState> = combine(
         _month,

@@ -20,7 +20,7 @@ class ObserveRoutineUseCase @Inject constructor(
     operator fun invoke(id: Long): Flow<RoutineWithExercises?> = repo.observeRoutine(id)
 }
 
-/** Whether the user has any routines — drives the cold-start funnel on Home. */
+/** Whether the user has any routines - drives the cold-start funnel on Home. */
 class HasRoutinesUseCase @Inject constructor(
     private val repo: RoutineRepository,
 ) {

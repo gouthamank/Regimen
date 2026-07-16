@@ -28,7 +28,7 @@ data class WeightValue(val displayValue: String, val unitLabel: UnitLabel)
 
 data class WorkoutSummaryUiState(
     /** Null means it's a freeform/"Quick workout" session, not that it isn't loaded yet ([loaded]
-     * distinguishes that) — resolved to display text by the Composable. */
+     * distinguishes that) - resolved to display text by the Composable. */
     val routineName: String? = null,
     /** Raw session timing, formatted to a duration string by the Composable (SessionFormat.duration
      * is @Composable, so it can't be resolved here). */

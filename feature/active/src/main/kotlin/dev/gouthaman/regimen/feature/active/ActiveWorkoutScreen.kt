@@ -109,7 +109,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
@@ -132,6 +132,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.hypot
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun ActiveWorkoutScreen(
@@ -147,7 +149,7 @@ fun ActiveWorkoutScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Navigates off the observed workout state, so ending/discarding via the notification (not
-    // just in-app buttons) also moves the screen. Skipped while editing a past session — endTime
+    // just in-app buttons) also moves the screen. Skipped while editing a past session - endTime
     // never changes there (isEditingPastSession), so Done/Cancel-edit navigate directly instead (below).
     LaunchedEffect(uiState.finished, uiState.isEditingPastSession) {
         if (uiState.finished && !uiState.isEditingPastSession) onFinished(viewModel.workoutId)
@@ -242,7 +244,7 @@ fun ActiveWorkoutScreen(
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    // Ephemeral (item 10) — resets every time this screen is (re)opened, not a saved preference.
+    // Ephemeral (item 10) - resets every time this screen is (re)opened, not a saved preference.
     var keepScreenOn by remember { mutableStateOf(false) }
     val view = LocalView.current
     DisposableEffect(keepScreenOn) {
@@ -256,7 +258,7 @@ fun ActiveWorkoutScreen(
         if (isEditing) return@LaunchedEffect
         while (true) {
             now = System.currentTimeMillis()
-            delay(1000)
+            delay(1.seconds)
         }
     }
     // Elapsed excludes accumulated pause; while paused it freezes at the moment of pausing.
@@ -264,6 +266,7 @@ fun ActiveWorkoutScreen(
         uiState.startTime == 0L -> 0L
         uiState.status == WorkoutStatus.PAUSED && uiState.pausedAt != null ->
             uiState.pausedAt - uiState.startTime - uiState.accumulatedPausedMs
+
         else -> now - uiState.startTime - uiState.accumulatedPausedMs
     }.coerceAtLeast(0)
 
@@ -274,7 +277,7 @@ fun ActiveWorkoutScreen(
         snackbarHost = {
             // The floating ActiveWorkoutToolbar (Pause/Resume/Finish) isn't a Scaffold bottomBar
             // (it's positioned BottomCenter inside the content Box, over the scrollable list), so
-            // the default snackbar placement doesn't know to avoid it — pad above its footprint
+            // the default snackbar placement doesn't know to avoid it - pad above its footprint
             // (16.dp bottom padding + 64.dp height = 80.dp) with a little breathing room.
             SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = 96.dp))
         },
@@ -300,7 +303,7 @@ fun ActiveWorkoutScreen(
                     }
                 },
                 actions = {
-                    // Ephemeral (item 10) — resets every time this screen is (re)opened, not a
+                    // Ephemeral (item 10) - resets every time this screen is (re)opened, not a
                     // saved preference. Tinted primary while on, like a lit toggle.
                     IconButton(onClick = { keepScreenOn = !keepScreenOn }) {
                         Icon(
@@ -347,7 +350,7 @@ fun ActiveWorkoutScreen(
                 .padding(innerPadding)
                 // Taps that land on a button/text field/checkbox are consumed by that element's
                 // own pointer input before this ever sees them, so this only fires for blank
-                // space (card backgrounds, padding, labels) — exactly "anywhere that isn't one
+                // space (card backgrounds, padding, labels) - exactly "anywhere that isn't one
                 // of those."
                 .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) },
             contentAlignment = Alignment.TopCenter,
@@ -527,7 +530,7 @@ private val ToolbarShape = RoundedCornerShape(percent = 50)
 /**
  * The session's prominent controls (timer, Pause/Resume, Finish), pulled out of the top bar so it
  * stays title-only. A plain [Surface] pill (shadow+clip+fill), not the alpha
- * `HorizontalFloatingToolbar` API — same building blocks as a FAB, which reads correctly in dark
+ * `HorizontalFloatingToolbar` API - same building blocks as a FAB, which reads correctly in dark
  * theme. Tinted with the primary color (darker while paused). Pause/resume animates a
  * ripple-style circular reveal + scale pop so the flip reads as a distinct event. Collapses to a
  * status label + Done while editing a past session.
@@ -543,17 +546,17 @@ private fun ActiveWorkoutToolbar(
     modifier: Modifier = Modifier,
 ) {
     val primary = MaterialTheme.colorScheme.primary
-    // Lighter darken than a literal "paused = dark" look (0.35 was too heavy) — cues status without killing contrast.
+    // Lighter darken than a literal "paused = dark" look (0.35 was too heavy) - cues status without killing contrast.
     val targetColor = if (isPaused) lerp(primary, Color.Black, 0.18f) else primary
     val contentColor = MaterialTheme.colorScheme.onPrimary
 
     // Base fill cross-fades to target over the same duration as the reveal circle below, avoiding
-    // a discrete cutover to race against — a manual cutover (flipping baseColor in a coroutine at
+    // a discrete cutover to race against - a manual cutover (flipping baseColor in a coroutine at
     // full radius) landed a frame early/late and flickered.
     val baseColor by animateColorAsState(targetValue = targetColor, animationSpec = tween(420))
     val revealProgress = remember { Animatable(1f) }
     val scale = remember { Animatable(1f) }
-    // Skips the reveal/pop on first composition (screen open) — only animates on an actual pause/resume flip.
+    // Skips the reveal/pop on first composition (screen open) - only animates on an actual pause/resume flip.
     var initialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPaused) {
@@ -593,7 +596,7 @@ private fun ActiveWorkoutToolbar(
                 .shadow(elevation = 8.dp, shape = ToolbarShape)
                 .clip(ToolbarShape)
                 .let {
-                    // Tapping anywhere on the pill also triggers Pause/Resume (mini-player pattern) — disabled
+                    // Tapping anywhere on the pill also triggers Pause/Resume (mini-player pattern) - disabled
                     // while editing; Finish's own click still wins as the nested target.
                     if (isEditing) it else it.clickable(
                         onClick = { if (isPaused) onResume() else onPause() },
@@ -706,7 +709,7 @@ private fun ActiveWorkoutToolbar(
     }
 }
 
-/** Which body [ExerciseCard] shows — skipped and done are mutually exclusive at the toggle level
+/** Which body [ExerciseCard] shows - skipped and done are mutually exclusive at the toggle level
  * (see ExerciseCard's header icons), skipped wins if both were ever somehow true. */
 private enum class ExerciseCardBody { SKIPPED, DONE, NORMAL }
 
@@ -724,9 +727,9 @@ private fun ExerciseCard(
     onToggleDone: (WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (Long, Int) -> Unit,
+    modifier: Modifier = Modifier,
     showRestTimer: Boolean = true,
     enabled: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     val bodyState = when {
         exercise.isSkipped -> ExerciseCardBody.SKIPPED
@@ -774,7 +777,7 @@ private fun ExerciseCard(
                     modifier = Modifier.weight(1f),
                 )
                 if (exercise.isStrength) {
-                    // Hidden while done — can't skip something already marked done without
+                    // Hidden while done - can't skip something already marked done without
                     // reopening it for editing first (Edit clears isDone).
                     if (!exercise.isDone) {
                         IconButton(
@@ -800,7 +803,7 @@ private fun ExerciseCard(
                             }
                         }
                     }
-                    // Hidden while skipped — same reasoning, mirrored.
+                    // Hidden while skipped - same reasoning, mirrored.
                     if (!exercise.isSkipped) {
                         val canMarkDone =
                             exercise.sets.isNotEmpty() && exercise.sets.all { it.isComplete }
@@ -829,7 +832,7 @@ private fun ExerciseCard(
             }
 
             // Cross-fades skipped/done labels vs the sets/cardio body, resizing smoothly instead
-            // of an abrupt height jump — bodies differ a lot in height (one line vs. full set list).
+            // of an abrupt height jump - bodies differ a lot in height (one line vs. full set list).
             AnimatedContent(
                 targetState = bodyState,
                 transitionSpec = {
@@ -894,7 +897,7 @@ private fun ExerciseCard(
                                 }
                             }
                             // Own full-width row + filled-tonal styling (not a TextButton sharing
-                            // a row with Add set) — bigger, easier-to-hit target after gym-use
+                            // a row with Add set) - bigger, easier-to-hit target after gym-use
                             // feedback that the shared-row TextButton was fiddly to tap.
                             if (showRestTimer) FilledTonalButton(
                                 onClick = {
@@ -932,7 +935,7 @@ private fun ExerciseCard(
 }
 
 /**
- * Wraps [SetRow] with an enter animation for new sets and a delayed exit for deletion — the real
+ * Wraps [SetRow] with an enter animation for new sets and a delayed exit for deletion - the real
  * [onDelete] (which removes the set from the backing list) fires only after the shrink/fade
  * finishes, since [AnimatedVisibility] needs the composable to stay mounted for its exit
  * duration ([SetRowExitDurationMs]).
@@ -953,7 +956,7 @@ private fun AnimatedSetRow(
     LaunchedEffect(Unit) { visible = true }
     LaunchedEffect(removing) {
         if (removing) {
-            delay(SetRowExitDurationMs)
+            delay(SetRowExitDurationMs.milliseconds)
             onDelete()
         }
     }
@@ -1024,7 +1027,7 @@ private fun SetRow(
     // real value, fills every later empty set in the same column (item 3 of the punch list).
     var weightWasFocused by remember(set.id) { mutableStateOf(false) }
     var repsWasFocused by remember(set.id) { mutableStateOf(false) }
-    // Picks up an autofill written into THIS row from another row's blur — guarded by "not
+    // Picks up an autofill written into THIS row from another row's blur - guarded by "not
     // currently focused" so a same-row round-trip mid-keystroke (this row's own push()
     // reflected back through Room) can't clobber what's still being typed here.
     LaunchedEffect(set.weightKg) {
@@ -1039,7 +1042,7 @@ private fun SetRow(
     }
 
     // A set can only be checked complete once every numeric field it shows is actually filled in
-    // (unchecking is always allowed, no validation). Once checked, the fields lock — uncheck to
+    // (unchecking is always allowed, no validation). Once checked, the fields lock - uncheck to
     // edit them again.
     val fieldsValid =
         (isBodyweight || weight.toDoubleOrNull() != null) && reps.toIntOrNull() != null
@@ -1191,7 +1194,7 @@ private fun RestTimerSheet(
     LaunchedEffect(Unit) {
         while (true) {
             now = System.currentTimeMillis()
-            delay(200)
+            delay(200.milliseconds)
         }
     }
     val remainingMs = (rest.endAtMillis - now).coerceAtLeast(0)

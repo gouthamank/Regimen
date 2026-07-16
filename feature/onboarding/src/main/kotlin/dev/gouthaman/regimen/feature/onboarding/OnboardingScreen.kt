@@ -35,7 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
@@ -176,7 +176,7 @@ private fun LinearOnboardingLayout(
             pageSpacing = PageSpacing,
         ) { page -> pagerContent(page) }
 
-        PagerDots(current = pagerState.currentPage, count = PAGE_COUNT)
+        PagerDots(current = pagerState.currentPage)
 
         Button(
             onClick = onNextOrFinish,
@@ -232,7 +232,7 @@ private fun TabletopOnboardingLayout(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                PagerDots(current = pagerState.currentPage, count = PAGE_COUNT)
+                PagerDots(current = pagerState.currentPage)
                 Button(
                     onClick = onNextOrFinish,
                     modifier = Modifier
@@ -342,7 +342,7 @@ private fun OnboardingPage(
 }
 
 @Composable
-private fun PagerDots(current: Int, count: Int) {
+private fun PagerDots(current: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -350,7 +350,7 @@ private fun PagerDots(current: Int, count: Int) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        repeat(count) { index ->
+        repeat(PAGE_COUNT) { index ->
             val active = index == current
             val width by animateDpAsState(if (active) 24.dp else 8.dp, label = "dotWidth")
             val color = if (active) MaterialTheme.colorScheme.primary

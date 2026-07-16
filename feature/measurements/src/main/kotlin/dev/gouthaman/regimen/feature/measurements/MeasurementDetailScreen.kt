@@ -43,7 +43,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.MeasurementFormat
@@ -93,8 +93,8 @@ fun MeasurementDetailScreen(
     onAddEntry: (Long, Double) -> Unit,
     onDeleteEntry: (MeasurementEntry) -> Unit,
     onDeleteType: () -> Unit,
-    onRangeChange: (HistoryRange) -> Unit = {},
     modifier: Modifier = Modifier,
+    onRangeChange: (HistoryRange) -> Unit = {},
 ) {
     val type = uiState.type
     var menuExpanded by remember { mutableStateOf(false) }
@@ -157,7 +157,7 @@ fun MeasurementDetailScreen(
             )
         },
         floatingActionButton = {
-            // Stay mounted through the pre-load frame (type == null, loaded == false) — otherwise
+            // Stay mounted through the pre-load frame (type == null, loaded == false) - otherwise
             // this shared-element FAB isn't in the tree when the entry transition starts and just
             // pops in instead of animating in anchored. Hidden only for the genuine not-found case.
             if (!uiState.loaded || type != null) {
@@ -321,7 +321,7 @@ private fun EntryRow(
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                dateFormatter.format(entry.dateMillis),
+                dateFormatter().format(entry.dateMillis),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -335,4 +335,4 @@ private fun EntryRow(
     }
 }
 
-private val dateFormatter = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+private fun dateFormatter() = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())

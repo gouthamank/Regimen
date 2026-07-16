@@ -10,7 +10,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.window.core.layout.WindowSizeClass
 
 /**
- * Regimen's simplified layout classification for adaptive screens — not a 1:1 mirror of
+ * Regimen's simplified layout classification for adaptive screens - not a 1:1 mirror of
  * [androidx.compose.material3.adaptive.Posture]; this answers "what arrangement should this
  * screen use," not "what shape is the device." Add more cases only when a screen actually
  * needs one.
@@ -28,7 +28,7 @@ data class RegimenWindowInfo(
 )
 
 val LocalRegimenWindowInfo = staticCompositionLocalOf<RegimenWindowInfo> {
-    error("LocalRegimenWindowInfo not provided — wrap the content root in ProvideRegimenWindowInfo()")
+    error("LocalRegimenWindowInfo not provided - wrap the content root in ProvideRegimenWindowInfo()")
 }
 
 @Composable

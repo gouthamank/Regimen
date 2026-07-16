@@ -16,7 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Prompts for a routine name and confirms/cancels — used when saving a completed or past
+/** Prompts for a routine name and confirms/cancels - used when saving a completed or past
  * session's exercises as a reusable routine (Workout Summary, Session Detail). All copy is
  * passed in so each caller keeps its own string resources. */
 @Composable

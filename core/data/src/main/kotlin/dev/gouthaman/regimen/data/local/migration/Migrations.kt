@@ -3,7 +3,7 @@ package dev.gouthaman.regimen.data.local.migration
 import androidx.room.migration.Migration
 
 /**
- * v4 -> v5: drops `workouts.preEditEndTime` (unused now — editing a past session no longer
+ * v4 -> v5: drops `workouts.preEditEndTime` (unused now - editing a past session no longer
  * touches `endTime`/`preEditEndTime`, see ActiveWorkoutViewModel.isEditingPastSession).
  * `ALTER TABLE ... DROP COLUMN` isn't reliable across Android's SQLite versions, so this
  * rebuilds the table instead: new shape, copy surviving columns, drop old, rename.
@@ -40,7 +40,7 @@ val MIGRATION_4_5 = Migration(4, 5) { db ->
  * v5 -> v6: adds an explicit [dev.gouthaman.regimen.domain.model.WorkoutStatus] column plus the
  * rest-countdown columns (`restTimeEndAt`/`restTotalSec`/`restWorkoutExerciseId`), replacing ad hoc
  * inference of session state from `pausedAt`/`endTime` nullability. Rebuilds the table (same
- * reasoning as MIGRATION_4_5 — adding columns alone would be a plain ALTER TABLE, but this also
+ * reasoning as MIGRATION_4_5 - adding columns alone would be a plain ALTER TABLE, but this also
  * needs to backfill `workoutStatus` from existing rows in one pass).
  */
 val MIGRATION_5_6 = Migration(5, 6) { db ->
@@ -83,7 +83,7 @@ val MIGRATION_5_6 = Migration(5, 6) { db ->
 
 /**
  * v6 -> v7: adds `workout_exercises.isDone` (per-exercise completion, alongside `isSkipped`).
- * A plain `ADD COLUMN` suffices here — unlike MIGRATION_4_5/5_6, nothing on this table is being
+ * A plain `ADD COLUMN` suffices here - unlike MIGRATION_4_5/5_6, nothing on this table is being
  * renamed or dropped, and `ADD COLUMN` (unlike `DROP`/`RENAME COLUMN`) is reliable across
  * Android's bundled SQLite versions.
  */

@@ -52,7 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.label
@@ -176,14 +176,14 @@ fun RoutineEditorScreen(
         // actual exercises, so it doesn't affect this.
         val leadingItems = 1
 
-        // Working copy the drag reorders in place, synchronously — swaps go straight here, not
+        // Working copy the drag reorders in place, synchronously - swaps go straight here, not
         // through the ViewModel per-swap, which lagged a frame behind the LazyColumn's layout and
         // made the drag look stalled the moment two items swapped. Re-synced from the source when
         // it changes and we're not mid-drag; final order is committed to the ViewModel once, on drop.
         val working = remember { mutableStateListOf<EditorExercise>() }
         val dragState = rememberDragDropState(
             listState,
-            // Restricts valid drag starts/targets to the exercise rows themselves — otherwise a
+            // Restricts valid drag starts/targets to the exercise rows themselves - otherwise a
             // drag near the top can match the name field (global index 0) as a target, which
             // underflows `to - leadingItems` to -1 and crashes the working-list mutation below.
             draggableIndices = leadingItems until (leadingItems + working.size),

@@ -52,12 +52,12 @@ import dev.gouthaman.regimen.navigation.HomeRoute
  *    Editor    ──▶ [✓] Exercise Picker    (S16 modal bottom sheet, in-screen)
  *              ──▶ [✓] Add Custom Exercise EditExerciseRoute() (from picker)
  *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (S5; read-only + repeat/edit/
- *                                            save-as-routine/delete — Repeat/Edit open Active Workout)
+ *                                            save-as-routine/delete - Repeat/Edit open Active Workout)
  *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (S8; S6 PR list + frequency chart now on the tab root)
  *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (S8 → trend + entries)
  *
  *  Full-screen gate (outside this NavHost, in MainActivity):
- *    [✓] Onboarding (S17) — shown first-run while prefs.onboarded == false
+ *    [✓] Onboarding (S17) - shown first-run while prefs.onboarded == false
  *
  *  Core loop (pushed above the tabs; #15):
  *    [✓] Active Workout   ActiveWorkoutRoute(workoutId)   (S13; per-set logging, skip, cardio, notes)
@@ -65,11 +65,11 @@ import dev.gouthaman.regimen.navigation.HomeRoute
  *    [✓] Rest Timer (sheet, within Active Workout)         (S14; manual, adjustable, vibrate+chime)
  *    [✓] In-progress "Resume" banner (above the tab bar) + resume/single-active + notif permission (Phase 3a)
  *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/End notification + Pause (Phase 3b)
- *    [✓] Session-Detail Repeat/Edit → Active Workout (Phase 3c)  — #15 COMPLETE
+ *    [✓] Session-Detail Repeat/Edit → Active Workout (Phase 3c)  - #15 COMPLETE
  *
  *  Each feature module owns its own destinations via a `NavGraphBuilder.xGraph()` extension
  *  (homeGraph, routinesGraph, historyGraph, activeGraph, progressGraph, settingsGraph,
- *  measurementsGraph, exerciseGraph) — this NavHost only wires them together, it doesn't declare
+ *  measurementsGraph, exerciseGraph) - this NavHost only wires them together, it doesn't declare
  *  any `composable<Route>` itself. Onboarding is the one screen NOT routed through here at all
  *  (see MainActivity's first-launch gate).
  * ─────────────────────────────────────────────────────────────────────────

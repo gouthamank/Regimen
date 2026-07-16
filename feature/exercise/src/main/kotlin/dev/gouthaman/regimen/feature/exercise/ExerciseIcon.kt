@@ -21,7 +21,7 @@ import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 
 /**
- * The type/equipment icon badge shown for an exercise in the Exercise Library — reused wherever
+ * The type/equipment icon badge shown for an exercise in the Exercise Library - reused wherever
  * else an exercise needs the same at-a-glance glyph (e.g. Session Detail's exercise cards).
  */
 @Composable

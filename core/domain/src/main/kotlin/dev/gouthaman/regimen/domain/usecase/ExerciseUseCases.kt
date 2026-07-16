@@ -65,7 +65,7 @@ sealed interface DeleteExerciseResult {
 }
 
 /** Deletes an exercise (custom only in v1), refusing if referenced by any routine or workout
- * (active or historical) — those rows cascade-delete on the Exercise FK, which would otherwise
+ * (active or historical) - those rows cascade-delete on the Exercise FK, which would otherwise
  * silently erase routine slots and logged history. */
 class DeleteExerciseUseCase @Inject constructor(
     private val repo: ExerciseRepository,

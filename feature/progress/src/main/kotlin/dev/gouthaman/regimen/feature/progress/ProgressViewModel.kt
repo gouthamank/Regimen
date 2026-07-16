@@ -16,7 +16,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -38,7 +37,7 @@ data class PersonalRecordItem(
 )
 
 /** Personal records for one muscle group, in the same order [GetPersonalRecordsUseCase] sorted
- * them overall (heaviest/highest first) — grouping never re-sorts. */
+ * them overall (heaviest/highest first) - grouping never re-sorts. */
 data class PersonalRecordGroup(
     val muscleGroup: MuscleGroup,
     val records: List<PersonalRecordItem>,
@@ -72,7 +71,6 @@ class ProgressViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _range = MutableStateFlow(HistoryRange.THREE_MONTHS)
-    val range: StateFlow<HistoryRange> = _range.asStateFlow()
 
     val uiState: StateFlow<ProgressUiState> = combine(
         getPersonalRecords(),

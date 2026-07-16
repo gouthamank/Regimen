@@ -8,7 +8,7 @@ import androidx.compose.ui.text.TextStyle
 
 /**
  * A section label within a screen (e.g. "Personal records", "Preferences"). Style and padding are
- * caller-supplied — screens use genuinely different typography/spacing for this today, not just
+ * caller-supplied - screens use genuinely different typography/spacing for this today, not just
  * a copy-paste accident.
  */
 @Composable

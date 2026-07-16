@@ -38,7 +38,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
@@ -81,7 +81,7 @@ fun WorkoutSummaryScreen(
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    // One-shot celebratory burst on first successful load — skipped entirely under system
+    // One-shot celebratory burst on first successful load - skipped entirely under system
     // "remove animations" (Settings.Global.ANIMATOR_DURATION_SCALE == 0), never replayed on
     // recomposition/rotation since confettiParties only ever gets set once.
     var confettiParties by remember { mutableStateOf<List<Party>>(emptyList()) }
@@ -236,7 +236,7 @@ fun WorkoutSummaryScreen(
             }
 
             // Composed only once confettiParties is non-empty (rather than always-mounted with a
-            // mutated parties list) — matches Konfetti's own Compose sample, which recomposes
+            // mutated parties list) - matches Konfetti's own Compose sample, which recomposes
             // KonfettiView in/out of the tree rather than updating `parties` on a mounted instance.
             if (confettiParties.isNotEmpty()) {
                 KonfettiView(modifier = Modifier.fillMaxSize(), parties = confettiParties)

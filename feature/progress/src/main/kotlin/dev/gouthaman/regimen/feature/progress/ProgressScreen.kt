@@ -33,7 +33,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.label
@@ -69,8 +69,8 @@ fun ProgressScreen(
 fun ProgressScreen(
     uiState: ProgressUiState,
     onOpenMeasurements: () -> Unit,
-    onRangeChange: (HistoryRange) -> Unit = {},
     modifier: Modifier = Modifier,
+    onRangeChange: (HistoryRange) -> Unit = {},
 ) {
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -104,7 +104,7 @@ fun ProgressScreen(
             ) {
                 item {
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.progress_measurements_link_title)) },
+                        content = { Text(stringResource(R.string.progress_measurements_link_title)) },
                         supportingContent = { Text(stringResource(R.string.progress_measurements_link_subtitle)) },
                         leadingContent = {
                             Icon(Icons.Filled.Straighten, contentDescription = null)
@@ -167,7 +167,7 @@ fun ProgressScreen(
                         }
                         items(group.records, key = { it.exerciseId }) { pr ->
                             ListItem(
-                                headlineContent = { Text(pr.exerciseName) },
+                                content = { Text(pr.exerciseName) },
                                 trailingContent = {
                                     Text(
                                         personalRecordValueLabel(pr.value),
@@ -197,8 +197,8 @@ private fun personalRecordValueLabel(value: PersonalRecordValue): String = when 
         pluralStringResource(R.plurals.progress_reps_count, value.count, value.count)
 }
 
-private val weekLabelFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
-private val weekLabelFormatterWithYear =
+private fun weekLabelFormatter() = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
+private fun weekLabelFormatterWithYear() =
     DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 
 @Composable
@@ -251,9 +251,9 @@ private fun WeekAxis(frequency: List<WeekCount>, range: HistoryRange) {
     val first = frequency.firstOrNull()?.weekStart ?: return
     val last = frequency.lastOrNull()?.weekStart ?: return
     val formatter = if (range == HistoryRange.ONE_YEAR || range == HistoryRange.ALL) {
-        weekLabelFormatterWithYear
+        weekLabelFormatterWithYear()
     } else {
-        weekLabelFormatter
+        weekLabelFormatter()
     }
     Row(
         modifier = Modifier

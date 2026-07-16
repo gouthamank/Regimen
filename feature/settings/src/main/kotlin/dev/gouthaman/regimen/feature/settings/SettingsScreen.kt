@@ -35,7 +35,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
@@ -141,7 +141,7 @@ fun SettingsScreen(
 
                 val dynamicAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_dynamic_color_label)) },
+                    content = { Text(stringResource(R.string.settings_dynamic_color_label)) },
                     supportingContent = {
                         Text(
                             stringResource(
@@ -162,7 +162,7 @@ fun SettingsScreen(
                 RestTimerRow(prefs.restDefaultSec, onRestDefaultChange)
 
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_rest_timer_sound_headline)) },
+                    content = { Text(stringResource(R.string.settings_rest_timer_sound_headline)) },
                     supportingContent = {
                         Text(stringResource(R.string.settings_rest_timer_sound_description))
                     },
@@ -250,11 +250,8 @@ private fun NavRow(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val contentColor =
-        if (enabled) MaterialTheme.colorScheme.onSurface
-        else MaterialTheme.colorScheme.onSurfaceVariant
     ListItem(
-        headlineContent = { Text(headline) },
+        content = { Text(headline) },
         supportingContent = { Text(supporting) },
         leadingContent = { Icon(icon, contentDescription = null) },
         trailingContent = {
@@ -262,6 +259,7 @@ private fun NavRow(
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
             }
         },
+        enabled = enabled,
         modifier = if (enabled) Modifier.clickable(onClick = onClick) else Modifier,
     )
 }

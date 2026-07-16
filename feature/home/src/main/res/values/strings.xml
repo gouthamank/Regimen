@@ -3,7 +3,7 @@
     <string name="home_start_workout_button">Start Workout</string>
     <string name="home_start_workout_sheet_title">Start a workout</string>
     <string name="home_quick_workout_title">Quick workout</string>
-    <string name="home_quick_workout_subtitle">Freeform — no routine</string>
+    <string name="home_quick_workout_subtitle">Freeform - no routine</string>
     <string name="home_stat_workouts_label">Workouts</string>
     <string name="home_stat_volume_label">Volume</string>
     <string name="home_stat_time_label">Time</string>

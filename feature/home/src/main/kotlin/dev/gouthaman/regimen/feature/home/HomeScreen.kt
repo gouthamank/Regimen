@@ -48,7 +48,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.common.text
@@ -93,7 +93,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     var showStartSheet by remember { mutableStateOf(false) }
-    // enterAlwaysScrollBehavior, not exitUntilCollapsed (used elsewhere) — this bar retracts fully
+    // enterAlwaysScrollBehavior, not exitUntilCollapsed (used elsewhere) - this bar retracts fully
     // off-screen on scroll-down and slides back on scroll-up, rather than shrinking to a collapsed
     // row like the MediumTopAppBars on detail screens.
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -115,7 +115,7 @@ fun HomeScreen(
         when {
             !uiState.loaded -> Unit
             !uiState.hasRoutines -> {
-                // Its own centered Box, not the loaded state's scrollable Column — a Column inside
+                // Its own centered Box, not the loaded state's scrollable Column - a Column inside
                 // verticalScroll can't distribute leftover space via Arrangement, so that's the
                 // only way to vertically center this.
                 Box(
@@ -126,7 +126,7 @@ fun HomeScreen(
                 ) {
                     EmptyState(
                         message = stringResource(R.string.home_empty_state_text),
-                        // A line of text + button doesn't need a wide pane's full width — cap it like Onboarding's text-only content.
+                        // A line of text + button doesn't need a wide pane's full width - cap it like Onboarding's text-only content.
                         modifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
                             Modifier.widthIn(max = 480.dp)
                         } else {
@@ -257,14 +257,14 @@ private fun StartWorkoutSheet(
             )
             routines.forEach { routine ->
                 ListItem(
-                    headlineContent = { Text(routine.name) },
+                    content = { Text(routine.name) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { onPick(routine.routineId) },
                 )
             }
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text(stringResource(R.string.home_quick_workout_title)) },
+                content = { Text(stringResource(R.string.home_quick_workout_title)) },
                 supportingContent = { Text(stringResource(R.string.home_quick_workout_subtitle)) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable { onPick(null) },
@@ -319,7 +319,7 @@ private fun WeekSummarySection(uiState: HomeUiState) {
     }
 }
 
-// "This month" mirrors the week tiles (no streak — that's a weekly concept).
+// "This month" mirrors the week tiles (no streak - that's a weekly concept).
 @Composable
 private fun MonthSummarySection(uiState: HomeUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -362,7 +362,7 @@ private fun MonthSummarySection(uiState: HomeUiState) {
     }
 }
 
-// Workout-frequency trend, fixed to the last 4 weeks (no range selector — that's Progress's job).
+// Workout-frequency trend, fixed to the last 4 weeks (no range selector - that's Progress's job).
 // Empty state stays minimal (text only, no chart/CTA) since nothing beyond the Start Workout
 // button above fixes "no workouts yet".
 @Composable

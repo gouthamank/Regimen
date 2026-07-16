@@ -39,10 +39,10 @@ fun Equipment.label(): String = when (this) {
     Equipment.OTHER -> stringResource(R.string.equipment_other)
 }
 
-/** Muscle groups offered when creating a custom (strength) exercise — excludes the cardio-only bucket. */
+/** Muscle groups offered when creating a custom (strength) exercise - excludes the cardio-only bucket. */
 val customExerciseMuscleGroups: List<MuscleGroup> =
     MuscleGroup.entries.filter { it != MuscleGroup.CARDIO }
 
-/** Equipment offered when creating a custom (strength) exercise — excludes cardio machines. */
+/** Equipment offered when creating a custom (strength) exercise - excludes cardio machines. */
 val customExerciseEquipment: List<Equipment> =
     Equipment.entries.filter { it != Equipment.CARDIO_MACHINE }

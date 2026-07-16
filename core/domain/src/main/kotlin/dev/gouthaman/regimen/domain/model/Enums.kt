@@ -18,7 +18,7 @@ enum class ThemeMode { LIGHT, DARK, SYSTEM }
 
 /**
  * Selectable historical-data window for charts (Progress frequency chart, Measurement trend).
- * [weeks] is null for [ALL] (no cutoff — callers resolve the actual span from the data).
+ * [weeks] is null for [ALL] (no cutoff - callers resolve the actual span from the data).
  */
 enum class HistoryRange(val label: String, val weeks: Int?) {
     FOUR_WEEKS("4w", 4),

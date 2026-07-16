@@ -37,7 +37,7 @@ import dev.gouthaman.regimen.domain.model.matchesSearch
 
 /**
  * Reusable multi-select exercise picker (S16). Callers pass the addable [exercises] (already
- * context-filtered — e.g. strength-only for routines); confirming returns the chosen ids.
+ * context-filtered - e.g. strength-only for routines); confirming returns the chosen ids.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +58,7 @@ fun ExercisePickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = modifier) {
         // List gets weight(1f, fill = false) so header/footer stay pinned outside it without
-        // forcing full sheet height — a fixed heightIn cap instead could let header + list-cap +
+        // forcing full sheet height - a fixed heightIn cap instead could let header + list-cap +
         // footer exceed the sheet's available height, pushing Save off-screen with nothing left
         // to scroll it back into view.
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -79,7 +79,7 @@ fun ExercisePickerSheet(
             )
 
             ListItem(
-                headlineContent = { Text(stringResource(R.string.exercise_picker_create_custom)) },
+                content = { Text(stringResource(R.string.exercise_picker_create_custom)) },
                 leadingContent = { Icon(Icons.Filled.Add, contentDescription = null) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable(onClick = onCreateCustom),
@@ -94,7 +94,7 @@ fun ExercisePickerSheet(
             items(visible, key = { it.id }) { exercise ->
                 val checked = exercise.id in selected
                 ListItem(
-                    headlineContent = { Text(exercise.name) },
+                    content = { Text(exercise.name) },
                     supportingContent = {
                         Text("${exercise.muscleGroup.label()} · ${exercise.equipment.label()}")
                     },

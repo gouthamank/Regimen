@@ -35,7 +35,7 @@
         <item quantity="one">%1$d rep</item>
         <item quantity="other">%1$d reps</item>
     </plurals>
-    <string name="exercise_detail_no_records_yet">No records yet — log a workout to set one.</string>
+    <string name="exercise_detail_no_records_yet">No records yet - log a workout to set one.</string>
     <string name="exercise_detail_history_header">History</string>
     <string name="exercise_detail_no_sessions_logged">No sessions logged yet.</string>
     <string name="exercise_detail_not_found">Exercise not found.</string>

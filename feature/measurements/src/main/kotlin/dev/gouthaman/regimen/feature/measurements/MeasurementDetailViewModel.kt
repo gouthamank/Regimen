@@ -21,7 +21,6 @@ import dev.gouthaman.regimen.navigation.MeasurementDetailRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -63,7 +62,6 @@ class MeasurementDetailViewModel @Inject constructor(
     private val typeId = savedStateHandle.toRoute<MeasurementDetailRoute>().typeId
 
     private val _range = MutableStateFlow(HistoryRange.THREE_MONTHS)
-    val range: StateFlow<HistoryRange> = _range.asStateFlow()
 
     val uiState: StateFlow<MeasurementDetailUiState> = combine(
         observeTypes().map { types -> types.firstOrNull { it.id == typeId } },

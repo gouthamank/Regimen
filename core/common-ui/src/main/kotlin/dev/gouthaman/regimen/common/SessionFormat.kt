@@ -21,10 +21,10 @@ import java.util.Locale
 /** Human-readable labels for a past session, shared by the history calendar and session detail. */
 object SessionFormat {
 
-    private val dayFormatter = SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault())
-    private val shortDateFormatter = SimpleDateFormat("MMM d", Locale.getDefault())
+    private fun dayFormatter() = SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault())
+    private fun shortDateFormatter() = SimpleDateFormat("MMM d", Locale.getDefault())
 
-    fun fullDate(millis: Long): String = dayFormatter.format(millis)
+    fun fullDate(millis: Long): String = dayFormatter().format(millis)
 
     /** Time of day, honoring the system's 12h/24h clock preference (Settings > Date & time). */
     @Composable
@@ -34,7 +34,7 @@ object SessionFormat {
         return formatter.format(Date(millis))
     }
 
-    /** [time], prefixed with a short date ("MMM d") when [millis] isn't today — for lists that
+    /** [time], prefixed with a short date ("MMM d") when [millis] isn't today - for lists that
      * can span multiple days (e.g. a "recent workouts" list), where time alone would be ambiguous. */
     @Composable
     fun timeWithDateIfNotToday(millis: Long): String {
@@ -48,13 +48,13 @@ object SessionFormat {
         } else {
             stringResource(
                 R.string.session_format_date_time,
-                shortDateFormatter.format(Date(millis)),
+                shortDateFormatter().format(Date(millis)),
                 timeText
             )
         }
     }
 
-    /** "45 min", "1h 05m", or "—" when the session has no recorded end. Excludes paused time. */
+    /** "45 min", "1h 05m", or "-" when the session has no recorded end. Excludes paused time. */
     @Composable
     fun duration(startMillis: Long, endMillis: Long?, pausedMs: Long = 0): String {
         if (endMillis == null) return stringResource(R.string.session_format_placeholder_dash)

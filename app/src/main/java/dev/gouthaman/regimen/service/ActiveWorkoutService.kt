@@ -1,16 +1,19 @@
 package dev.gouthaman.regimen.service
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.gouthaman.regimen.MainActivity
 import dev.gouthaman.regimen.R
@@ -83,7 +86,11 @@ class ActiveWorkoutService : Service() {
                 if (workout == null || workout.workout.workoutStatus == WorkoutStatus.COMPLETE) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
-                } else {
+                } else if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
                     NotificationManagerCompat.from(this)
                         .notify(NOTIFICATION_ID, buildNotification(workout.workout))
                 }
@@ -199,7 +206,7 @@ class ActiveWorkoutService : Service() {
         const val ACTION_END = "dev.gouthaman.regimen.action.END"
 
         fun start(context: Context) {
-            androidx.core.content.ContextCompat.startForegroundService(
+            ContextCompat.startForegroundService(
                 context,
                 Intent(context, ActiveWorkoutService::class.java),
             )

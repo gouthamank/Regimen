@@ -1,7 +1,7 @@
 package dev.gouthaman.regimen.domain.model
 
 /**
- * True if [query] matches this exercise's name, or its type/muscle-group/equipment tags — so
+ * True if [query] matches this exercise's name, or its type/muscle-group/equipment tags - so
  * searching "cardio" surfaces all cardio exercises, not just name matches. Shared by the
  * Exercise Library search and the Exercise Picker sheet.
  */

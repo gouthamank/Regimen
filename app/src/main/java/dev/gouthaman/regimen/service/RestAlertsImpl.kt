@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.service
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -73,11 +74,12 @@ class RestAlertsImpl @Inject constructor(
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun notifyDone(workoutId: Long, chimeEnabled: Boolean) {
         val channelId = if (chimeEnabled) CHANNEL_ID else CHANNEL_ID_SILENT
         val contentIntent = PendingIntent.getActivity(
             context,
-            // Distinct from ActiveWorkoutService's content-intent request code (0) — both target
+            // Distinct from ActiveWorkoutService's content-intent request code (0) - both target
             // MainActivity with no distinguishing action, so sharing a request code would make
             // Android's PendingIntent matching treat them as the same intent.
             CONTENT_INTENT_REQUEST_CODE,

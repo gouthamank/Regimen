@@ -9,7 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** A labeled value (e.g. "12" over "Workouts") — the shared building block for stat rows/grids
+/** A labeled value (e.g. "12" over "Workouts") - the shared building block for stat rows/grids
  * (Home's week/month summary tiles, Workout Summary's session recap row). Callers that want a
  * card background wrap this themselves; not every caller does. */
 @Composable

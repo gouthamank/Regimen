@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** One past session's log of this exercise: its date and its raw set/cardio entries (exactly one
- * of the two is non-empty, per the exercise's type) — kept raw so the Composable can localize each
+ * of the two is non-empty, per the exercise's type) - kept raw so the Composable can localize each
  * entry's label via SessionFormat.setLabel/cardioLabel at render time. */
 data class ExerciseHistoryItem(
     val workoutId: Long,
@@ -103,7 +103,7 @@ class ExerciseDetailViewModel @Inject constructor(
         val isStrength = exercise?.type == ExerciseType.STRENGTH
         val history = historySessions.mapNotNull { session ->
             if (isStrength) {
-                // Only sets completed with a value logged count — a blank/skipped placeholder set (no weight, no reps) isn't a real record.
+                // Only sets completed with a value logged count - a blank/skipped placeholder set (no weight, no reps) isn't a real record.
                 val sets = session.sets
                     .filter { it.isComplete && (it.weightKg != null || it.reps != null) }
                     .sortedBy { it.setNumber }

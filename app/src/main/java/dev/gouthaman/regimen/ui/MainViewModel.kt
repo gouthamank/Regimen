@@ -24,7 +24,7 @@ data class MainUiState(
 class MainViewModel @Inject constructor(
     observePreferences: ObservePreferencesUseCase,
 ) : ViewModel() {
-    // Eagerly so uiState.value advances to loaded=true even before Compose subscribes — the splash
+    // Eagerly so uiState.value advances to loaded=true even before Compose subscribes - the splash
     // keep-condition in MainActivity reads .value directly rather than collecting.
     val uiState: StateFlow<MainUiState> = observePreferences()
         .map { MainUiState(prefs = it, loaded = true) }

@@ -16,7 +16,7 @@ android {
         // AGP's project-wide default here is this same class whether declared or not, but every
         // module still produces its own (often source-less) androidTest APK that needs the class
         // on its own classpath, or connectedAndroidTest fails with ClassNotFoundException trying
-        // to launch it — hence the matching androidTestImplementation below, added to every module.
+        // to launch it - hence the matching androidTestImplementation below, added to every module.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

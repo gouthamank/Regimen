@@ -40,7 +40,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * S8a — Add Measurement Entry. Pick a type (locked when [fixedTypeId] is set, e.g. from the detail
+ * S8a - Add Measurement Entry. Pick a type (locked when [fixedTypeId] is set, e.g. from the detail
  * screen), a date (defaults to today), and a value in the user's display units. [onSave] receives
  * the raw display value; the ViewModel converts to canonical storage.
  */
@@ -70,7 +70,7 @@ fun AddMeasurementSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         // Form fields get weight(1f, fill = false) so Save stays pinned below without forcing
-        // full sheet height — in compact landscape the form scrolls internally instead of pushing
+        // full sheet height - in compact landscape the form scrolls internally instead of pushing
         // Save off-screen with nothing left to scroll it back into view.
         Text(
             stringResource(R.string.add_measurement_sheet_title),
@@ -145,7 +145,7 @@ fun AddMeasurementSheet(
             ) {
                 Text(stringResource(R.string.add_measurement_sheet_date_label))
                 TextButton(onClick = { showDatePicker = true }) {
-                    Text(dateFormatter.format(dateMillis))
+                    Text(dateFormatter().format(dateMillis))
                 }
             }
         }
@@ -186,12 +186,12 @@ fun AddMeasurementSheet(
     }
 }
 
-private val dateFormatter = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+private fun dateFormatter() = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
 /**
  * Restricts the date picker to today or earlier. The picker works in UTC-midnight millis, so we
  * compare on calendar day (in UTC, matching how the picked value is stored) against today's local
- * date — no future calendar day can be selected.
+ * date - no future calendar day can be selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 private object NoFutureDates : SelectableDates {
