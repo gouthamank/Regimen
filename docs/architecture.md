@@ -210,12 +210,14 @@ The core loop; users spend the majority of session time here.
 - **Resilience** - the screen survives process death, rotation, and backgrounding. The
   in-progress session is persisted to Room continuously, not only on finish.
 - **Persistent notification (foreground service)** - while a workout is active, an ongoing
-  notification exposes **Pause** and **End workout** actions and backs the continuously running
-  timer. Requires a foreground service and the `POST_NOTIFICATIONS` permission (Android 13+).
-  Tapping it (or the rest-complete notification) deep-links straight into that session's Active
-  Workout screen via an `Intent` extra (`MainActivity.EXTRA_WORKOUT_ID`) read on cold start
-  (`onCreate`) and warm start (`onNewIntent`, since `MainActivity` is `launchMode="singleTop"`) and
-  consumed by `RegimenApp` the same way the in-app "Resume" banner navigates.
+  notification exposes a **Pause/Resume** action and backs the continuously running timer; ending
+  a workout is in-app only (Active Workout's Finish button), not exposed on the notification, so
+  it always goes through that button's incomplete-workout confirmation. Requires a foreground
+  service and the `POST_NOTIFICATIONS` permission (Android 13+). Tapping the notification (or the
+  rest-complete notification) deep-links straight into that session's Active Workout screen via an
+  `Intent` extra (`MainActivity.EXTRA_WORKOUT_ID`) read on cold start (`onCreate`) and warm start
+  (`onNewIntent`, since `MainActivity` is `launchMode="singleTop"`) and consumed by `RegimenApp`
+  the same way the in-app "Resume" banner navigates.
 - **Editing a past session** (via Session Detail's Edit) reopens Active Workout without a live
   timer, Pause/Resume, or rest-timer button - the bottom toolbar instead shows a static "Editing
   session" label. Editing never changes the session's original timestamps and does not conflict
@@ -294,8 +296,15 @@ The core loop; users spend the majority of session time here.
   (km/mi). Values are stored canonically (weight in kg, distance in meters) and converted only at
   display/entry time, so switching units never loses precision.
 - **Rest alert:** vibration, an optional audio chime (user-toggleable), and a system notification.
-- **Active-workout notification:** persistent, foreground-service-backed, with Pause and End
-  actions.
+- **Active-workout notification:** persistent, foreground-service-backed, with a Pause/Resume
+  action only - ending a workout is in-app only.
+- **Haptic feedback:** via Compose's `LocalHapticFeedback` (routes through the platform's touch-
+  feedback pipeline, so it already respects the system's haptics/vibration setting - nothing here
+  can or needs to override that). Used at: drag-to-reorder (a tick on drag-lift, another per swap -
+  shared `DragDropState`/`dragHandle`), Active Workout's set-complete checkbox (on check only, not
+  uncheck), its exercise skip/done toggles, its toolbar Pause/Resume tap, Routine Editor's
+  sets/reps/rest steppers, `ConfirmDialog`'s destructive confirms, and the moment a delayed confirm
+  button (see Reusable components) becomes tappable.
 - **Data export:** not implemented.
 
 ---
@@ -446,7 +455,7 @@ boundary, so `:core:domain` has zero dependency on Room.
 | Architecture                    | MVVM + UDF with a full use-case (domain) layer - `ui → domain/use-cases → data/repository → Room DAO`; ViewModels expose immutable `StateFlow` UI state |
 | DI                              | Hilt                                                                                                                                                    |
 | Persistence                     | Room + Coroutines/Flow; DAOs return `Flow`                                                                                                              |
-| Active Workout runtime          | Foreground service (persistent notification, Pause/End). Needs `FOREGROUND_SERVICE` (+ type) and `POST_NOTIFICATIONS` (Android 13+)                     |
+| Active Workout runtime          | Foreground service (persistent notification, Pause/Resume). Needs `FOREGROUND_SERVICE` (+ type) and `POST_NOTIFICATIONS` (Android 13+)                  |
 | minSdk / targetSdk / compileSdk | 26 (Android 8) / 37 / 37.1                                                                                                                              |
 
 ### Current pinned versions

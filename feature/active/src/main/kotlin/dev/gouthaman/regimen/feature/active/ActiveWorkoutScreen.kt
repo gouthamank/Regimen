@@ -149,9 +149,10 @@ fun ActiveWorkoutScreen(
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Navigates off the observed workout state, so ending/discarding via the notification (not
-    // just in-app buttons) also moves the screen. Skipped while editing a past session - endTime
-    // never changes there (isEditingPastSession), so Done/Cancel-edit navigate directly instead (below).
+    // Navigates off the observed workout state rather than directly off the Finish button tap, so
+    // any path that flips status to COMPLETE also moves the screen. Skipped while editing a past
+    // session - endTime never changes there (isEditingPastSession), so Done/Cancel-edit navigate
+    // directly instead (below).
     LaunchedEffect(uiState.finished, uiState.isEditingPastSession) {
         if (uiState.finished && !uiState.isEditingPastSession) onFinished(viewModel.workoutId)
     }

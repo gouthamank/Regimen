@@ -100,7 +100,7 @@ data class ActiveWorkoutUiState(
 ) {
     val isPaused: Boolean get() = status == WorkoutStatus.PAUSED
 
-    /** True once the workout has an end time - finished here or via the notification's End action. */
+    /** True once the workout has an end time - only ever set via the in-app Finish button. */
     val finished: Boolean get() = status == WorkoutStatus.COMPLETE || status == WorkoutStatus.EDITING
 
     /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs

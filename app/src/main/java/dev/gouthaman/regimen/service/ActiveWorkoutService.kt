@@ -20,7 +20,6 @@ import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.model.Workout
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
-import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
@@ -40,9 +39,9 @@ import javax.inject.Inject
 
 /**
  * Foreground service backing an active workout (S13): keeps the process alive with a persistent,
- * pause-aware timer notification (Pause/Resume/End actions). Started/stopped by
- * [ActiveWorkoutServiceController]. Survives process death via START_STICKY (the workout itself
- * lives in Room).
+ * pause-aware timer notification (Pause/Resume actions only - ending a workout is in-app only,
+ * via Active Workout's Finish button). Started/stopped by [ActiveWorkoutServiceController].
+ * Survives process death via START_STICKY (the workout itself lives in Room).
  */
 @AndroidEntryPoint
 class ActiveWorkoutService : Service() {
@@ -58,9 +57,6 @@ class ActiveWorkoutService : Service() {
 
     @Inject
     lateinit var resumeWorkout: ResumeWorkoutUseCase
-
-    @Inject
-    lateinit var finishWorkout: FinishWorkoutUseCase
 
     @Inject
     lateinit var getInProgressWorkoutId: GetInProgressWorkoutIdUseCase
@@ -111,7 +107,6 @@ class ActiveWorkoutService : Service() {
                 when (action) {
                     ACTION_PAUSE -> pauseWorkout(id)
                     ACTION_RESUME -> resumeWorkout(id)
-                    ACTION_END -> finishWorkout(id)
                 }
             }
         }
@@ -167,7 +162,6 @@ class ActiveWorkoutService : Service() {
                 if (paused) "Resume" else "Pause",
                 servicePendingIntent(if (paused) ACTION_RESUME else ACTION_PAUSE),
             )
-            builder.addAction(0, "End", servicePendingIntent(ACTION_END))
         }
         return builder.build()
     }
@@ -203,7 +197,6 @@ class ActiveWorkoutService : Service() {
         private const val NOTIFICATION_ID = 3001
         const val ACTION_PAUSE = "dev.gouthaman.regimen.action.PAUSE"
         const val ACTION_RESUME = "dev.gouthaman.regimen.action.RESUME"
-        const val ACTION_END = "dev.gouthaman.regimen.action.END"
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(

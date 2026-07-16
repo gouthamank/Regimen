@@ -82,7 +82,7 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *    [✓] Workout Summary  WorkoutSummaryRoute(workoutId)  (S15; recap + PRs + save-as-routine)
  *    [✓] Rest Timer (sheet, within Active Workout)         (S14; manual, adjustable, vibrate+chime)
  *    [✓] In-progress "Resume" banner (above the tab bar) + resume/single-active + notif permission (Phase 3a)
- *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/End notification + Pause (Phase 3b)
+ *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/Resume notification (Phase 3b)
  *    [✓] Session-Detail Repeat/Edit → Active Workout (Phase 3c)  - #15 COMPLETE
  *
  *  Each feature module owns its own destinations via a `NavGraphBuilder.xGraph()` extension

@@ -79,8 +79,8 @@ class FinishWorkoutUseCase @Inject constructor(
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         // Guards against a redundant re-finish (e.g. a double-tap race) and against ever
         // clobbering a session that's being re-edited (EDITING always has endTime already set,
-        // so it can't be reached via the in-progress-scoped ACTION_END path today regardless -
-        // this is defense-in-depth, matching the same status guard every sibling use-case has).
+        // so it can't be reached via the in-progress-only Finish flow today regardless - this is
+        // defense-in-depth, matching the same status guard every sibling use-case has).
         if (w.workoutStatus == WorkoutStatus.COMPLETE || w.workoutStatus == WorkoutStatus.EDITING) return
         val now = clock.nowMillis()
         // Settle any in-progress pause into the accumulated total so recorded duration is correct.
