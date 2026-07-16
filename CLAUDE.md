@@ -48,15 +48,20 @@ pinning.
 
 ## Conventions
 
-- **`docs/architecture.md` is a living current-state snapshot, not a changelog.** Keep it up to
-  date when scope, screens, or the data model change — but edit it in place to describe what *is*,
-  never append a record of what changed. No "Built in #N" / milestone markers, no
-  `~~strikethrough~~ **Done.**` backlog entries, no "originally X, later revised to Y" narration,
-  no history of *how* something came to be this way. If a decision's rationale is worth keeping
-  (e.g. *why* a value is stored canonically, *why* a column is reserved-but-unused), state it as
-  a plain fact about the current design, not as a story of a past change. Not-yet-built items are
-  still current-state facts — note them inline where relevant (e.g. "data export is not
-  implemented" under Settings), not as a to-do/backlog list.
+- **`docs/architecture.md` and `docs/testing.md` are living current-state snapshots, not
+  changelogs.** Keep them up to date when scope, screens, the data model, or test coverage change —
+  but edit in place to describe what *is*, never append a record of what changed. No "Built in #N"
+  / milestone markers, no `~~strikethrough~~ **Done.**` backlog entries, no "originally X, later
+  revised to Y" narration, no history of *how* something came to be this way. If a decision's
+  rationale is worth keeping (e.g. *why* a value is stored canonically, *why* a column is
+  reserved-but-unused), state it as a plain fact about the current design, not as a story of a past
+  change. Not-yet-built/not-yet-tested items are still current-state facts — note them inline where
+  relevant (e.g. "data export is not implemented" under Settings), not as a to-do/backlog list.
+- **Tests:** `docs/testing.md` is the reference for what's tested, where, and what's deliberately
+  skipped — read it before writing new tests. New or changed logic that falls into an
+  already-covered tier (use cases with real branching, ViewModels, Room DAO joins, shared Compose
+  components) should come with a corresponding test; update existing tests when the behavior they
+  cover changes rather than leaving them asserting stale behavior.
 - **Navigation map:** `:app`'s `ui/navigation/RegimenNavHost.kt` has an ASCII navigation-map
   comment at the top of `RegimenNavHost`. Compose navigation is code-only (no XML graph / visual
   editor in Android Studio), so this comment is the human-readable overview — **update it

@@ -23,4 +23,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.konfetti.compose)
+
+    testImplementation(project(":core:testing"))
+    testImplementation(project(":core:testing-android"))
 }

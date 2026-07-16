@@ -19,4 +19,6 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.hilt.navigation.compose)
+
+    testImplementation(project(":core:testing"))
 }

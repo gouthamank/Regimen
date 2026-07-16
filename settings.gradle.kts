@@ -26,6 +26,8 @@ dependencyResolutionManagement {
 rootProject.name = "Regimen"
 include(":app")
 include(":core:domain")
+include(":core:testing")
+include(":core:testing-android")
 include(":core:data")
 include(":core:common-ui")
 include(":core:designsystem")

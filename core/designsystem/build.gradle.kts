@@ -1,5 +1,6 @@
 plugins {
     id("regimen.android.library.compose")
+    id("regimen.android.instrumented-test")
 }
 
 android {
@@ -7,6 +8,10 @@ android {
 }
 
 dependencies {
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
     implementation(project(":core:domain"))
     implementation(project(":core:common-ui"))
     implementation(libs.androidx.compose.material3)
