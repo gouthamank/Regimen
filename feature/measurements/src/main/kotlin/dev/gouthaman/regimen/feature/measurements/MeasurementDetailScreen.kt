@@ -204,7 +204,15 @@ fun MeasurementDetailScreen(
             }
             LazyColumn(
                 modifier = listModifier,
-                contentPadding = PaddingValues(16.dp),
+                // Scaffold's innerPadding doesn't reserve space for the FAB, so the last entry
+                // needs its own clearance (16.dp base padding + 56.dp FAB height + 16.dp gap =
+                // 88.dp) to avoid sitting under the ExtendedFloatingActionButton.
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = 88.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (uiState.entries.isNotEmpty()) {

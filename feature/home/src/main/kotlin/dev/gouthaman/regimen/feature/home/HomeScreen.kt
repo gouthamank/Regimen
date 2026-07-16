@@ -296,10 +296,11 @@ private fun WeekSummarySection(uiState: HomeUiState) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Card(modifier = Modifier.weight(1f)) {
-                val scale = rememberPopScale(uiState.workoutsThisWeek)
+                val displayedWorkouts = animatedInt(uiState.workoutsThisWeek, durationMillis = 550)
+                val scale = rememberPopScale(displayedWorkouts)
                 Stat(
                     stringResource(R.string.home_stat_workouts_label),
-                    animatedInt(uiState.workoutsThisWeek, durationMillis = 550).toString(),
+                    displayedWorkouts.toString(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
@@ -364,14 +365,15 @@ private fun MonthSummarySection(uiState: HomeUiState) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Card(modifier = Modifier.weight(1f)) {
-                val scale = rememberPopScale(uiState.workoutsThisMonth, delayMillis = 40)
+                val displayedWorkouts = animatedInt(
+                    uiState.workoutsThisMonth,
+                    durationMillis = 650,
+                    delayMillis = 40
+                )
+                val scale = rememberPopScale(displayedWorkouts, delayMillis = 40)
                 Stat(
                     stringResource(R.string.home_stat_workouts_label),
-                    animatedInt(
-                        uiState.workoutsThisMonth,
-                        durationMillis = 650,
-                        delayMillis = 40
-                    ).toString(),
+                    displayedWorkouts.toString(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
@@ -649,9 +651,10 @@ private fun StreakTile(weeks: Int) {
                     modifier = Modifier.size(22.dp),
                 )
             }
-            val streakScale = rememberPopScale(weeks, delayMillis = 320)
+            val displayedWeeks = animatedInt(weeks, durationMillis = 700, delayMillis = 320)
+            val streakScale = rememberPopScale(displayedWeeks, delayMillis = 320)
             Text(
-                formatStreak(animatedInt(weeks, durationMillis = 700, delayMillis = 320)),
+                formatStreak(displayedWeeks),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryFixed,
                 modifier = Modifier

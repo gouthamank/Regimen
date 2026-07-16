@@ -97,6 +97,26 @@ class FinishWorkoutUseCase @Inject constructor(
                 restWorkoutExerciseId = null,
             )
         )
+        pruneUnloggedExercises(workoutId)
+    }
+
+    /** Removes never-actually-logged data before a session is filed into history: incomplete
+     * sets and still-default cardio bouts (never touched from their [StartWorkoutUseCase]
+     * placeholder). An exercise left with nothing logged is marked skipped, same as if the user
+     * had explicitly skipped it, rather than showing an empty card in History. */
+    private suspend fun pruneUnloggedExercises(workoutId: Long) {
+        val details = workoutRepo.getWorkout(workoutId) ?: return
+        for (we in details.exercises) {
+            we.sets.filterNot { it.isComplete }.forEach { workoutRepo.deleteSet(it) }
+            we.cardio.filter { it.durationSec == 0L && it.distanceMeters == null }
+                .forEach { workoutRepo.deleteCardio(it) }
+
+            val nothingLogged = we.sets.all { !it.isComplete } &&
+                    we.cardio.all { it.durationSec == 0L && it.distanceMeters == null }
+            if (nothingLogged && !we.workoutExercise.isSkipped) {
+                workoutRepo.updateExercise(we.workoutExercise.copy(isSkipped = true))
+            }
+        }
     }
 }
 

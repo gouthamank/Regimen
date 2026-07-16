@@ -19,17 +19,17 @@ val keystoreProperties = Properties().apply {
 android {
     namespace = "dev.gouthaman.regimen"
     compileSdk {
-        version = release(37) {
-            minorApiLevel = 1
+        version = release(libs.versions.compileSdk.get().toInt()) {
+            minorApiLevel = libs.versions.compileSdkMinor.get().toInt()
         }
     }
 
     defaultConfig {
         applicationId = "dev.gouthaman.regimen"
-        minSdk = 26
-        targetSdk = 37
-        versionCode = 3
-        versionName = "0.1.2"
+        minSdk = libs.versions.minSdk.get().toInt()
+        targetSdk = libs.versions.targetSdk.get().toInt()
+        versionCode = 4
+        versionName = "0.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

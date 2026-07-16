@@ -73,28 +73,31 @@ interface WorkoutDao {
     )
     fun observeBestWeight(exerciseId: Long): Flow<Double?>
 
-    /** Heaviest completed set per exercise across all finished workouts. */
+    /** Heaviest completed set per exercise across all finished workouts. [excludingWorkoutId]
+     * (a sentinel of -1 means "none") lets a just-finished workout be compared against the
+     * record it holds excluding its own sets, to tell "beat the old PR" from "merely tied it". */
     @Query(
         "SELECT we.exerciseId AS exerciseId, MAX(se.weightKg) AS bestWeightKg FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
                 "JOIN workouts w ON we.workoutId = w.id " +
                 "WHERE w.workoutStatus IN ('COMPLETE', 'EDITING') AND se.isComplete = 1 " +
-                "AND se.weightKg IS NOT NULL " +
+                "AND se.weightKg IS NOT NULL AND w.id != :excludingWorkoutId " +
                 "GROUP BY we.exerciseId"
     )
-    fun observePersonalRecords(): Flow<List<PersonalRecordRowEntity>>
+    fun observePersonalRecords(excludingWorkoutId: Long = -1): Flow<List<PersonalRecordRowEntity>>
 
     /** Best reps per exercise for sets logged without weight (bodyweight) - PR definition
-     * when [SetEntryEntity.weightKg] is never stored. */
+     * when [SetEntryEntity.weightKg] is never stored. See [observePersonalRecords] for
+     * [excludingWorkoutId]. */
     @Query(
         "SELECT we.exerciseId AS exerciseId, MAX(se.reps) AS bestReps FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
                 "JOIN workouts w ON we.workoutId = w.id " +
                 "WHERE w.workoutStatus IN ('COMPLETE', 'EDITING') AND se.isComplete = 1 " +
-                "AND se.weightKg IS NULL AND se.reps IS NOT NULL " +
+                "AND se.weightKg IS NULL AND se.reps IS NOT NULL AND w.id != :excludingWorkoutId " +
                 "GROUP BY we.exerciseId"
     )
-    fun observeBestReps(): Flow<List<RepsRecordRowEntity>>
+    fun observeBestReps(excludingWorkoutId: Long = -1): Flow<List<RepsRecordRowEntity>>
 
     /** Most recent logged set for an exercise, from any finished workout - prefill source
      * when adding it ad hoc, outside a routine's own history-based prefill. */

@@ -224,7 +224,15 @@ fun ExerciseLibraryScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        // Scaffold's innerPadding doesn't reserve space for the FAB, so the last row
+                        // needs its own clearance (8.dp base padding + 56.dp FAB height + 16.dp gap =
+                        // 80.dp) to avoid sitting under the FloatingActionButton.
+                        contentPadding = PaddingValues(
+                            top = 8.dp,
+                            bottom = 80.dp,
+                            start = 16.dp,
+                            end = 16.dp
+                        ),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(uiState.exercises, key = { it.id }) { exercise ->

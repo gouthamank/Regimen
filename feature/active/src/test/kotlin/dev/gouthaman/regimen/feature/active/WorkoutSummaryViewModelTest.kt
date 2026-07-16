@@ -124,7 +124,7 @@ class WorkoutSummaryViewModelTest {
     }
 
     @Test
-    fun `an exercise that ties or beats its own overall best weight counts as a PR hit`() =
+    fun `an exercise that beats its prior best weight counts as a PR hit`() =
         runTest {
             val workoutRepo = FakeWorkoutRepository()
             workoutRepo.exerciseLookup = { benchPress }
@@ -175,6 +175,91 @@ class WorkoutSummaryViewModelTest {
                 assertEquals(listOf("Bench Press"), awaitItem().prsHit)
             }
         }
+
+    @Test
+    fun `an exercise that only ties its prior best weight is not a PR hit`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        workoutRepo.exerciseLookup = { benchPress }
+        val exerciseRepo = FakeExerciseRepository()
+        exerciseRepo.seed(benchPress)
+
+        val pastId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+        val pastWe = workoutRepo.addExercise(
+            WorkoutExercise(
+                workoutId = pastId,
+                exerciseId = benchPress.id,
+                position = 0
+            )
+        )
+        workoutRepo.upsertSet(
+            SetEntry(
+                workoutExerciseId = pastWe,
+                setNumber = 1,
+                weightKg = 100.0,
+                reps = 5,
+                isComplete = true
+            )
+        )
+        finishedWorkout(workoutRepo, pastId)
+
+        val workoutId = workoutRepo.createWorkout(startTime = 2_000, routineId = null)
+        val we = workoutRepo.addExercise(
+            WorkoutExercise(
+                workoutId = workoutId,
+                exerciseId = benchPress.id,
+                position = 0
+            )
+        )
+        workoutRepo.upsertSet(
+            SetEntry(
+                workoutExerciseId = we,
+                setNumber = 1,
+                weightKg = 100.0,
+                reps = 5,
+                isComplete = true
+            )
+        )
+        finishedWorkout(workoutRepo, workoutId)
+
+        val viewModel = viewModel(workoutId, workoutRepo, exerciseRepo = exerciseRepo)
+
+        viewModel.uiState.test {
+            assertEquals(emptyList<String>(), awaitItem().prsHit)
+        }
+    }
+
+    @Test
+    fun `a first-ever completed exercise counts as a PR hit`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        workoutRepo.exerciseLookup = { benchPress }
+        val exerciseRepo = FakeExerciseRepository()
+        exerciseRepo.seed(benchPress)
+
+        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+        val we = workoutRepo.addExercise(
+            WorkoutExercise(
+                workoutId = workoutId,
+                exerciseId = benchPress.id,
+                position = 0
+            )
+        )
+        workoutRepo.upsertSet(
+            SetEntry(
+                workoutExerciseId = we,
+                setNumber = 1,
+                weightKg = 100.0,
+                reps = 5,
+                isComplete = true
+            )
+        )
+        finishedWorkout(workoutRepo, workoutId)
+
+        val viewModel = viewModel(workoutId, workoutRepo, exerciseRepo = exerciseRepo)
+
+        viewModel.uiState.test {
+            assertEquals(listOf("Bench Press"), awaitItem().prsHit)
+        }
+    }
 
     @Test
     fun `an exercise below its overall best weight is not a PR hit`() = runTest {

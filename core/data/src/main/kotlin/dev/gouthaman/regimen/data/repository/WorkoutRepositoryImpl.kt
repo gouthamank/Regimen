@@ -35,11 +35,12 @@ class WorkoutRepositoryImpl @Inject constructor(
     override fun observeBestWeight(exerciseId: Long): Flow<Double?> =
         dao.observeBestWeight(exerciseId)
 
-    override fun observePersonalRecords(): Flow<List<PersonalRecordRow>> =
-        dao.observePersonalRecords().map { list -> list.map { it.toDomain() } }
+    override fun observePersonalRecords(excludingWorkoutId: Long?): Flow<List<PersonalRecordRow>> =
+        dao.observePersonalRecords(excludingWorkoutId ?: -1)
+            .map { list -> list.map { it.toDomain() } }
 
-    override fun observeBestReps(): Flow<List<RepsRecordRow>> =
-        dao.observeBestReps().map { list -> list.map { it.toDomain() } }
+    override fun observeBestReps(excludingWorkoutId: Long?): Flow<List<RepsRecordRow>> =
+        dao.observeBestReps(excludingWorkoutId ?: -1).map { list -> list.map { it.toDomain() } }
 
     override fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
         dao.observeExerciseHistory(exerciseId).map { list -> list.map { it.toDomain() } }

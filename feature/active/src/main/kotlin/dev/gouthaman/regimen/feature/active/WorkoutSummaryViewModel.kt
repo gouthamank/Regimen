@@ -61,7 +61,7 @@ class WorkoutSummaryViewModel @Inject constructor(
         observeWorkout(workoutId),
         observeRoutines(),
         observePreferences(),
-        getPersonalRecords(),
+        getPersonalRecords(excludingWorkoutId = workoutId),
     ) { workout, routines, prefs, prs ->
         restDefaultSec = prefs.restDefaultSec
         if (workout == null) {
@@ -73,10 +73,15 @@ class WorkoutSummaryViewModel @Inject constructor(
             val completedSets = workout.exercises.flatMap { it.sets }.filter { it.isComplete }
             val volumeKg = workout.loggedVolumeKg()
 
-            val overallBestWeight = prs.mapNotNull { pr ->
+            // "prs" already excludes this workout's own sets (see getPersonalRecords call
+            // above), so it's the record this session actually needs to beat - a null entry
+            // means the exercise has no prior history, in which case any completed set is a
+            // new PR by definition; a non-null entry only counts as beaten by a strictly higher
+            // session value, not merely tied.
+            val priorBestWeight = prs.mapNotNull { pr ->
                 pr.bestWeightKg?.let { pr.exerciseId to it }
             }.toMap()
-            val overallBestReps = prs.mapNotNull { pr ->
+            val priorBestReps = prs.mapNotNull { pr ->
                 pr.bestReps?.let { pr.exerciseId to it }
             }.toMap()
             val prsHit = workout.exercises
@@ -84,14 +89,15 @@ class WorkoutSummaryViewModel @Inject constructor(
                 .mapNotNull { we ->
                     val completedSets = we.sets.filter { it.isComplete }
                     val sessionBestWeight = completedSets.mapNotNull { it.weightKg }.maxOrNull()
-                    val bestWeight = overallBestWeight[we.exercise.id]
+                    val priorWeight = priorBestWeight[we.exercise.id]
                     val hitWeightPr =
-                        sessionBestWeight != null && bestWeight != null && sessionBestWeight >= bestWeight
+                        sessionBestWeight != null &&
+                                (priorWeight == null || sessionBestWeight > priorWeight)
 
                     val sessionBestReps = completedSets.mapNotNull { it.reps }.maxOrNull()
-                    val bestReps = overallBestReps[we.exercise.id]
+                    val priorReps = priorBestReps[we.exercise.id]
                     val hitRepsPr =
-                        sessionBestReps != null && bestReps != null && sessionBestReps >= bestReps
+                        sessionBestReps != null && (priorReps == null || sessionBestReps > priorReps)
 
                     if (hitWeightPr || hitRepsPr) we.exercise.name else null
                 }

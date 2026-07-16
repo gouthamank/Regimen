@@ -22,10 +22,12 @@ class GetPersonalRecordsUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val exerciseRepo: ExerciseRepository,
 ) {
-    operator fun invoke(): Flow<List<PersonalRecord>> =
+    /** [excludingWorkoutId], if given, leaves that workout's own sets out of the "best" - used to
+     * find the record a just-finished session needs to beat, not merely tie, to count as new. */
+    operator fun invoke(excludingWorkoutId: Long? = null): Flow<List<PersonalRecord>> =
         combine(
-            workoutRepo.observePersonalRecords(),
-            workoutRepo.observeBestReps(),
+            workoutRepo.observePersonalRecords(excludingWorkoutId),
+            workoutRepo.observeBestReps(excludingWorkoutId),
             exerciseRepo.observeAll(),
         ) { weightPrs, repsPrs, exercises ->
             val byId = exercises.associateBy { it.id }

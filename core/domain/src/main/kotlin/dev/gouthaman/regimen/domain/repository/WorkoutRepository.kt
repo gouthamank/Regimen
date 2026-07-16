@@ -17,8 +17,8 @@ interface WorkoutRepository {
 
     fun observeInProgressId(): Flow<Long?>
     fun observeBestWeight(exerciseId: Long): Flow<Double?>
-    fun observePersonalRecords(): Flow<List<PersonalRecordRow>>
-    fun observeBestReps(): Flow<List<RepsRecordRow>>
+    fun observePersonalRecords(excludingWorkoutId: Long? = null): Flow<List<PersonalRecordRow>>
+    fun observeBestReps(excludingWorkoutId: Long? = null): Flow<List<RepsRecordRow>>
     fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>>
 
     suspend fun getInProgress(): WorkoutWithDetails?

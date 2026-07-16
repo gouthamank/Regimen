@@ -6,13 +6,13 @@ plugins {
 
 android {
     compileSdk {
-        version = release(37) {
-            minorApiLevel = 1
+        version = release(libs.findVersion("compileSdk").get().requiredVersion.toInt()) {
+            minorApiLevel = libs.findVersion("compileSdkMinor").get().requiredVersion.toInt()
         }
     }
 
     defaultConfig {
-        minSdk = 26
+        minSdk = libs.findVersion("minSdk").get().requiredVersion.toInt()
         // AGP's project-wide default here is this same class whether declared or not, but every
         // module still produces its own (often source-less) androidTest APK that needs the class
         // on its own classpath, or connectedAndroidTest fails with ClassNotFoundException trying

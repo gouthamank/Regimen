@@ -58,31 +58,33 @@ class FakeWorkoutRepository : WorkoutRepository {
             .maxOrNull()
     }
 
-    override fun observePersonalRecords(): Flow<List<PersonalRecordRow>> = workouts.map { list ->
-        list.filter { it.workout.isFinished() }
-            .flatMap { it.exercises }
-            .flatMap { we ->
-                we.sets.filter { it.isComplete && it.weightKg != null }
-                    .map { we.exercise.id to it.weightKg!! }
-            }
-            .groupBy({ it.first }, { it.second })
-            .mapNotNull { (exerciseId, weights) ->
-                weights.maxOrNull()?.let { PersonalRecordRow(exerciseId, it) }
-            }
-    }
+    override fun observePersonalRecords(excludingWorkoutId: Long?): Flow<List<PersonalRecordRow>> =
+        workouts.map { list ->
+            list.filter { it.workout.isFinished() && it.workout.id != excludingWorkoutId }
+                .flatMap { it.exercises }
+                .flatMap { we ->
+                    we.sets.filter { it.isComplete && it.weightKg != null }
+                        .map { we.exercise.id to it.weightKg!! }
+                }
+                .groupBy({ it.first }, { it.second })
+                .mapNotNull { (exerciseId, weights) ->
+                    weights.maxOrNull()?.let { PersonalRecordRow(exerciseId, it) }
+                }
+        }
 
-    override fun observeBestReps(): Flow<List<RepsRecordRow>> = workouts.map { list ->
-        list.filter { it.workout.isFinished() }
-            .flatMap { it.exercises }
-            .flatMap { we ->
-                we.sets.filter { it.isComplete && it.weightKg == null && it.reps != null }
-                    .map { we.exercise.id to it.reps!! }
-            }
-            .groupBy({ it.first }, { it.second })
-            .mapNotNull { (exerciseId, reps) ->
-                reps.maxOrNull()?.let { RepsRecordRow(exerciseId, it) }
-            }
-    }
+    override fun observeBestReps(excludingWorkoutId: Long?): Flow<List<RepsRecordRow>> =
+        workouts.map { list ->
+            list.filter { it.workout.isFinished() && it.workout.id != excludingWorkoutId }
+                .flatMap { it.exercises }
+                .flatMap { we ->
+                    we.sets.filter { it.isComplete && it.weightKg == null && it.reps != null }
+                        .map { we.exercise.id to it.reps!! }
+                }
+                .groupBy({ it.first }, { it.second })
+                .mapNotNull { (exerciseId, reps) ->
+                    reps.maxOrNull()?.let { RepsRecordRow(exerciseId, it) }
+                }
+        }
 
     override fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
         workouts.map { list ->

@@ -12,6 +12,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -87,6 +88,14 @@ fun RegimenTheme(
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme
+            }
+            // In 3-button nav mode, enableEdgeToEdge() paints a fixed translucent scrim behind
+            // the system nav bar instead of the app's own bottom-bar color (gesture nav is
+            // already transparent there, letting NavigationBar's surfaceContainer show through).
+            // Match it explicitly so both modes look the same.
+            window.navigationBarColor = colorScheme.surfaceContainer.toArgb()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = false
             }
         }
     }
