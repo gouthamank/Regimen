@@ -147,8 +147,6 @@ fun HistoryScreen(
                         MonthGrid(
                             month = uiState.month,
                             sessionsByDay = uiState.sessionsByDay,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
                             onDayClick = { sessions ->
                                 if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
                                 else pickerDay = ArrayList(sessions)
@@ -297,13 +295,10 @@ private fun WeekdayHeader() {
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun MonthGrid(
     month: YearMonth,
     sessionsByDay: Map<LocalDate, List<DaySession>>,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
     onDayClick: (List<DaySession>) -> Unit,
 ) {
     val firstDayOfWeek = WeekFields.of(LocalLocale.current.platformLocale).firstDayOfWeek
@@ -329,8 +324,6 @@ private fun MonthGrid(
                                 isToday = date == today,
                                 isFuture = date.isAfter(today),
                                 sessions = sessionsByDay[date].orEmpty(),
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
                                 onClick = onDayClick,
                             )
                         }
@@ -348,29 +341,18 @@ private fun DayCell(
     isToday: Boolean,
     isFuture: Boolean,
     sessions: List<DaySession>,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
     onClick: (List<DaySession>) -> Unit,
 ) {
     // Future dates can't have a logged session yet - dim them so they read as not-yet-available, not just empty.
     val hasWorkout = sessions.isNotEmpty() && !isFuture
+    // No shared-element container transform here (unlike the "recent sessions" row below) - a
+    // small circle morphing via the default rectangular clip transition read as visually broken
+    // mid-transition, so day cells just keep the ordinary slide+fade into Session Detail.
     var cell = Modifier
         .padding(4.dp)
         .fillMaxWidth()
         .aspectRatio(1f)
         .clip(CircleShape)
-    // Only a single-session day maps to one determinate workout - tag it so it expands straight
-    // into Session Detail. A multi-session day opens the picker dialog instead (see onClick
-    // below), which can't participate in the shared-element transform (dialogs run in their own
-    // window), so it's left untagged and keeps the default transition.
-    if (sessions.size == 1) {
-        cell = with(sharedTransitionScope) {
-            cell.sharedBounds(
-                rememberSharedContentState(key = sessionRowTransitionKey(sessions.first().workoutId)),
-                animatedVisibilityScope = animatedVisibilityScope,
-            )
-        }
-    }
     cell = when {
         hasWorkout -> cell.background(MaterialTheme.colorScheme.primaryContainer)
         isToday -> cell.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)

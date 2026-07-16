@@ -11,6 +11,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.delay
 
 /**
@@ -36,6 +38,7 @@ fun ConfirmDialog(
     positive: Boolean = false,
     confirmEnableDelayMillis: Long = 0,
 ) {
+    val haptics = LocalHapticFeedback.current
     var confirmEnabled by remember(confirmEnableDelayMillis) {
         mutableStateOf(
             confirmEnableDelayMillis <= 0
@@ -45,6 +48,9 @@ fun ConfirmDialog(
         if (confirmEnableDelayMillis > 0) {
             delay(confirmEnableDelayMillis)
             confirmEnabled = true
+            // Marks the moment the button becomes tappable, so a still-waiting thumb feels it
+            // flip, not just sees it.
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
         }
     }
     AlertDialog(
@@ -53,7 +59,10 @@ fun ConfirmDialog(
         text = { Text(text) },
         confirmButton = {
             TextButton(
-                onClick = onConfirm,
+                onClick = {
+                    if (destructive) haptics.performHapticFeedback(HapticFeedbackType.Reject)
+                    onConfirm()
+                },
                 enabled = confirmEnabled,
                 colors = when {
                     destructive -> ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)

@@ -47,7 +47,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -410,6 +412,7 @@ private fun ExerciseEditorCard(
 
 @Composable
 private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             label,
@@ -417,7 +420,12 @@ private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onDec) {
+            IconButton(
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    onDec()
+                },
+            ) {
                 Icon(
                     Icons.Filled.Remove,
                     contentDescription = stringResource(
@@ -432,7 +440,12 @@ private fun Stepper(label: String, value: String, onDec: () -> Unit, onInc: () -
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(min = 44.dp),
             )
-            IconButton(onClick = onInc) {
+            IconButton(
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    onInc()
+                },
+            ) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = stringResource(

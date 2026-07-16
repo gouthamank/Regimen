@@ -102,9 +102,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -519,7 +521,13 @@ fun ActiveWorkoutScreen(
                     (exercise.sets.isNotEmpty() && exercise.sets.all { it.isComplete })
         }
         ConfirmDialog(
-            title = stringResource(R.string.workout_finish_dialog_title),
+            title = stringResource(
+                if (allExercisesComplete) {
+                    R.string.workout_finish_dialog_title
+                } else {
+                    R.string.workout_finish_dialog_title_incomplete
+                },
+            ),
             text = stringResource(
                 if (allExercisesComplete) {
                     R.string.workout_finish_dialog_text
@@ -614,6 +622,15 @@ private fun ActiveWorkoutToolbar(
         containerColor = contentColor,
         contentColor = baseColor,
     )
+    val haptics = LocalHapticFeedback.current
+    val hapticPause = {
+        haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
+        onPause()
+    }
+    val hapticResume = {
+        haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+        onResume()
+    }
 
     Box(
         modifier = modifier
@@ -626,7 +643,7 @@ private fun ActiveWorkoutToolbar(
                 if (isEditing) it else it.clickable(
                     interactionSource = interactionSource,
                     indication = indication,
-                    onClick = { if (isPaused) onResume() else onPause() },
+                    onClick = { if (isPaused) hapticResume() else hapticPause() },
                 )
             }
             .background(baseColor)
@@ -669,7 +686,7 @@ private fun ActiveWorkoutToolbar(
                     contentColor = contentColor,
                     breathe = breathe,
                     buttonColors = buttonColors,
-                    onPause = onPause,
+                    onPause = hapticPause,
                     onFinish = onFinish,
                 )
             }
@@ -798,6 +815,7 @@ private fun ExerciseCard(
         exercise.isDone -> ExerciseCardBody.DONE
         else -> ExerciseCardBody.NORMAL
     }
+    val haptics = LocalHapticFeedback.current
     // Cross-fades the container tint on skip/unskip/done (no instant cut), same duration as the toolbar's pause/resume tint fade.
     // Content color rides along so text/icons keep proper contrast against the tinted (done)
     // background, rather than the default card content color (meant for a plain surface).
@@ -843,7 +861,12 @@ private fun ExerciseCard(
                     // reopening it for editing first (Edit clears isDone).
                     if (!exercise.isDone) {
                         IconButton(
-                            onClick = { onToggleSkip(exercise.workoutExercise) },
+                            onClick = {
+                                onToggleSkip(exercise.workoutExercise)
+                                haptics.performHapticFeedback(
+                                    if (exercise.isSkipped) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn,
+                                )
+                            },
                             enabled = enabled
                         ) {
                             // Same scale+fade swap the toolbar uses for its pause/resume icon.
@@ -870,7 +893,12 @@ private fun ExerciseCard(
                         val canMarkDone =
                             exercise.sets.isNotEmpty() && exercise.sets.all { it.isComplete }
                         IconButton(
-                            onClick = { onToggleDone(exercise.workoutExercise) },
+                            onClick = {
+                                onToggleDone(exercise.workoutExercise)
+                                haptics.performHapticFeedback(
+                                    if (exercise.isDone) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn,
+                                )
+                            },
                             enabled = enabled && (exercise.isDone || canMarkDone),
                         ) {
                             AnimatedContent(
@@ -1072,6 +1100,7 @@ private fun SetRow(
     }
     var reps by remember(set.id) { mutableStateOf(set.reps?.toString() ?: "") }
     var complete by remember(set.id) { mutableStateOf(set.isComplete) }
+    val haptics = LocalHapticFeedback.current
     // Reflects externally-driven completion (rest-timer auto-tick) without re-seeding the numeric fields the user typed.
     LaunchedEffect(set.isComplete) { complete = set.isComplete }
 
@@ -1167,7 +1196,13 @@ private fun SetRow(
         )
         Checkbox(
             checked = complete,
-            onCheckedChange = { complete = it; push() },
+            onCheckedChange = {
+                complete = it
+                push()
+                // Only on check, not uncheck - a tick both ways would read as a buzzer during a
+                // quick fix-a-mistake toggle.
+                if (it) haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+            },
             enabled = enabled && (complete || fieldsValid),
         )
         IconButton(onClick = onDelete, enabled = enabled) {

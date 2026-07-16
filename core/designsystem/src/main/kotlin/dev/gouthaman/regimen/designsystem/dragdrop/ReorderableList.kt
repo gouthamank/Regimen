@@ -16,7 +16,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.channels.Channel
 
 /**
@@ -43,6 +46,7 @@ import kotlinx.coroutines.channels.Channel
 class DragDropState internal constructor(
     private val state: LazyListState,
     private val draggableIndices: IntRange,
+    private val haptics: HapticFeedback,
     private val onMove: (draggedKey: Any, targetKey: Any) -> Unit,
 ) {
     var draggingItemKey by mutableStateOf<Any?>(null)
@@ -66,6 +70,7 @@ class DragDropState internal constructor(
         state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.also {
             draggingItemKey = it.key
             draggingItemInitialOffset = it.offset
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 
@@ -97,6 +102,7 @@ class DragDropState internal constructor(
             // incorrectly when several matches hit the same stale layout snapshot (touch-move
             // outpacing recomposition/relayout), rocketing the dragged item past the finger.
             onMove(draggingItem.key, target.key)
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
         } else {
             // Near a viewport edge with nowhere to swap → autoscroll to reveal more.
             val startToTop = startOffset - state.layoutInfo.viewportStartOffset
@@ -118,8 +124,9 @@ fun rememberDragDropState(
     onMove: (draggedKey: Any, targetKey: Any) -> Unit,
 ): DragDropState {
     val latestOnMove by rememberUpdatedState(onMove)
+    val haptics = LocalHapticFeedback.current
     val state = remember(lazyListState, draggableIndices) {
-        DragDropState(lazyListState, draggableIndices) { a, b -> latestOnMove(a, b) }
+        DragDropState(lazyListState, draggableIndices, haptics) { a, b -> latestOnMove(a, b) }
     }
     LaunchedEffect(state) {
         while (true) {
