@@ -44,7 +44,6 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -87,7 +86,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.toShape
+import androidx.compose.material3.toPath
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -104,7 +103,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -114,7 +118,13 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.CornerRounding
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.rectangle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
@@ -556,6 +566,31 @@ fun ActiveWorkoutScreen(
 }
 
 /**
+ * Fits a [Morph]'s interpolated outline, at [progress], to the actual layout bounds - rather than
+ * assuming the morph's own coordinate space already spans the target size (as the fixed-size
+ * MaterialShapes presets assume) - so the two end shapes can live in different coordinate spaces
+ * (a wide rectangle vs. a square-normalized preset) without either one stretching.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private class ToolbarMorphShape(private val morph: Morph, private val progress: Float) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val path = morph.toPath(progress = progress)
+        val bounds = path.getBounds()
+        path.transform(
+            Matrix().apply {
+                scale(x = size.width / bounds.width, y = size.height / bounds.height)
+            }
+        )
+        path.translate(size.center - path.getBounds().center)
+        return Outline.Generic(path)
+    }
+}
+
+/**
  * The session's prominent controls (timer, Pause/Resume, Finish), pulled out of the top bar so it
  * stays title-only. A plain [Surface] pill (shadow+clip+fill), not the alpha
  * `HorizontalFloatingToolbar` API - same building blocks as a FAB, which reads correctly in dark
@@ -577,12 +612,23 @@ private fun ActiveWorkoutToolbar(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // MaterialShapes presets are fixed-aspect RoundedPolygons; Square's rounding stretches
-    // unevenly when scaled to this fillMaxWidth pill, so the wide running state stays on a plain
-    // RoundedCornerShape (whose rounding is aspect-independent) and only the compact, near-square
-    // paused FAB uses the Expressive polygon shape.
-    val activeToolbarShape = RoundedCornerShape(percent = 30)
-    val pausedToolbarShape = MaterialShapes.Slanted.toShape()
+    // A real Morph (not a hard shape swap) between the wide running pill and the compact paused
+    // Slanted shape. The active polygon is built directly in a wide rectangle's own coordinate
+    // space (not one of the square-normalized MaterialShapes presets) so its corner rounding
+    // - matching the RoundedCornerShape(percent = 30) look this replaced - doesn't get stretched
+    // when Morph interpolates toward Slanted's near-square space; ToolbarMorphShape below fits
+    // each interpolated frame to the box's actual bounds rather than assuming a fixed scale.
+    val activeToolbarPolygon = remember {
+        RoundedPolygon.rectangle(width = 6f, height = 1f, rounding = CornerRounding(radius = 0.4f))
+    }
+    val toolbarMorph = remember(activeToolbarPolygon) {
+        Morph(start = activeToolbarPolygon, end = MaterialShapes.Slanted)
+    }
+    val toolbarShapeProgress by animateFloatAsState(
+        targetValue = if (isPaused) 1f else 0f,
+        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        label = "toolbarShapeMorph",
+    )
     // Paused swaps to the secondary Fixed pairing - a real container/content pair keeps contrast
     // guaranteed in both light/dark (a lerp toward surfaceDim, tried earlier, drifted away from
     // the tone onPrimaryFixed was designed to contrast against and read as illegible).
@@ -641,7 +687,9 @@ private fun ActiveWorkoutToolbar(
         onResume()
     }
 
-    val toolbarShape = if (isPaused) pausedToolbarShape else activeToolbarShape
+    val toolbarShape = remember(toolbarMorph, toolbarShapeProgress) {
+        ToolbarMorphShape(toolbarMorph, toolbarShapeProgress)
+    }
     Box(
         modifier = modifier
             .scale(pressScale)
