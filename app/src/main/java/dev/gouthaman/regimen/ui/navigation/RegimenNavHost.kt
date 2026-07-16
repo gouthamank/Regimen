@@ -49,41 +49,40 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *
  *  Bottom-tab graph (single-Activity, type-safe routes):
  *
- *    [✓] Home       HomeRoute        ← start destination (S1 dashboard: greeting, Start Workout
+ *    [✓] Home       HomeRoute        ← start destination (dashboard: greeting, Start Workout
  *                                       CTA, quick-start routine chips, this-week summary, streak)
  *    [✓] Routines   RoutinesRoute
  *    [✓] History    HistoryRoute
  *    [✓] Progress   ProgressRoute
- *    [✓] Settings   SettingsRoute    ← S9 Settings lives here (units,
- *                                       theme, dynamic color, rest-timer default)
+ *    [✓] Settings   SettingsRoute    ← units, theme, dynamic color, rest-timer default
  *
  *  Detail / secondary destinations (pushed above the tabs):
  *
  *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
- *              ──▶ [✓] Active Workout     ActiveWorkoutRoute(workoutId) (Start/quick-start/Quick-workout)
+ *              ──▶ [✓] Active Workout     ActiveWorkoutRoute(workoutId) (Start/quick-start/Quick-workout;
+ *                                            per-set logging, skip, cardio, notes)
  *    Settings  ──▶ [✓] Exercise Library   ExerciseLibraryRoute
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
  *    Detail    ──▶ [✓] Edit Exercise      EditExerciseRoute(exerciseId)
  *    Routines  ──▶ [✓] Routine Editor     RoutineEditorRoute(routineId=0) (row or "New routine" FAB
  *                                            row-expand container transform)
- *    Editor    ──▶ [✓] Exercise Picker    (S16 modal bottom sheet, in-screen)
+ *    Editor    ──▶ [✓] Exercise Picker    (modal bottom sheet, in-screen)
  *              ──▶ [✓] Add Custom Exercise EditExerciseRoute() (from picker)
- *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (S5; read-only + repeat/edit/
+ *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (read-only + repeat/edit/
  *                                            save-as-routine/delete - Repeat/Edit open Active Workout)
- *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (S8; S6 PR list + frequency chart now on the tab root)
- *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (S8 → trend + entries)
+ *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (PR list + frequency chart live on the tab root)
+ *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (trend + entries)
+ *    Active    ──▶ [✓] Workout Summary    WorkoutSummaryRoute(workoutId)  (recap + PRs + save-as-routine)
+ *    Workout   ──▶ [✓] Rest Timer (sheet, within Active Workout; manual, adjustable, vibrate+chime)
  *
  *  Full-screen gate (outside this NavHost, in MainActivity):
- *    [✓] Onboarding (S17) - shown first-run while prefs.onboarded == false
+ *    [✓] Onboarding - shown first-run while prefs.onboarded == false
  *
- *  Core loop (pushed above the tabs; #15):
- *    [✓] Active Workout   ActiveWorkoutRoute(workoutId)   (S13; per-set logging, skip, cardio, notes)
- *    [✓] Workout Summary  WorkoutSummaryRoute(workoutId)  (S15; recap + PRs + save-as-routine)
- *    [✓] Rest Timer (sheet, within Active Workout)         (S14; manual, adjustable, vibrate+chime)
- *    [✓] In-progress "Resume" banner (above the tab bar) + resume/single-active + notif permission (Phase 3a)
- *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/Resume notification (Phase 3b)
- *    [✓] Session-Detail Repeat/Edit → Active Workout (Phase 3c)  - #15 COMPLETE
+ *  Active Workout support:
+ *    [✓] In-progress "Resume" banner (above the tab bar) + resume/single-active + notif permission
+ *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/Resume notification
+ *    [✓] Session-Detail Repeat/Edit → Active Workout
  *
  *  Each feature module owns its own destinations via a `NavGraphBuilder.xGraph()` extension
  *  (homeGraph, routinesGraph, historyGraph, activeGraph, progressGraph, settingsGraph,
