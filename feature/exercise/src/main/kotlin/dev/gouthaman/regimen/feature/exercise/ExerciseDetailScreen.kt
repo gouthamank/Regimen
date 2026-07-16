@@ -42,6 +42,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
+import dev.gouthaman.regimen.common.exerciseRowTransitionKey
 import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo

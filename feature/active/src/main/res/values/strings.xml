@@ -15,9 +15,9 @@
     <string name="workout_keep_going_button">Keep going</string>
     <string name="workout_finish_dialog_title">Finish workout?</string>
     <string name="workout_finish_dialog_text">This ends the session and saves it to your history.</string>
+    <string name="workout_finish_dialog_text_incomplete">Some sets haven\'t been marked complete yet. This ends the session and saves it to your history as-is.</string>
     <string name="workout_finish_action">Finish</string>
     <string name="workout_editing_session_status">Editing session</string>
-    <string name="workout_paused_status">%1$s · Paused</string>
     <string name="workout_resume_description">Resume</string>
     <string name="workout_pause_description">Pause</string>
     <string name="workout_keep_screen_on_description">Keep screen on</string>

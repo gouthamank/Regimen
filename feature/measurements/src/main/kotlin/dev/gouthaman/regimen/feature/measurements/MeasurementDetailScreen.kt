@@ -47,6 +47,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.MeasurementFormat
+import dev.gouthaman.regimen.common.measurementFabTransitionKey
+import dev.gouthaman.regimen.common.measurementRowTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.chart.HistoryRangeSelector

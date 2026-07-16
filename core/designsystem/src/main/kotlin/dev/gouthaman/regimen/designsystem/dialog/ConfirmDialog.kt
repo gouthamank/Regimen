@@ -6,14 +6,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 
 /**
  * A title/text confirmation with a confirm action and an optional dismiss action - shared by
  * every delete/discard/finish confirmation across the app. Omit [dismissLabel] for an
  * acknowledgment-only dialog with a single button (e.g. an info dialog explaining why an action
  * was blocked). [destructive] colors the confirm button with the error color, for actions that
- * discard data or in-progress work; leave it false for a plain positive confirmation (e.g.
- * finishing a workout).
+ * discard data or in-progress work; [positive] colors it with tertiary instead, for an
+ * unambiguously good-to-go confirmation (e.g. finishing a workout with everything logged) - leave
+ * both false for a plain neutral confirmation. [confirmEnableDelayMillis] disables the confirm
+ * button for that long after the dialog appears, for a confirmation that deserves a beat before
+ * committing (e.g. finishing with something still unmarked).
  */
 @Composable
 fun ConfirmDialog(
@@ -24,7 +33,20 @@ fun ConfirmDialog(
     onDismiss: () -> Unit,
     dismissLabel: String? = null,
     destructive: Boolean = false,
+    positive: Boolean = false,
+    confirmEnableDelayMillis: Long = 0,
 ) {
+    var confirmEnabled by remember(confirmEnableDelayMillis) {
+        mutableStateOf(
+            confirmEnableDelayMillis <= 0
+        )
+    }
+    LaunchedEffect(confirmEnableDelayMillis) {
+        if (confirmEnableDelayMillis > 0) {
+            delay(confirmEnableDelayMillis)
+            confirmEnabled = true
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -32,10 +54,11 @@ fun ConfirmDialog(
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
-                colors = if (destructive) {
-                    ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                } else {
-                    ButtonDefaults.textButtonColors()
+                enabled = confirmEnabled,
+                colors = when {
+                    destructive -> ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    positive -> ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary)
+                    else -> ButtonDefaults.textButtonColors()
                 },
             ) { Text(confirmLabel) }
         },

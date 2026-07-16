@@ -4,11 +4,11 @@
     <string name="routines_no_exercises_yet">No exercises yet</string>
     <string name="routines_reorder_description">Reorder %1$s</string>
     <string name="routines_delete_description">Delete routine</string>
-    <string name="routines_card_summary">%1$s · %2$s</string>
     <plurals name="routines_exercise_count">
         <item quantity="one">%1$d exercise</item>
         <item quantity="other">%1$d exercises</item>
     </plurals>
+    <string name="routines_card_exercise_target">%1$d × %2$d</string>
     <string name="routines_delete_dialog_title">Delete routine?</string>
     <string name="routines_delete_dialog_text">\"%1$s\" will be removed. This can\'t be undone.</string>
     <string name="routines_delete_confirm_button">Delete</string>

@@ -169,7 +169,8 @@ The core loop; users spend the majority of session time here.
   running two timers at once. While paused, logging surfaces are disabled - set/cardio fields,
   add set, add exercise, skip/un-skip, and the Rest button - so no data can be logged against a
   frozen timer; the session note field stays editable (it isn't part of the logged workout data
-  pausing is meant to freeze), and Resume/discard remain reachable.
+  pausing is meant to freeze). Resume and discard remain reachable while paused; Finish does not -
+  resume first, then finish.
 - **Lifecycle** - a workout's session state is an explicit, persisted `WorkoutStatus` (
   `IN_PROGRESS`,
   `IN_REST_TIME`, `PAUSED`, `EDITING`, `COMPLETE`), not inferred from timestamp nullability. This
@@ -199,9 +200,9 @@ The core loop; users spend the majority of session time here.
   or via a rest countdown ending/being skipped, so the common case needs no extra tap. Both skip
   and done collapse the card to a one-line summary (skipped: a plain "Skipped" label; done: each
   set's logged weight/reps) with a tap target (Include / Edit) to reopen it; done additionally
-  tints the card with the theme's tertiary container color, distinct from skip's neutral
-  surfaceVariant tint. A left-skipped exercise is recorded in history as skipped (an adherence
-  signal), not removed.
+  tints the card with the theme's `tertiaryFixedDim`/`onTertiaryFixed` color pair (see Material 3
+  Expressive's Fixed color roles, below), distinct from skip's neutral surfaceVariant tint. A
+  left-skipped exercise is recorded in history as skipped (an adherence signal), not removed.
 - **Cardio** - a cardio activity can be added to the session, recording duration and distance.
   Cardio entries are session-only; never part of a routine.
 - **Other** - exercises can be added or removed mid-session via the picker; per-set completion is
@@ -219,14 +220,25 @@ The core loop; users spend the majority of session time here.
   timer, Pause/Resume, or rest-timer button - the bottom toolbar instead shows a static "Editing
   session" label. Editing never changes the session's original timestamps and does not conflict
   with a genuinely in-progress workout running elsewhere.
-- **Bottom toolbar** - a floating pill anchored above the bottom edge (not the top bar), showing
-  the elapsed timer, Pause/Resume, and Finish. Tinted with the theme's primary color, darkening
-  while paused as a status indicator; pausing/resuming animates a circular color reveal
-  originating near the Pause/Resume button.
+- **Bottom toolbar** - a floating pill anchored above the bottom edge, bottom-end corner (not the
+  top bar). While running or editing, it's a full-width bar tinted with the theme's
+  `primaryFixedDim`/`onPrimaryFixed` pair, showing the elapsed timer (+ a breathing live-pulse dot)
+  and Pause/Finish buttons. Pausing collapses the whole pill down to a compact "Resume" FAB (icon +
+  "Resume" + the paused elapsed time), tinted `secondaryFixedDim`/`onSecondaryFixed` instead - a
+  single `AnimatedContent` size-transform morphs between the two shapes as one coordinated motion,
+  rather than animating individual buttons' widths within a fixed-size bar. Finish isn't reachable
+  from the collapsed paused state - resume first. Tapping anywhere on the pill also toggles
+  Pause/Resume (mini-player pattern); the whole pill also presses down slightly on touch-down.
 - **Keep screen on** - a top-app-bar action toggles `keepScreenOn` on the window for as long as
   Active Workout is open; ephemeral (resets every time the screen is (re)opened), not a saved
   preference.
-- **Finish** → navigates to Workout Summary.
+- **Finish** - a confirmation dialog (`ConfirmDialog`, see Reusable components) gates the actual
+  finish. If every exercise is skipped, done, or has every set checked complete, the dialog's
+  confirm button is enabled immediately and colored `tertiary` (a positive/"good to go" cue). If
+  something is still unmarked, the dialog's text calls that out and the confirm button stays
+  disabled for 3 seconds (with a neutral color) before becoming tappable, so finishing an
+  incomplete session takes a deliberate beat rather than a reflexive tap. Confirming → navigates to
+  Workout Summary.
 
 ---
 
@@ -269,7 +281,15 @@ The core loop; users spend the majority of session time here.
 
 - **Theming:** dynamic color (Material You) on Android 12+, with a branded fallback palette below
   that; light/dark follows the system setting and is user-overridable. Uses Material 3
-  Expressive's `MaterialExpressiveTheme`/`MotionScheme.expressive()`.
+  Expressive's `MaterialExpressiveTheme`/`MotionScheme.expressive()`. The fallback palette's
+  "Fixed" color roles (`primaryFixed`/`primaryFixedDim`/`onPrimaryFixed`, and the secondary/tertiary
+  equivalents) are populated from the real M3 baseline tonal values, not invented ones, since Fixed
+  roles are theme-invariant by design (same value in light and dark) - used for state-differentiated
+  UI (e.g. Active Workout's toolbar/done-card tints, Home's streak tile) where a role that doesn't
+  flip between light/dark keeps the color meaning consistent.
+- **Typography:** Sofia Sans (variable font, weight 600/700) for display/headline/title styles;
+  Outfit (variable font, weight 400/500) for body/label styles - both bundled under
+  `core/designsystem/res/font/`.
 - **Units:** independent metric/imperial preferences for weight (kg/lb) and cardio distance
   (km/mi). Values are stored canonically (weight in kg, distance in meters) and converted only at
   display/entry time, so switching units never loses precision.
@@ -286,7 +306,10 @@ The core loop; users spend the majority of session time here.
 - **`Stat`** - a labeled value (e.g. "12" over "Workouts"); the building block for stat
   rows/grids on Home and Workout Summary.
 - **`ConfirmDialog`** - confirm/dismiss dialog shared by every delete/discard/finish confirmation;
-  `destructive = true` colors the confirm button with the error color.
+  `destructive = true` colors the confirm button with the error color, `positive = true` colors it
+  with tertiary instead (e.g. finishing a fully-logged workout). `confirmEnableDelayMillis` keeps
+  the confirm button disabled for that long after the dialog appears, for a confirmation that
+  deserves a beat before committing (e.g. finishing with something still unmarked).
 - **`SaveAsRoutineDialog`** - prompts for a routine name; shared by Workout Summary and Session
   Detail.
 - **`EmptyState`** - a centered message with an optional icon and action button, shared by every
@@ -296,7 +319,9 @@ The core loop; users spend the majority of session time here.
   Settings).
 - **`LineChart`/`Sparkline`** - a self-contained Canvas-based chart, used by Progress (frequency),
   Body Measurements (bodyweight and custom-measurement trends), and Home (frequency +
-  bodyweight).
+  bodyweight). Draws on left-to-right (an animated reveal, not a static one-shot draw) whenever the
+  underlying points list changes - including first appearance, a range-selector switch, or new data
+  landing.
 - **`HistoryRangeSelector`** - the 4w/3m/1y/All segmented range selector, shared by the Progress
   frequency chart and the Measurement trend chart.
 - **`ReorderableList`** - drag-to-reorder gesture/state helpers (`DragDropState`,
@@ -444,9 +469,25 @@ Adopted:
   instead of plain `MaterialTheme`.
 - **Expressive shapes** - the Home streak tile uses `MaterialShapes.Cookie9Sided.toShape()` as a
   decorative icon-badge shape.
-- **Navigation transitions** - `RegimenNavHost` applies shared-axis-x transitions (slide and
-  fade, reversed on pop) via `NavHost`'s `enterTransition`/`exitTransition`/
-  `popEnterTransition`/`popExitTransition`, replacing the platform default cross-fade.
+- **Fixed color roles** - see Theming, above.
+- **Navigation transitions** - `RegimenNavHost` applies two different transition schemes,
+  distinguished by whether both the departing and arriving destinations are one of the five
+  bottom-tab routes:
+  - **Hierarchical drill-down** (any push/pop that isn't a tab switch) - shared-axis-x (slide and
+    fade, reversed on pop).
+  - **Bottom-tab switch** (`navigateToTab`) - a Material "fade through" (the outgoing tab
+    fades+shrinks out over 90ms, the incoming tab fades+grows in over 130ms with a 90ms stagger)
+    instead of the directional slide, since tabs are parallel destinations, not a hierarchy.
+    A single `SharedTransitionLayout` wraps the whole `NavHost` and hosts every row/link-expand
+    container-transform in the app: Routines row/"New routine" FAB → Routine Editor, Exercise
+    Library row → Exercise Detail, Measurements row → Measurement Detail, History
+    row/single-session day cell → Session Detail, Progress's "Body Measurements" link →
+    Measurements,
+    and Settings' "Exercise Library" row → Exercise Library (Settings is Library's only entry point,
+    so that one is unconditional; Progress → Measurements is conditional since Home's "Log
+    bodyweight" button also opens Measurements with no row to expand from). All the transition keys
+    live in `core/common-ui`'s `SharedTransitionKeys.kt`, not scattered per-module, since some pairs
+    (Progress/Measurements, Settings/Exercise Library) cross module boundaries with neither module
+    depending on the other.
 
-Not implemented: shape morphing on press, and a true container-transform (as opposed to the
-shared-axis slide/fade above).
+Not implemented: shape morphing on press.

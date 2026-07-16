@@ -18,7 +18,13 @@ fun NavGraphBuilder.exerciseGraph(
     navController: NavHostController,
     sharedTransitionScope: SharedTransitionScope,
 ) {
-    composable<ExerciseLibraryRoute> {
+    composable<ExerciseLibraryRoute>(
+        // Library is the destination of Settings' "Exercise Library" row's container transform
+        // (its only entry point), so its own entrance/exit-back-to-Settings slide would fight
+        // that growth/shrink - suppress it.
+        enterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
+    ) {
         ExerciseLibraryScreen(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,

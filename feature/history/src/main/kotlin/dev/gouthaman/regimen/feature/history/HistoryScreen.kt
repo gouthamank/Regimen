@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.feature.history
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +52,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
+import dev.gouthaman.regimen.common.sessionRowTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.component.SectionHeader
@@ -59,6 +63,8 @@ import java.time.temporal.WeekFields
 
 @Composable
 fun HistoryScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenSession: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel(),
@@ -66,16 +72,23 @@ fun HistoryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     HistoryScreen(
         uiState = uiState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onOpenSession = onOpenSession,
         onMonthChange = viewModel::setMonth,
         modifier = modifier,
     )
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    ExperimentalSharedTransitionApi::class
+)
 @Composable
 fun HistoryScreen(
     uiState: HistoryUiState,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenSession: (Long) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
@@ -134,6 +147,8 @@ fun HistoryScreen(
                         MonthGrid(
                             month = uiState.month,
                             sessionsByDay = uiState.sessionsByDay,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
                             onDayClick = { sessions ->
                                 if (sessions.size == 1) onOpenSession(sessions.first().workoutId)
                                 else pickerDay = ArrayList(sessions)
@@ -164,6 +179,12 @@ fun HistoryScreen(
                         )
                     }
                     items(uiState.recentSessions, key = { it.workoutId }) { session ->
+                        val rowModifier = with(sharedTransitionScope) {
+                            Modifier.sharedBounds(
+                                rememberSharedContentState(key = sessionRowTransitionKey(session.workoutId)),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                        }
                         ListItem(
                             content = {
                                 Text(
@@ -174,7 +195,7 @@ fun HistoryScreen(
                             supportingContent = {
                                 Text(SessionFormat.timeWithDateIfNotToday(session.startMillis))
                             },
-                            modifier = Modifier
+                            modifier = rowModifier
                                 .animateItem()
                                 .clickable { onOpenSession(session.workoutId) },
                         )
@@ -276,10 +297,13 @@ private fun WeekdayHeader() {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun MonthGrid(
     month: YearMonth,
     sessionsByDay: Map<LocalDate, List<DaySession>>,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onDayClick: (List<DaySession>) -> Unit,
 ) {
     val firstDayOfWeek = WeekFields.of(LocalLocale.current.platformLocale).firstDayOfWeek
@@ -305,6 +329,8 @@ private fun MonthGrid(
                                 isToday = date == today,
                                 isFuture = date.isAfter(today),
                                 sessions = sessionsByDay[date].orEmpty(),
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
                                 onClick = onDayClick,
                             )
                         }
@@ -315,12 +341,15 @@ private fun MonthGrid(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun DayCell(
     date: LocalDate,
     isToday: Boolean,
     isFuture: Boolean,
     sessions: List<DaySession>,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onClick: (List<DaySession>) -> Unit,
 ) {
     // Future dates can't have a logged session yet - dim them so they read as not-yet-available, not just empty.
@@ -330,6 +359,18 @@ private fun DayCell(
         .fillMaxWidth()
         .aspectRatio(1f)
         .clip(CircleShape)
+    // Only a single-session day maps to one determinate workout - tag it so it expands straight
+    // into Session Detail. A multi-session day opens the picker dialog instead (see onClick
+    // below), which can't participate in the shared-element transform (dialogs run in their own
+    // window), so it's left untagged and keeps the default transition.
+    if (sessions.size == 1) {
+        cell = with(sharedTransitionScope) {
+            cell.sharedBounds(
+                rememberSharedContentState(key = sessionRowTransitionKey(sessions.first().workoutId)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    }
     cell = when {
         hasWorkout -> cell.background(MaterialTheme.colorScheme.primaryContainer)
         isToday -> cell.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)

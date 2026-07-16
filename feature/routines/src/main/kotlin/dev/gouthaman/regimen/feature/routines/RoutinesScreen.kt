@@ -50,6 +50,8 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.routineCreateFabTransitionKey
+import dev.gouthaman.regimen.common.routineRowTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.component.EmptyState
@@ -57,6 +59,7 @@ import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
 import dev.gouthaman.regimen.designsystem.dragdrop.dragHandle
 import dev.gouthaman.regimen.designsystem.dragdrop.rememberDragDropState
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
+import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
 
 @Composable
 fun RoutinesScreen(
@@ -232,10 +235,6 @@ private fun RoutineCard(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val exercises = routine.exercises.sortedBy { it.routineExercise.position }
-    val summary = when {
-        exercises.isEmpty() -> stringResource(R.string.routines_no_exercises_yet)
-        else -> exercises.joinToString(", ") { it.exercise.name }
-    }
 
     val cardModifier = with(sharedTransitionScope) {
         modifier
@@ -250,44 +249,82 @@ private fun RoutineCard(
             .then(if (elevated) Modifier.shadow(8.dp, MaterialTheme.shapes.medium) else Modifier)
             .clickable(onClick = onClick),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 4.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Filled.DragHandle,
-                contentDescription = stringResource(
-                    R.string.routines_reorder_description,
-                    routine.routine.name
-                ),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = dragHandleModifier.padding(horizontal = 8.dp),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(routine.routine.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = stringResource(
-                        R.string.routines_card_summary,
-                        pluralStringResource(
-                            R.plurals.routines_exercise_count,
-                            exercises.size,
-                            exercises.size
-                        ),
-                        summary,
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.DragHandle,
+                    contentDescription = stringResource(
+                        R.string.routines_reorder_description,
+                        routine.routine.name
                     ),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = dragHandleModifier.padding(end = 8.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(routine.routine.name, style = MaterialTheme.typography.titleMedium)
+                    if (exercises.isNotEmpty()) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.routines_exercise_count,
+                                exercises.size,
+                                exercises.size,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.routines_delete_description)
+                    )
+                }
+            }
+            if (exercises.isEmpty()) {
+                Text(
+                    stringResource(R.string.routines_no_exercises_yet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 12.dp),
                 )
-            }
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.routines_delete_description)
-                )
+            } else {
+                Column(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    exercises.forEach { entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ExerciseIcon(
+                                type = entry.exercise.type,
+                                equipment = entry.exercise.equipment,
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
+                            Text(
+                                entry.exercise.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.routines_card_exercise_target,
+                                    entry.routineExercise.targetSets,
+                                    entry.routineExercise.targetReps,
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
     }

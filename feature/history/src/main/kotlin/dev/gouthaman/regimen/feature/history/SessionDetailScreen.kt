@@ -1,5 +1,8 @@
 package dev.gouthaman.regimen.feature.history
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
+import dev.gouthaman.regimen.common.sessionRowTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
@@ -65,6 +69,9 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SessionDetailScreen(
+    workoutId: Long,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onOpenActiveWorkout: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -80,6 +87,9 @@ fun SessionDetailScreen(
     SessionDetailScreen(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
+        workoutId = workoutId,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onBack = onBack,
         onDelete = {
             viewModel.delete()
@@ -92,11 +102,14 @@ fun SessionDetailScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SessionDetailScreen(
     uiState: SessionDetailUiState,
     snackbarHostState: SnackbarHostState,
+    workoutId: Long,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onDelete: () -> Unit,
     onSaveAsRoutine: (String) -> Unit,
@@ -111,10 +124,17 @@ fun SessionDetailScreen(
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    Scaffold(
-        modifier = modifier
+    val containerModifier = with(sharedTransitionScope) {
+        modifier
             .fillMaxSize()
-            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
+            .sharedBounds(
+                rememberSharedContentState(key = sessionRowTransitionKey(workoutId)),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+    }
+    Scaffold(
+        modifier = containerModifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MediumTopAppBar(

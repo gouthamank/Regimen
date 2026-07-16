@@ -59,6 +59,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.exerciseLibraryFromSettingsTransitionKey
+import dev.gouthaman.regimen.common.exerciseRowTransitionKey
 import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
@@ -126,10 +128,17 @@ fun ExerciseLibraryScreen(
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    Scaffold(
-        modifier = modifier
+    val rootModifier = with(sharedTransitionScope) {
+        modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .sharedBounds(
+                rememberSharedContentState(key = exerciseLibraryFromSettingsTransitionKey),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+    }
+    Scaffold(
+        modifier = rootModifier,
         topBar = {
             TopAppBar(
                 title = {

@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(project(":core:common-ui"))
+    implementation(project(":feature:exercise"))
 
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)

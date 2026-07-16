@@ -17,16 +17,41 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import dev.gouthaman.regimen.domain.model.ThemeMode
 
+// Fixed roles are theme-invariant by design, so both schemes share the same Fixed values.
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
-    tertiary = Pink80
+    tertiary = Pink80,
+    primaryFixed = Purple90,
+    primaryFixedDim = Purple80,
+    onPrimaryFixed = Purple10,
+    onPrimaryFixedVariant = Purple30,
+    secondaryFixed = PurpleGrey90,
+    secondaryFixedDim = PurpleGrey80,
+    onSecondaryFixed = PurpleGrey10,
+    onSecondaryFixedVariant = PurpleGrey30,
+    tertiaryFixed = Pink90,
+    tertiaryFixedDim = Pink80,
+    onTertiaryFixed = Pink10,
+    onTertiaryFixedVariant = Pink30,
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
-    tertiary = Pink40
+    tertiary = Pink40,
+    primaryFixed = Purple90,
+    primaryFixedDim = Purple80,
+    onPrimaryFixed = Purple10,
+    onPrimaryFixedVariant = Purple30,
+    secondaryFixed = PurpleGrey90,
+    secondaryFixedDim = PurpleGrey80,
+    onSecondaryFixed = PurpleGrey10,
+    onSecondaryFixedVariant = PurpleGrey30,
+    tertiaryFixed = Pink90,
+    tertiaryFixedDim = Pink80,
+    onTertiaryFixed = Pink10,
+    onTertiaryFixedVariant = Pink30,
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

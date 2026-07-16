@@ -1,5 +1,7 @@
 package dev.gouthaman.regimen.designsystem.dialog
 
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -80,5 +82,32 @@ class ConfirmDialogTest {
         composeTestRule.onNodeWithText("Cancel").performClick()
 
         assert(dismissed)
+    }
+
+    @Test
+    fun confirmDisabledUntilDelayElapsesThenClickable() {
+        composeTestRule.mainClock.autoAdvance = false
+        var confirmed = false
+        composeTestRule.setContent {
+            ConfirmDialog(
+                title = "Finish workout?",
+                text = "Some sets aren't complete.",
+                confirmLabel = "Finish",
+                onConfirm = { confirmed = true },
+                onDismiss = {},
+                confirmEnableDelayMillis = 1000,
+            )
+        }
+
+        composeTestRule.onNodeWithText("Finish").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Finish").performClick()
+        assert(!confirmed)
+
+        composeTestRule.mainClock.advanceTimeBy(1000)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Finish").assertIsEnabled()
+        composeTestRule.onNodeWithText("Finish").performClick()
+        assert(confirmed)
     }
 }

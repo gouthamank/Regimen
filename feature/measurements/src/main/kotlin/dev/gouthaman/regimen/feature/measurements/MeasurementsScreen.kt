@@ -47,6 +47,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.MeasurementFormat
+import dev.gouthaman.regimen.common.measurementFabTransitionKey
+import dev.gouthaman.regimen.common.measurementRowTransitionKey
+import dev.gouthaman.regimen.common.measurementsFromProgressTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.chart.Sparkline
@@ -56,6 +59,7 @@ import dev.gouthaman.regimen.designsystem.component.EmptyState
 fun MeasurementsScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    cameFromProgress: Boolean,
     onBack: () -> Unit,
     onOpenType: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -67,6 +71,7 @@ fun MeasurementsScreen(
         loaded = uiState.loaded,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
+        cameFromProgress = cameFromProgress,
         onBack = onBack,
         onOpenType = onOpenType,
         onAddType = viewModel::addType,
@@ -83,6 +88,7 @@ fun MeasurementsScreen(
     loaded: Boolean,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    cameFromProgress: Boolean,
     onBack: () -> Unit,
     onOpenType: (Long) -> Unit,
     onAddType: (String, String) -> Unit,
@@ -95,10 +101,26 @@ fun MeasurementsScreen(
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
+    // Only tagged when opened from Progress's "Body Measurements" row - Home's "Log bodyweight"
+    // button has no matching row to expand from, so that path keeps the plain slide transition.
+    val rootModifier = modifier
+        .fillMaxSize()
+        .then(
+            if (cameFromProgress) {
+                with(sharedTransitionScope) {
+                    Modifier.sharedBounds(
+                        rememberSharedContentState(key = measurementsFromProgressTransitionKey),
+                        animatedVisibilityScope = animatedVisibilityScope,
+                    )
+                }
+            } else {
+                Modifier
+            },
+        )
+        .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection))
+
     Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .then(modifier.nestedScroll(scrollBehavior.nestedScrollConnection)),
+        modifier = rootModifier,
         topBar = {
             MediumTopAppBar(
                 title = { Text(stringResource(R.string.measurements_title)) },

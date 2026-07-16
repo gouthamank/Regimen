@@ -22,24 +22,33 @@ resides on the device.
 - Material 3 Expressive UI with dynamic color, light/dark theming, and a metric/imperial unit
   preference (weight and distance are stored canonically and converted only for display).
 
-## Documentation
-
-`docs/architecture.md` is the source of truth for the screen inventory, navigation, the Active
-Workout spec, the data model, and the key product and technical decisions. Read it before making
-structural changes.
-
-## Module structure
+## Architecture
 
 Multi-module Gradle project: `:app` is the composition root. `:core:domain`, `:core:data`,
 `:core:common-ui`, `:core:designsystem`, and `:core:navigation-api` hold shared layers. Each
 screen or tab lives in its own `:feature:*` module (`settings`, `onboarding`, `exercise`,
 `measurements`, `progress`, `routines`, `history`, `home`, `active`). A `build-logic` included
-build supplies convention plugins that centralize each module's Compose/Hilt/Kotlin setup. See
-`docs/architecture.md`'s "Module structure" section for what lives where.
+build supplies convention plugins that centralize each module's Compose/Hilt/Kotlin setup.
 
-Architecture is MVVM + UDF with a full use-case (domain) layer: UI (feature modules) calls
+The architecture is MVVM + UDF with a full use-case (domain) layer: UI (feature modules) calls
 domain, domain calls the data layer's repositories, repositories call Room DAOs. ViewModels
 expose `StateFlow` UI state. Hilt provides dependency injection throughout.
+
+**[`docs/architecture.md`](docs/architecture.md)** is the source of truth for the screen
+inventory, navigation, the Active Workout spec, the data model, and the key product and
+technical decisions. Read it before making structural changes.
+
+## Testing
+
+Fakes-first: in-memory, real-behavior fakes of `:core:domain`'s repository interfaces are the
+default over mocking. JUnit4 throughout, Turbine for `Flow`/`StateFlow` assertions, and
+`kotlinx-coroutines-test` for virtual-time control of `viewModelScope`. Room DAO tests and
+Compose UI tests run on a real device/AVD (`androidTest`), not Robolectric. Coverage-percentage
+targets are not a goal - tests are picked for specific logic worth protecting (branching use
+cases, ViewModels with derived state, DAO joins, shared UI components).
+
+**[`docs/testing.md`](docs/testing.md)** is the reference for what's tested, where each tier
+lives, and what's deliberately left untested. Read it before writing new tests.
 
 ## Tech stack
 

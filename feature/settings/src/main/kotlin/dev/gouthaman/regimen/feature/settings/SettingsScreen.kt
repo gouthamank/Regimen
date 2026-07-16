@@ -1,6 +1,9 @@
 package dev.gouthaman.regimen.feature.settings
 
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.exerciseLibraryFromSettingsTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.component.SectionHeader
@@ -55,6 +59,8 @@ private const val REST_STEP_SEC = 15
 
 @Composable
 fun SettingsScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
     onOpenExerciseLibrary: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -62,6 +68,8 @@ fun SettingsScreen(
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
     SettingsScreen(
         prefs = prefs,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         modifier = modifier,
         onWeightUnitChange = viewModel::setWeightUnit,
         onDistanceUnitChange = viewModel::setDistanceUnit,
@@ -73,10 +81,12 @@ fun SettingsScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SettingsScreen(
     prefs: UserPreferences,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
     onWeightUnitChange: (UnitSystem) -> Unit = {},
     onDistanceUnitChange: (UnitSystem) -> Unit = {},
@@ -189,6 +199,12 @@ fun SettingsScreen(
                     icon = Icons.Filled.FitnessCenter,
                     enabled = true,
                     onClick = onOpenExerciseLibrary,
+                    modifier = with(sharedTransitionScope) {
+                        Modifier.sharedBounds(
+                            rememberSharedContentState(key = exerciseLibraryFromSettingsTransitionKey),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    },
                 )
                 NavRow(
                     headline = stringResource(R.string.settings_export_data_headline),
@@ -249,6 +265,7 @@ private fun NavRow(
     icon: ImageVector,
     enabled: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     ListItem(
         content = { Text(headline) },
@@ -260,7 +277,7 @@ private fun NavRow(
             }
         },
         enabled = enabled,
-        modifier = if (enabled) Modifier.clickable(onClick = onClick) else Modifier,
+        modifier = modifier.then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
     )
 }
 

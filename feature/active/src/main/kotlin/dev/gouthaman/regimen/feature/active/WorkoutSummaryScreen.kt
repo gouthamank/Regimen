@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -190,19 +191,25 @@ fun WorkoutSummaryScreen(
                 }
 
                 if (uiState.prsHit.isNotEmpty()) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryFixedDim,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryFixed,
+                        ),
+                    ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Filled.EmojiEvents,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = MaterialTheme.colorScheme.onTertiaryFixed,
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     stringResource(R.string.workout_summary_records_header),
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = MaterialTheme.colorScheme.onTertiaryFixed,
                                 )
                             }
                             uiState.prsHit.forEach { name ->

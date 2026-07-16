@@ -1,5 +1,10 @@
 package dev.gouthaman.regimen.feature.home
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -58,6 +64,10 @@ import dev.gouthaman.regimen.designsystem.adaptive.RegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.chart.LineChart
 import dev.gouthaman.regimen.designsystem.component.EmptyState
 import dev.gouthaman.regimen.designsystem.component.Stat
+import dev.gouthaman.regimen.domain.util.UnitConverter
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 @Composable
 fun HomeScreen(
@@ -286,30 +296,51 @@ private fun WeekSummarySection(uiState: HomeUiState) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Card(modifier = Modifier.weight(1f)) {
+                val scale = rememberPopScale(uiState.workoutsThisWeek)
                 Stat(
                     stringResource(R.string.home_stat_workouts_label),
-                    uiState.workoutsThisWeek.toString(),
+                    animatedInt(uiState.workoutsThisWeek, durationMillis = 550).toString(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
+                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
                 )
             }
             Card(modifier = Modifier.weight(1f)) {
+                val scale = rememberPopScale(uiState.volumeThisWeek.displayValue, delayMillis = 90)
                 Stat(
                     stringResource(R.string.home_stat_volume_label),
-                    weightValueLabel(uiState.volumeThisWeek),
+                    weightValueLabel(
+                        uiState.volumeThisWeek.copy(
+                            displayValue = animatedNumericLabel(
+                                uiState.volumeThisWeek.displayValue,
+                                durationMillis = 900,
+                                delayMillis = 90,
+                            ),
+                        ),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
+                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
                 )
             }
             Card(modifier = Modifier.weight(1f)) {
+                val scale = rememberPopScale(uiState.durationMillisThisWeek, delayMillis = 180)
                 Stat(
                     stringResource(R.string.home_stat_time_label),
-                    SessionFormat.duration(0L, uiState.durationMillisThisWeek),
+                    SessionFormat.duration(
+                        0L,
+                        animatedMillis(
+                            uiState.durationMillisThisWeek,
+                            durationMillis = 750,
+                            delayMillis = 180
+                        ),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
+                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
                 )
             }
         }
@@ -319,7 +350,8 @@ private fun WeekSummarySection(uiState: HomeUiState) {
     }
 }
 
-// "This month" mirrors the week tiles (no streak - that's a weekly concept).
+// "This month" mirrors the week tiles (no streak - that's a weekly concept). Durations/delays are
+// deliberately offset from the week tiles' so the two rows don't tick in lockstep.
 @Composable
 private fun MonthSummarySection(uiState: HomeUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -332,34 +364,145 @@ private fun MonthSummarySection(uiState: HomeUiState) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Card(modifier = Modifier.weight(1f)) {
+                val scale = rememberPopScale(uiState.workoutsThisMonth, delayMillis = 40)
                 Stat(
                     stringResource(R.string.home_stat_workouts_label),
-                    uiState.workoutsThisMonth.toString(),
+                    animatedInt(
+                        uiState.workoutsThisMonth,
+                        durationMillis = 650,
+                        delayMillis = 40
+                    ).toString(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
+                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
                 )
             }
             Card(modifier = Modifier.weight(1f)) {
+                val scale =
+                    rememberPopScale(uiState.volumeThisMonth.displayValue, delayMillis = 140)
                 Stat(
                     stringResource(R.string.home_stat_volume_label),
-                    weightValueLabel(uiState.volumeThisMonth),
+                    weightValueLabel(
+                        uiState.volumeThisMonth.copy(
+                            displayValue = animatedNumericLabel(
+                                uiState.volumeThisMonth.displayValue,
+                                durationMillis = 1050,
+                                delayMillis = 140,
+                            ),
+                        ),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
+                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
                 )
             }
             Card(modifier = Modifier.weight(1f)) {
+                val scale = rememberPopScale(uiState.durationMillisThisMonth, delayMillis = 220)
                 Stat(
                     stringResource(R.string.home_stat_time_label),
-                    SessionFormat.duration(0L, uiState.durationMillisThisMonth),
+                    SessionFormat.duration(
+                        0L,
+                        animatedMillis(
+                            uiState.durationMillisThisMonth,
+                            durationMillis = 900,
+                            delayMillis = 220
+                        ),
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
+                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
                 )
             }
         }
     }
+}
+
+/** Animates 0 -> [target] over [durationMillis] (after an optional [delayMillis]), re-triggering
+ * whenever [target] changes. Used to give Home's stat tiles a staggered "count up" ticker instead
+ * of all landing on their values at once. */
+@Composable
+private fun animatedInt(target: Int, durationMillis: Int, delayMillis: Int = 0): Int {
+    val animatable = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        animatable.snapTo(0f)
+        delay(delayMillis.toLong())
+        animatable.animateTo(
+            target.toFloat(),
+            animationSpec = tween(durationMillis, easing = LinearOutSlowInEasing)
+        )
+    }
+    return animatable.value.roundToInt()
+}
+
+@Composable
+private fun animatedMillis(target: Long, durationMillis: Int, delayMillis: Int = 0): Long {
+    val animatable = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        animatable.snapTo(0f)
+        delay(delayMillis.toLong())
+        animatable.animateTo(
+            target.toFloat(),
+            animationSpec = tween(durationMillis, easing = LinearOutSlowInEasing)
+        )
+    }
+    return animatable.value.roundToLong()
+}
+
+/** Same idea as [animatedInt], but for a pre-formatted decimal string (e.g. weight/volume display
+ * values) - parses the target, ticks a float up to it, then re-formats each frame using the app's
+ * own [UnitConverter] formatters (so e.g. a whole-number frame reads "70", not "70.0", and it lands
+ * on a clean "0" rather than "0.0"). Handles [UnitConverter.formatCompact]'s "1.23k" abbreviation
+ * (volume totals over 1000) by recovering the raw value and re-abbreviating as it climbs, so large
+ * volumes still animate instead of snapping straight to their final compact string. Falls back to
+ * the raw string if it isn't numeric. */
+@Composable
+private fun animatedNumericLabel(
+    target: String,
+    durationMillis: Int,
+    delayMillis: Int = 0
+): String {
+    val isCompact = target.endsWith("k", ignoreCase = true)
+    val targetValue = (if (isCompact) target.dropLast(1).toDoubleOrNull()
+        ?.times(1000) else target.toDoubleOrNull())
+        ?: return target
+    val animatable = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        animatable.snapTo(0f)
+        delay(delayMillis.toLong())
+        animatable.animateTo(
+            targetValue.toFloat(),
+            animationSpec = tween(durationMillis, easing = LinearOutSlowInEasing),
+        )
+    }
+    return if (isCompact) {
+        UnitConverter.formatCompact(animatable.value.toDouble())
+    } else {
+        UnitConverter.formatValue(animatable.value.toDouble())
+    }
+}
+
+/** A short scale-up-then-settle "pop", re-triggered whenever [key] changes - pairs with the
+ * count-up animations above so a changed stat doesn't just tick, it visibly reacts. Quick rise
+ * (matching the ticker's snappy-start easing) then a springy settle back to 1x. */
+@Composable
+private fun rememberPopScale(key: Any?, delayMillis: Int = 0): Float {
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(key) {
+        scale.snapTo(1f)
+        delay(delayMillis.toLong())
+        scale.animateTo(1.16f, animationSpec = tween(120, easing = LinearOutSlowInEasing))
+        scale.animateTo(
+            1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium
+            ),
+        )
+    }
+    return scale.value
 }
 
 // Workout-frequency trend, fixed to the last 4 weeks (no range selector - that's Progress's job).
@@ -434,10 +577,26 @@ private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Un
                     stringResource(R.string.home_bodyweight_title),
                     style = MaterialTheme.typography.titleMedium
                 )
+                val bodyweightScale =
+                    rememberPopScale(uiState.bodyweightLatest?.displayValue, delayMillis = 260)
                 Text(
-                    uiState.bodyweightLatest?.let { weightValueLabel(it) } ?: "",
+                    uiState.bodyweightLatest?.let {
+                        weightValueLabel(
+                            it.copy(
+                                displayValue = animatedNumericLabel(
+                                    it.displayValue,
+                                    durationMillis = 850,
+                                    delayMillis = 260,
+                                ),
+                            ),
+                        )
+                    } ?: "",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.graphicsLayer(
+                        scaleX = bodyweightScale,
+                        scaleY = bodyweightScale
+                    ),
                 )
             }
             Text(
@@ -467,7 +626,7 @@ private fun StreakTile(weeks: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            containerColor = MaterialTheme.colorScheme.primaryFixed,
         ),
     ) {
         Row(
@@ -478,7 +637,7 @@ private fun StreakTile(weeks: Int) {
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.primaryFixedDim,
                         shape = MaterialShapes.Cookie9Sided.toShape(),
                     ),
                 contentAlignment = Alignment.Center,
@@ -486,15 +645,18 @@ private fun StreakTile(weeks: Int) {
                 Icon(
                     Icons.Filled.Whatshot,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = MaterialTheme.colorScheme.onPrimaryFixed,
                     modifier = Modifier.size(22.dp),
                 )
             }
+            val streakScale = rememberPopScale(weeks, delayMillis = 320)
             Text(
-                formatStreak(weeks),
+                formatStreak(animatedInt(weeks, durationMillis = 700, delayMillis = 320)),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(start = 12.dp),
+                color = MaterialTheme.colorScheme.onPrimaryFixed,
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .graphicsLayer(scaleX = streakScale, scaleY = streakScale),
             )
         }
     }

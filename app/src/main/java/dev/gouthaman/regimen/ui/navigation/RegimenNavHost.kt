@@ -6,9 +6,13 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import dev.gouthaman.regimen.feature.active.activeGraph
@@ -19,7 +23,21 @@ import dev.gouthaman.regimen.feature.measurements.measurementsGraph
 import dev.gouthaman.regimen.feature.progress.progressGraph
 import dev.gouthaman.regimen.feature.routines.routinesGraph
 import dev.gouthaman.regimen.feature.settings.settingsGraph
+import dev.gouthaman.regimen.navigation.HistoryRoute
 import dev.gouthaman.regimen.navigation.HomeRoute
+import dev.gouthaman.regimen.navigation.ProgressRoute
+import dev.gouthaman.regimen.navigation.RoutinesRoute
+import dev.gouthaman.regimen.navigation.SettingsRoute
+
+/** True for the five bottom-tab destinations - used to tell a tab switch (via
+ * [dev.gouthaman.regimen.ui.navigation.navigateToTab]) apart from a hierarchical drill-down, so
+ * the two can get different transitions below. */
+private fun isTopLevelDestination(destination: NavDestination): Boolean =
+    destination.hasRoute<HomeRoute>() ||
+            destination.hasRoute<RoutinesRoute>() ||
+            destination.hasRoute<HistoryRoute>() ||
+            destination.hasRoute<ProgressRoute>() ||
+            destination.hasRoute<SettingsRoute>()
 
 /**
  * ─────────────────────────────────────────────────────────────────────────
@@ -81,14 +99,22 @@ fun RegimenNavHost(
     modifier: Modifier = Modifier,
     onNavigateToTab: (Any) -> Unit,
 ) {
-    // Shared-axis-x transitions between all destinations (push slides in from the end + fades in,
-    // popping reverses it) instead of the platform's abrupt default cross-fade.
+    // Shared-axis-x transitions between hierarchical destinations (push slides in from the end +
+    // fades in, popping reverses it) instead of the platform's abrupt default cross-fade.
     val transitionSpec = tween<Float>(220)
 
-    // SharedTransitionLayout hosts the row-expand container transforms for Exercise Library ->
-    // Detail, Measurements -> Measurement Detail, and Routines -> Routine Editor (row or "New
-    // routine" FAB): each destination expands from the tapped row/FAB instead of sliding in. See
-    // exerciseRowTransitionKey / measurementRowTransitionKey / routineRowTransitionKey / routineCreateFabTransitionKey.
+    // Bottom-tab switches (Home/Routines/History/Progress/Settings via navigateToTab) get a
+    // Material "fade through" instead of the shared-axis slide above: tabs are parallel
+    // destinations, not a hierarchy, so a directional slide would imply an ordering that isn't
+    // there. The outgoing tab fades+shrinks out fully before the incoming one fades+grows in.
+    val tabExitSpec = tween<Float>(90)
+    val tabEnterSpec = tween<Float>(130, delayMillis = 90)
+
+    // SharedTransitionLayout hosts every row/link-expand container transform in the app (Routines
+    // row/FAB -> Routine Editor, Library row -> Exercise Detail, Measurements row -> Measurement
+    // Detail, Settings row -> Exercise Library, Progress row -> Measurements, History row/day
+    // cell -> Session Detail): each destination expands from the tapped element instead of
+    // sliding in. All the keys live in :core:common-ui's SharedTransitionKeys.kt.
     SharedTransitionLayout(modifier = modifier) {
         val sharedTransitionScope = this
         NavHost(
@@ -96,26 +122,72 @@ fun RegimenNavHost(
             startDestination = HomeRoute,
             modifier = Modifier.fillMaxSize(),
             enterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Start,
-                    tween(220)
-                ) +
-                        fadeIn(transitionSpec)
+                if (isTopLevelDestination(initialState.destination) && isTopLevelDestination(
+                        targetState.destination
+                    )
+                ) {
+                    fadeIn(tabEnterSpec) + scaleIn(
+                        initialScale = 0.96f,
+                        animationSpec = tabEnterSpec
+                    )
+                } else {
+                    slideIntoContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Start,
+                        tween(220)
+                    ) +
+                            fadeIn(transitionSpec)
+                }
             },
             exitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Start,
-                    tween(220)
-                ) +
-                        fadeOut(transitionSpec)
+                if (isTopLevelDestination(initialState.destination) && isTopLevelDestination(
+                        targetState.destination
+                    )
+                ) {
+                    fadeOut(tabExitSpec) + scaleOut(
+                        targetScale = 1.04f,
+                        animationSpec = tabExitSpec
+                    )
+                } else {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Start,
+                        tween(220)
+                    ) +
+                            fadeOut(transitionSpec)
+                }
             },
             popEnterTransition = {
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
-                        fadeIn(transitionSpec)
+                if (isTopLevelDestination(initialState.destination) && isTopLevelDestination(
+                        targetState.destination
+                    )
+                ) {
+                    fadeIn(tabEnterSpec) + scaleIn(
+                        initialScale = 0.96f,
+                        animationSpec = tabEnterSpec
+                    )
+                } else {
+                    slideIntoContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(220)
+                    ) +
+                            fadeIn(transitionSpec)
+                }
             },
             popExitTransition = {
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) +
-                        fadeOut(transitionSpec)
+                if (isTopLevelDestination(initialState.destination) && isTopLevelDestination(
+                        targetState.destination
+                    )
+                ) {
+                    fadeOut(tabExitSpec) + scaleOut(
+                        targetScale = 1.04f,
+                        animationSpec = tabExitSpec
+                    )
+                } else {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(220)
+                    ) +
+                            fadeOut(transitionSpec)
+                }
             },
         ) {
             homeGraph(
@@ -126,10 +198,10 @@ fun RegimenNavHost(
                 },
             )
             routinesGraph(navController, sharedTransitionScope)
-            historyGraph(navController)
+            historyGraph(navController, sharedTransitionScope)
             activeGraph(navController)
-            progressGraph(navController)
-            settingsGraph(navController)
+            progressGraph(navController, sharedTransitionScope)
+            settingsGraph(navController, sharedTransitionScope)
             measurementsGraph(navController, sharedTransitionScope)
             exerciseGraph(navController, sharedTransitionScope)
         }

@@ -1,17 +1,23 @@
 package dev.gouthaman.regimen.designsystem.chart
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -50,6 +56,16 @@ fun LineChart(
     val labelStyle = MaterialTheme.typography.labelSmall
         .copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
     val textMeasurer = rememberTextMeasurer()
+
+    // Draws on left-to-right whenever the data changes (including first appearance) instead of
+    // snapping straight to the final shape - retriggers on a new points list (e.g. switching
+    // HistoryRange, or a new week's data landing).
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(points) {
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, animationSpec = tween(650, easing = LinearOutSlowInEasing))
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -71,6 +87,7 @@ fun LineChart(
                 labelStyle = labelStyle,
                 textMeasurer = textMeasurer,
                 valueFormatter = valueFormatter,
+                reveal = reveal.value,
             )
         }
     }
@@ -87,6 +104,11 @@ fun Sparkline(
     height: Dp = 36.dp,
     lineColor: Color = MaterialTheme.colorScheme.primary,
 ) {
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(points) {
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, animationSpec = tween(500, easing = LinearOutSlowInEasing))
+    }
     Canvas(modifier = modifier.height(height)) {
         drawSparkline(
             points,
@@ -94,6 +116,7 @@ fun Sparkline(
             fill = null,
             strokeWidthPx = 2.dp.toPx(),
             dotRadiusPx = 2.5.dp.toPx(),
+            reveal = reveal.value,
         )
     }
 }
@@ -103,7 +126,10 @@ private fun defaultValueFormatter(value: Float): String {
     return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
 }
 
-/** Plain trend line/fill with no axis - shared core used by [drawAxisChart]. */
+/** Plain trend line/fill with no axis - shared core used by [drawAxisChart]. [reveal] (0..1)
+ * clips the line/fill/dots to the left fraction of the canvas, so the whole trend draws on
+ * left-to-right instead of appearing all at once - see [LineChart]/[Sparkline]'s reveal
+ * `Animatable`. Defaults to fully drawn for any caller that doesn't animate it. */
 private fun DrawScope.drawSparkline(
     points: List<Float>,
     line: Color,
@@ -114,8 +140,9 @@ private fun DrawScope.drawSparkline(
     bottomPad: Float = dotRadiusPx + strokeWidthPx,
     domainMin: Float = points.minOrNull() ?: 0f,
     domainMax: Float = points.maxOrNull() ?: 0f,
+    reveal: Float = 1f,
 ) {
-    if (points.isEmpty()) return
+    if (points.isEmpty() || reveal <= 0f) return
 
     val w = size.width
     val h = size.height
@@ -131,35 +158,45 @@ private fun DrawScope.drawSparkline(
         if (range == 0f) topPad + usableH / 2f else topPad + usableH * (1f - (value - domainMin) / range)
 
     if (points.size == 1) {
-        drawCircle(line, radius = dotRadiusPx, center = Offset(xAt(0), yAt(points[0])))
+        // Nothing to sweep across for a lone point - fade it in instead.
+        drawCircle(
+            line,
+            radius = dotRadiusPx,
+            center = Offset(xAt(0), yAt(points[0])),
+            alpha = reveal
+        )
         return
     }
 
     val offsets = points.mapIndexed { i, v -> Offset(xAt(i), yAt(v)) }
 
-    if (fill != null) {
-        val bottomLine = yAt(domainMin)
-        val area = Path().apply {
-            moveTo(offsets.first().x, bottomLine)
-            offsets.forEach { lineTo(it.x, it.y) }
-            lineTo(offsets.last().x, bottomLine)
-            close()
+    clipRect(right = w * reveal) {
+        if (fill != null) {
+            val bottomLine = yAt(domainMin)
+            val area = Path().apply {
+                moveTo(offsets.first().x, bottomLine)
+                offsets.forEach { lineTo(it.x, it.y) }
+                lineTo(offsets.last().x, bottomLine)
+                close()
+            }
+            drawPath(area, fill)
         }
-        drawPath(area, fill)
-    }
 
-    val path = Path().apply {
-        moveTo(offsets.first().x, offsets.first().y)
-        offsets.drop(1).forEach { lineTo(it.x, it.y) }
-    }
-    drawPath(path, line, style = Stroke(width = strokeWidthPx))
+        val path = Path().apply {
+            moveTo(offsets.first().x, offsets.first().y)
+            offsets.drop(1).forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(path, line, style = Stroke(width = strokeWidthPx))
 
-    // Endpoint dots to anchor the eye on sparse data.
-    drawCircle(line, radius = dotRadiusPx, center = offsets.first())
-    drawCircle(line, radius = dotRadiusPx, center = offsets.last())
+        // Endpoint dots to anchor the eye on sparse data.
+        drawCircle(line, radius = dotRadiusPx, center = offsets.first())
+        drawCircle(line, radius = dotRadiusPx, center = offsets.last())
+    }
 }
 
-/** Trend line/fill plus top/bottom gridlines and value labels so the Y scale is legible on its own. */
+/** Trend line/fill plus top/bottom gridlines and value labels so the Y scale is legible on its
+ * own. [reveal] fades the gridlines/labels in while clipping the line/fill/dots left-to-right -
+ * see [drawSparkline]. */
 private fun DrawScope.drawAxisChart(
     points: List<Float>,
     line: Color,
@@ -171,6 +208,7 @@ private fun DrawScope.drawAxisChart(
     labelStyle: TextStyle,
     textMeasurer: TextMeasurer,
     valueFormatter: (Float) -> String,
+    reveal: Float = 1f,
 ) {
     if (points.isEmpty()) return
 
@@ -182,31 +220,35 @@ private fun DrawScope.drawAxisChart(
 
     val gap = 4.dp.toPx()
     val gridStroke = 1.dp.toPx()
+    val fadedGrid = gridColor.copy(alpha = gridColor.alpha * reveal)
+    val fadedLabelStyle =
+        labelStyle.copy(color = labelStyle.color.copy(alpha = labelStyle.color.alpha * reveal))
 
     if (flat) {
         // A single value spans the whole domain: one gridline/label at the vertical middle.
-        val label = textMeasurer.measure(valueFormatter(domainMax), labelStyle)
+        val label = textMeasurer.measure(valueFormatter(domainMax), fadedLabelStyle)
         val topPad = dotRadiusPx + strokeWidthPx + label.size.height + gap
         val bottomPad = topPad
         val midY = topPad + (size.height - topPad - bottomPad) / 2f
-        drawLine(gridColor, Offset(0f, midY), Offset(size.width, midY), strokeWidth = gridStroke)
+        drawLine(fadedGrid, Offset(0f, midY), Offset(size.width, midY), strokeWidth = gridStroke)
         drawText(label, topLeft = Offset(0f, midY - label.size.height - gap))
         drawSparkline(
             points, line, fill, strokeWidthPx, dotRadiusPx,
             topPad = topPad, bottomPad = bottomPad, domainMin = domainMin, domainMax = domainMax,
+            reveal = reveal,
         )
         return
     }
 
-    val maxLabel = textMeasurer.measure(valueFormatter(domainMax), labelStyle)
-    val minLabel = textMeasurer.measure(valueFormatter(domainMin), labelStyle)
+    val maxLabel = textMeasurer.measure(valueFormatter(domainMax), fadedLabelStyle)
+    val minLabel = textMeasurer.measure(valueFormatter(domainMin), fadedLabelStyle)
     val labelHeight = maxOf(maxLabel.size.height, minLabel.size.height)
     val topPad = dotRadiusPx + strokeWidthPx + labelHeight + gap
     val bottomPad = topPad
 
-    drawLine(gridColor, Offset(0f, topPad), Offset(size.width, topPad), strokeWidth = gridStroke)
+    drawLine(fadedGrid, Offset(0f, topPad), Offset(size.width, topPad), strokeWidth = gridStroke)
     drawLine(
-        gridColor,
+        fadedGrid,
         Offset(0f, size.height - bottomPad),
         Offset(size.width, size.height - bottomPad),
         strokeWidth = gridStroke,
@@ -217,5 +259,6 @@ private fun DrawScope.drawAxisChart(
     drawSparkline(
         points, line, fill, strokeWidthPx, dotRadiusPx,
         topPad = topPad, bottomPad = bottomPad, domainMin = domainMin, domainMax = domainMax,
+        reveal = reveal,
     )
 }

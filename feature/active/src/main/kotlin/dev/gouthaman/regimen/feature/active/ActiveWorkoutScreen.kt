@@ -4,27 +4,28 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -66,6 +68,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
@@ -98,9 +101,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
@@ -129,9 +130,7 @@ import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.ceil
-import kotlin.math.hypot
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -446,11 +445,12 @@ fun ActiveWorkoutScreen(
                         onPause = onPause,
                         onResume = onResume,
                         onFinish = { if (isEditing) onFinish() else showFinishConfirm = true },
+                        // No fillMaxWidth/height here - the pill sizes itself (full-width while
+                        // running/editing, a compact wrap-content FAB while paused) and animates
+                        // between the two via its own AnimatedContent size transform.
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
-                            .height(64.dp),
+                            .align(Alignment.BottomEnd)
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
                     )
                 }
             }
@@ -511,9 +511,22 @@ fun ActiveWorkoutScreen(
     }
 
     if (showFinishConfirm) {
+        // "Complete" per exercise: skipped, explicitly marked done, or (for strength exercises)
+        // every logged set ticked - a cardio exercise with no sets to tick only counts via
+        // isSkipped/isDone.
+        val allExercisesComplete = uiState.exercises.all { exercise ->
+            exercise.isSkipped || exercise.isDone ||
+                    (exercise.sets.isNotEmpty() && exercise.sets.all { it.isComplete })
+        }
         ConfirmDialog(
             title = stringResource(R.string.workout_finish_dialog_title),
-            text = stringResource(R.string.workout_finish_dialog_text),
+            text = stringResource(
+                if (allExercisesComplete) {
+                    R.string.workout_finish_dialog_text
+                } else {
+                    R.string.workout_finish_dialog_text_incomplete
+                },
+            ),
             confirmLabel = stringResource(R.string.workout_finish_action),
             onConfirm = {
                 showFinishConfirm = false
@@ -521,6 +534,11 @@ fun ActiveWorkoutScreen(
             },
             dismissLabel = stringResource(R.string.workout_keep_going_button),
             onDismiss = { showFinishConfirm = false },
+            // Green/positive only when everything's actually logged - otherwise a neutral color
+            // plus a three-second delay before Finish becomes tappable, so an incomplete finish
+            // takes a deliberate beat rather than a reflexive double-tap.
+            positive = allExercisesComplete,
+            confirmEnableDelayMillis = if (allExercisesComplete) 0L else 3000L,
         )
     }
 }
@@ -531,9 +549,12 @@ private val ToolbarShape = RoundedCornerShape(percent = 50)
  * The session's prominent controls (timer, Pause/Resume, Finish), pulled out of the top bar so it
  * stays title-only. A plain [Surface] pill (shadow+clip+fill), not the alpha
  * `HorizontalFloatingToolbar` API - same building blocks as a FAB, which reads correctly in dark
- * theme. Tinted with the primary color (darker while paused). Pause/resume animates a
- * ripple-style circular reveal + scale pop so the flip reads as a distinct event. Collapses to a
- * status label + Done while editing a past session.
+ * theme. Tinted with the primary color; paused swaps to the secondary Fixed pairing. Pausing
+ * collapses the whole pill down to a compact "Resume" FAB (Finish isn't reachable while paused -
+ * resume first) via [AnimatedContent]'s size transform, rather than animating individual buttons'
+ * widths within a fixed-size bar - the previous approach had two adjacent elements independently
+ * resizing/fading, which never quite read as one coordinated motion. Collapses to a status label +
+ * Done while editing a past session.
  */
 @Composable
 private fun ActiveWorkoutToolbar(
@@ -545,39 +566,27 @@ private fun ActiveWorkoutToolbar(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val primary = MaterialTheme.colorScheme.primary
-    // Lighter darken than a literal "paused = dark" look (0.35 was too heavy) - cues status without killing contrast.
-    val targetColor = if (isPaused) lerp(primary, Color.Black, 0.18f) else primary
-    val contentColor = MaterialTheme.colorScheme.onPrimary
-
-    // Base fill cross-fades to target over the same duration as the reveal circle below, avoiding
-    // a discrete cutover to race against - a manual cutover (flipping baseColor in a coroutine at
-    // full radius) landed a frame early/late and flickered.
-    val baseColor by animateColorAsState(targetValue = targetColor, animationSpec = tween(420))
-    val revealProgress = remember { Animatable(1f) }
-    val scale = remember { Animatable(1f) }
-    // Skips the reveal/pop on first composition (screen open) - only animates on an actual pause/resume flip.
-    var initialized by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isPaused) {
-        if (!initialized) {
-            initialized = true
-            return@LaunchedEffect
-        }
-        revealProgress.snapTo(0f)
-        scale.snapTo(0.94f)
-        // Runs independently of the baseColor cross-fade above; same tween/spring durations so all three land together.
-        launch { revealProgress.animateTo(1f, animationSpec = tween(420)) }
-        scale.animateTo(
-            1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy,
-                stiffness = Spring.StiffnessLow,
-            ),
-        )
+    // Paused swaps to the secondary Fixed pairing - a real container/content pair keeps contrast
+    // guaranteed in both light/dark (a lerp toward surfaceDim, tried earlier, drifted away from
+    // the tone onPrimaryFixed was designed to contrast against and read as illegible).
+    val targetColor = if (isPaused) {
+        MaterialTheme.colorScheme.secondaryFixedDim
+    } else {
+        MaterialTheme.colorScheme.primaryFixedDim
     }
+    val targetContentColor = if (isPaused) {
+        MaterialTheme.colorScheme.onSecondaryFixed
+    } else {
+        MaterialTheme.colorScheme.onPrimaryFixed
+    }
+    val baseColor by animateColorAsState(targetValue = targetColor, animationSpec = tween(420))
+    val contentColor by animateColorAsState(
+        targetValue = targetContentColor,
+        animationSpec = tween(420)
+    )
 
-    // "Live" cues while counting: breathing dot + ambient glow; frozen/solid when paused.
+    // "Live" cue while counting: breathing dot + ambient glow; absent once paused (that whole
+    // branch of content goes away) or editing.
     val isRunning = !isEditing && !isPaused
     val breathe by rememberInfiniteTransition(label = "timerBreathe").animateFloat(
         initialValue = 0f,
@@ -589,122 +598,175 @@ private fun ActiveWorkoutToolbar(
         label = "breathe",
     )
 
-    Box(modifier = modifier.scale(scale.value)) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .shadow(elevation = 8.dp, shape = ToolbarShape)
-                .clip(ToolbarShape)
-                .let {
-                    // Tapping anywhere on the pill also triggers Pause/Resume (mini-player pattern) - disabled
-                    // while editing; Finish's own click still wins as the nested target.
-                    if (isEditing) it else it.clickable(
-                        onClick = { if (isPaused) onResume() else onPause() },
-                    )
+    // Presses the whole pill down slightly on touch-down (released/cancelled snaps back).
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "toolbarPress",
+    )
+    val indication = LocalIndication.current
+    val buttonColors = IconButtonDefaults.filledIconButtonColors(
+        containerColor = contentColor,
+        contentColor = baseColor,
+    )
+
+    Box(
+        modifier = modifier
+            .scale(pressScale)
+            .shadow(elevation = 8.dp, shape = ToolbarShape)
+            .clip(ToolbarShape)
+            .let {
+                // Tapping anywhere on the pill also triggers Pause/Resume (mini-player pattern) - disabled
+                // while editing; Finish's own click still wins as the nested target.
+                if (isEditing) it else it.clickable(
+                    interactionSource = interactionSource,
+                    indication = indication,
+                    onClick = { if (isPaused) onResume() else onPause() },
+                )
+            }
+            .background(baseColor)
+            .drawBehind {
+                if (isRunning) {
+                    // Ambient "breathing" glow signals the timer is live.
+                    drawRect(color = contentColor.copy(alpha = 0.1f * breathe))
                 }
-                .background(baseColor)
-                .drawBehind {
-                    if (isRunning) {
-                        // Ambient "breathing" glow signals the timer is live without competing with the pause/resume reveal/pop.
-                        drawRect(color = contentColor.copy(alpha = 0.1f * breathe))
-                    }
-                    if (revealProgress.value < 1f) {
-                        val maxRadius = hypot(size.width, size.height)
-                        drawCircle(
-                            color = targetColor,
-                            radius = revealProgress.value * maxRadius,
-                            // Roughly where Pause/Resume sits, so the reveal reads as originating from the tapped control.
-                            center = Offset(size.width * 0.82f, size.height / 2f),
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = isPaused,
+            transitionSpec = {
+                (fadeIn(tween(220, delayMillis = 90)) + scaleIn(
+                    initialScale = 0.92f,
+                    animationSpec = tween(310, delayMillis = 90)
+                ))
+                    .togetherWith(
+                        fadeOut(tween(140)) + scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(220)
                         )
-                    }
-                },
-        )
+                    )
+                    .using(SizeTransform(clip = false) { _, _ ->
+                        tween(
+                            420,
+                            easing = FastOutSlowInEasing
+                        )
+                    })
+            },
+            label = "toolbarShape",
+        ) { paused ->
+            if (paused) {
+                PausedToolbarContent(elapsed = elapsed, contentColor = contentColor)
+            } else {
+                RunningToolbarContent(
+                    isEditing = isEditing,
+                    elapsed = elapsed,
+                    contentColor = contentColor,
+                    breathe = breathe,
+                    buttonColors = buttonColors,
+                    onPause = onPause,
+                    onFinish = onFinish,
+                )
+            }
+        }
+    }
+}
+
+/** Wide pill: elapsed time (+ live pulse dot), Pause and Finish - shown while running or editing. */
+@Composable
+private fun RunningToolbarContent(
+    isEditing: Boolean,
+    elapsed: Long,
+    contentColor: Color,
+    breathe: Float,
+    buttonColors: IconButtonColors,
+    onPause: () -> Unit,
+    onFinish: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
         Row(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    if (isEditing) {
-                        stringResource(R.string.workout_editing_session_status)
-                    } else if (isPaused) {
-                        stringResource(R.string.workout_paused_status, formatElapsed(elapsed))
-                    } else {
-                        formatElapsed(elapsed)
-                    },
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = contentColor,
+            Text(
+                if (isEditing) {
+                    stringResource(R.string.workout_editing_session_status)
+                } else {
+                    formatElapsed(elapsed)
+                },
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = contentColor,
+            )
+            if (!isEditing) {
+                // Live pulse dot: breathes while running.
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(contentColor.copy(alpha = 0.4f + 0.6f * breathe)),
                 )
-                if (!isEditing && !isPaused) {
-                    // Live pulse dot: breathes while running, dims to a static glow when paused.
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                contentColor.copy(
-                                    alpha = 0.4f + 0.6f * breathe,
-                                ),
-                            ),
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (!isEditing) {
+                FilledIconButton(onClick = onPause, colors = buttonColors) {
+                    Icon(
+                        Icons.Filled.Pause,
+                        contentDescription = stringResource(R.string.workout_pause_description),
                     )
                 }
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val buttonColors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = contentColor,
-                    contentColor = baseColor,
+            FilledIconButton(onClick = onFinish, colors = buttonColors) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = stringResource(
+                        if (isEditing) R.string.workout_done_description else R.string.workout_finish_action,
+                    ),
                 )
-                if (!isEditing) {
-                    FilledIconButton(
-                        onClick = { if (isPaused) onResume() else onPause() },
-                        colors = buttonColors,
-                    ) {
-                        AnimatedContent(
-                            targetState = isPaused,
-                            transitionSpec = {
-                                (scaleIn(initialScale = 0.6f) + fadeIn())
-                                    .togetherWith(scaleOut(targetScale = 0.6f) + fadeOut())
-                            },
-                            label = "pauseResumeIcon",
-                        ) { paused ->
-                            if (paused) {
-                                Icon(
-                                    Icons.Filled.PlayArrow,
-                                    contentDescription = stringResource(R.string.workout_resume_description)
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Filled.Pause,
-                                    contentDescription = stringResource(R.string.workout_pause_description)
-                                )
-                            }
-                        }
-                    }
-                }
-                AnimatedVisibility(
-                    visible = !isPaused,
-                    enter = expandHorizontally() + fadeIn(),
-                    exit = shrinkHorizontally() + fadeOut(),
-                ) {
-                    FilledIconButton(onClick = onFinish, colors = buttonColors) {
-                        Icon(
-                            Icons.Filled.Check,
-                            contentDescription = stringResource(
-                                if (isEditing) R.string.workout_done_description else R.string.workout_finish_action,
-                            ),
-                        )
-                    }
-                }
             }
+        }
+    }
+}
+
+/** Compact "Resume" FAB the pill collapses to while paused - no Finish here; resume first. Tapping
+ * anywhere on the pill (see [ActiveWorkoutToolbar]) resumes, so this itself isn't its own button. */
+@Composable
+private fun PausedToolbarContent(elapsed: Long, contentColor: Color) {
+    Row(
+        modifier = Modifier
+            .wrapContentWidth()
+            .height(64.dp)
+            .padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = contentColor)
+        Column {
+            Text(
+                stringResource(R.string.workout_resume_description),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = contentColor,
+            )
+            Text(
+                formatElapsed(elapsed),
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.8f),
+            )
         }
     }
 }
@@ -742,7 +804,7 @@ private fun ExerciseCard(
     val containerColor by animateColorAsState(
         targetValue = when (bodyState) {
             ExerciseCardBody.SKIPPED -> MaterialTheme.colorScheme.surfaceVariant
-            ExerciseCardBody.DONE -> MaterialTheme.colorScheme.tertiaryContainer
+            ExerciseCardBody.DONE -> MaterialTheme.colorScheme.tertiaryFixedDim
             ExerciseCardBody.NORMAL -> CardDefaults.cardColors().containerColor
         },
         animationSpec = tween(300),
@@ -750,7 +812,7 @@ private fun ExerciseCard(
     )
     val contentColor by animateColorAsState(
         targetValue = if (bodyState == ExerciseCardBody.DONE) {
-            MaterialTheme.colorScheme.onTertiaryContainer
+            MaterialTheme.colorScheme.onTertiaryFixed
         } else {
             CardDefaults.cardColors().contentColor
         },
@@ -1201,6 +1263,14 @@ private fun RestTimerSheet(
     val remainingSec = ceil(remainingMs / 1000.0).toInt()
     val progress = if (rest.totalSec > 0) (remainingMs / 1000f) / rest.totalSec else 0f
 
+    // Cross-fades to a more prominent color in the last 15s so the countdown reads as urgent
+    // right before rest ends, instead of staying visually identical the whole way down.
+    val timerColor by animateColorAsState(
+        targetValue = if (remainingSec <= 15) MaterialTheme.colorScheme.error else LocalContentColor.current,
+        animationSpec = tween(400),
+        label = "restTimerColor",
+    )
+
     // Undismissable except via the explicit "Skip rest" button below: no scrim-tap/back-press
     // dismiss, no swipe-to-dismiss, no drag handle (there's nothing left to drag for).
     ModalBottomSheet(
@@ -1225,7 +1295,11 @@ private fun RestTimerSheet(
                 stringResource(R.string.workout_rest_label),
                 style = MaterialTheme.typography.titleMedium
             )
-            Text(formatRest(remainingSec), style = MaterialTheme.typography.displayMedium)
+            Text(
+                formatRest(remainingSec),
+                style = MaterialTheme.typography.displayMedium,
+                color = timerColor,
+            )
             LinearProgressIndicator(
                 progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),

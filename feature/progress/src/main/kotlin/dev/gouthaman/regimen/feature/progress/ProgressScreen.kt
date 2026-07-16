@@ -1,5 +1,9 @@
 package dev.gouthaman.regimen.feature.progress
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Straighten
@@ -29,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -37,6 +43,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.label
+import dev.gouthaman.regimen.common.measurementsFromProgressTransitionKey
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
@@ -51,6 +58,8 @@ import java.util.Locale
 
 @Composable
 fun ProgressScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenMeasurements: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
@@ -58,16 +67,20 @@ fun ProgressScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ProgressScreen(
         uiState = uiState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onOpenMeasurements = onOpenMeasurements,
         onRangeChange = viewModel::setRange,
         modifier = modifier,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun ProgressScreen(
     uiState: ProgressUiState,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenMeasurements: () -> Unit,
     modifier: Modifier = Modifier,
     onRangeChange: (HistoryRange) -> Unit = {},
@@ -103,6 +116,12 @@ fun ProgressScreen(
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 item {
+                    val linkModifier = with(sharedTransitionScope) {
+                        Modifier.sharedBounds(
+                            rememberSharedContentState(key = measurementsFromProgressTransitionKey),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    }
                     ListItem(
                         content = { Text(stringResource(R.string.progress_measurements_link_title)) },
                         supportingContent = { Text(stringResource(R.string.progress_measurements_link_subtitle)) },
@@ -115,7 +134,7 @@ fun ProgressScreen(
                                 contentDescription = null
                             )
                         },
-                        modifier = Modifier.clickable(onClick = onOpenMeasurements),
+                        modifier = linkModifier.clickable(onClick = onOpenMeasurements),
                     )
                     HorizontalDivider()
                 }
@@ -169,11 +188,18 @@ fun ProgressScreen(
                             ListItem(
                                 content = { Text(pr.exerciseName) },
                                 trailingContent = {
-                                    Text(
-                                        personalRecordValueLabel(pr.value),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .background(MaterialTheme.colorScheme.tertiaryFixed)
+                                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                                    ) {
+                                        Text(
+                                            personalRecordValueLabel(pr.value),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onTertiaryFixed,
+                                        )
+                                    }
                                 },
                             )
                         }

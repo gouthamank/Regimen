@@ -11,11 +11,17 @@ import androidx.compose.ui.unit.dp
 
 /** A labeled value (e.g. "12" over "Workouts") - the shared building block for stat rows/grids
  * (Home's week/month summary tiles, Workout Summary's session recap row). Callers that want a
- * card background wrap this themselves; not every caller does. */
+ * card background wrap this themselves; not every caller does. [valueModifier] applies only to
+ * the value text (e.g. a scale-pop animation), leaving the label untouched. */
 @Composable
-fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
+fun Stat(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueModifier: Modifier = Modifier
+) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.titleLarge)
+        Text(value, style = MaterialTheme.typography.titleLarge, modifier = valueModifier)
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
