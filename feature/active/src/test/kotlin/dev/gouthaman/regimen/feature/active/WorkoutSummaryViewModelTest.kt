@@ -12,6 +12,7 @@ import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
@@ -61,7 +62,12 @@ class WorkoutSummaryViewModelTest {
     )
 
     private suspend fun finishedWorkout(workoutRepo: FakeWorkoutRepository, workoutId: Long) {
-        workoutRepo.updateWorkout(workoutRepo.getWorkout(workoutId)!!.workout.copy(endTime = 5_000))
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                endTime = 5_000,
+                workoutStatus = WorkoutStatus.COMPLETE,
+            ),
+        )
     }
 
     @Test

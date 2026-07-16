@@ -125,6 +125,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
 import kotlinx.coroutines.delay
@@ -261,7 +262,8 @@ fun ActiveWorkoutScreen(
     // Elapsed excludes accumulated pause; while paused it freezes at the moment of pausing.
     val elapsed = when {
         uiState.startTime == 0L -> 0L
-        uiState.pausedAt != null -> uiState.pausedAt - uiState.startTime - uiState.accumulatedPausedMs
+        uiState.status == WorkoutStatus.PAUSED && uiState.pausedAt != null ->
+            uiState.pausedAt - uiState.startTime - uiState.accumulatedPausedMs
         else -> now - uiState.startTime - uiState.accumulatedPausedMs
     }.coerceAtLeast(0)
 

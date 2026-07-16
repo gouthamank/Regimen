@@ -5,6 +5,7 @@ import dev.gouthaman.regimen.domain.model.Routine
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
@@ -57,7 +58,12 @@ class HomeViewModelTest {
 
     private suspend fun completedWorkoutFor(routineId: Long, startTime: Long): Long {
         val id = workoutRepo.createWorkout(startTime = startTime, routineId = routineId)
-        workoutRepo.updateWorkout(workoutRepo.getWorkout(id)!!.workout.copy(endTime = startTime + 1_000))
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(id)!!.workout.copy(
+                endTime = startTime + 1_000,
+                workoutStatus = WorkoutStatus.COMPLETE,
+            ),
+        )
         return id
     }
 

@@ -6,6 +6,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.AddExercisesToWorkoutUseCase
 import dev.gouthaman.regimen.testing.FakeExerciseRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
@@ -68,7 +69,12 @@ class AddExercisesToWorkoutUseCaseTest {
                 reps = 6
             )
         )
-        workoutRepo.updateWorkout(workoutRepo.getWorkout(pastWorkoutId)!!.workout.copy(endTime = 1_500))
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(pastWorkoutId)!!.workout.copy(
+                endTime = 1_500,
+                workoutStatus = WorkoutStatus.COMPLETE,
+            ),
+        )
 
         val workoutId = workoutRepo.createWorkout(startTime = 2_000, routineId = null)
         val useCase = AddExercisesToWorkoutUseCase(workoutRepo, exerciseRepo)

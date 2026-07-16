@@ -20,7 +20,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WorkoutDao {
     @Transaction
-    @Query("SELECT * FROM workouts WHERE endTime IS NOT NULL ORDER BY startTime DESC")
+    @Query(
+        "SELECT * FROM workouts WHERE workoutStatus IN ('COMPLETE', 'EDITING') " +
+                "ORDER BY startTime DESC"
+    )
     fun observeCompletedWithDetails(): Flow<List<WorkoutWithDetailsEntity>>
 
     @Transaction
@@ -31,23 +34,33 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getWorkoutWithDetails(id: Long): WorkoutWithDetailsEntity?
 
-    /** The in-progress workout, if any (endTime null). Used to resume after process death. */
+    /** The in-progress workout, if any. Used to resume after process death. */
     @Transaction
-    @Query("SELECT * FROM workouts WHERE endTime IS NULL ORDER BY startTime DESC LIMIT 1")
+    @Query(
+        "SELECT * FROM workouts WHERE workoutStatus IN ('IN_PROGRESS', 'PAUSED', 'IN_REST_TIME') " +
+                "ORDER BY startTime DESC LIMIT 1"
+    )
     suspend fun getInProgressWorkout(): WorkoutWithDetailsEntity?
 
-    @Query("SELECT id FROM workouts WHERE endTime IS NULL ORDER BY startTime DESC LIMIT 1")
+    @Query(
+        "SELECT id FROM workouts WHERE workoutStatus IN ('IN_PROGRESS', 'PAUSED', 'IN_REST_TIME') " +
+                "ORDER BY startTime DESC LIMIT 1"
+    )
     fun observeInProgressId(): Flow<Long?>
 
     /** Most recent completed session of a routine — source for prefill. */
     @Transaction
     @Query(
-        "SELECT * FROM workouts WHERE routineId = :routineId AND endTime IS NOT NULL " +
+        "SELECT * FROM workouts WHERE routineId = :routineId " +
+                "AND workoutStatus IN ('COMPLETE', 'EDITING') " +
                 "ORDER BY startTime DESC LIMIT 1"
     )
     suspend fun getMostRecentCompletedForRoutine(routineId: Long): WorkoutWithDetailsEntity?
 
-    @Query("SELECT * FROM workouts WHERE endTime IS NOT NULL AND startTime BETWEEN :start AND :end ORDER BY startTime")
+    @Query(
+        "SELECT * FROM workouts WHERE workoutStatus IN ('COMPLETE', 'EDITING') " +
+                "AND startTime BETWEEN :start AND :end ORDER BY startTime"
+    )
     fun observeCompletedBetween(start: Long, end: Long): Flow<List<WorkoutEntity>>
 
     /** Heaviest weight ever lifted for an exercise — the PR definition. */
@@ -55,7 +68,8 @@ interface WorkoutDao {
         "SELECT MAX(se.weightKg) FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
                 "JOIN workouts w ON we.workoutId = w.id " +
-                "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL AND se.isComplete = 1"
+                "WHERE we.exerciseId = :exerciseId " +
+                "AND w.workoutStatus IN ('COMPLETE', 'EDITING') AND se.isComplete = 1"
     )
     fun observeBestWeight(exerciseId: Long): Flow<Double?>
 
@@ -64,7 +78,8 @@ interface WorkoutDao {
         "SELECT we.exerciseId AS exerciseId, MAX(se.weightKg) AS bestWeightKg FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
                 "JOIN workouts w ON we.workoutId = w.id " +
-                "WHERE w.endTime IS NOT NULL AND se.isComplete = 1 AND se.weightKg IS NOT NULL " +
+                "WHERE w.workoutStatus IN ('COMPLETE', 'EDITING') AND se.isComplete = 1 " +
+                "AND se.weightKg IS NOT NULL " +
                 "GROUP BY we.exerciseId"
     )
     fun observePersonalRecords(): Flow<List<PersonalRecordRowEntity>>
@@ -75,8 +90,8 @@ interface WorkoutDao {
         "SELECT we.exerciseId AS exerciseId, MAX(se.reps) AS bestReps FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
                 "JOIN workouts w ON we.workoutId = w.id " +
-                "WHERE w.endTime IS NOT NULL AND se.isComplete = 1 AND se.weightKg IS NULL " +
-                "AND se.reps IS NOT NULL " +
+                "WHERE w.workoutStatus IN ('COMPLETE', 'EDITING') AND se.isComplete = 1 " +
+                "AND se.weightKg IS NULL AND se.reps IS NOT NULL " +
                 "GROUP BY we.exerciseId"
     )
     fun observeBestReps(): Flow<List<RepsRecordRowEntity>>
@@ -87,7 +102,8 @@ interface WorkoutDao {
         "SELECT se.* FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
                 "JOIN workouts w ON we.workoutId = w.id " +
-                "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL " +
+                "WHERE we.exerciseId = :exerciseId " +
+                "AND w.workoutStatus IN ('COMPLETE', 'EDITING') " +
                 "ORDER BY w.startTime DESC, se.setNumber DESC LIMIT 1"
     )
     suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntryEntity?
@@ -97,7 +113,8 @@ interface WorkoutDao {
     @Query(
         "SELECT we.*, w.startTime AS startTime FROM workout_exercises we " +
                 "JOIN workouts w ON we.workoutId = w.id " +
-                "WHERE we.exerciseId = :exerciseId AND w.endTime IS NOT NULL " +
+                "WHERE we.exerciseId = :exerciseId " +
+                "AND w.workoutStatus IN ('COMPLETE', 'EDITING') " +
                 "ORDER BY w.startTime DESC"
     )
     fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySessionEntity>>

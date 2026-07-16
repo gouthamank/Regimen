@@ -35,9 +35,10 @@ deliberately left untested.
       "finished workout" queries (`observeCompleted`, `getMostRecentForRoutine`,
       `getMostRecentSetForExercise`, `observePersonalRecords`, `observeBestReps`,
       `observeBestWeight`,
-      `observeExerciseHistory`) key off `workout.endTime != null`, mirroring the real Room DAO's
-      `WHERE endTime IS NOT NULL` — not `workoutStatus == COMPLETE`, since an `EDITING`-status
-      workout still has `endTime` set.
+      `observeExerciseHistory`) key off `workoutStatus IN (COMPLETE, EDITING)`, mirroring the real
+      Room DAO's `WHERE workoutStatus IN ('COMPLETE', 'EDITING')` — not `endTime IS NOT NULL`,
+      since an `EDITING`-status workout still has `endTime` set but a workout is only "finished"
+      once its status says so.
     - `FakeClock` — settable `Clock` (see below) for deterministic time-dependent tests.
     - `FakeRestAlerts` — fake for the rest-timer alert side-effect.
     - `MainDispatcherRule` — JUnit `TestWatcher` that sets `Dispatchers.Main` to a `TestDispatcher`

@@ -7,6 +7,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.testing.FakeExerciseRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
@@ -68,7 +69,12 @@ class GetPersonalRecordsUseCaseTest {
                 isComplete = true
             )
         )
-        workoutRepo.updateWorkout(workoutRepo.getWorkout(workoutId)!!.workout.copy(endTime = 2_000))
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                endTime = 2_000,
+                workoutStatus = WorkoutStatus.COMPLETE,
+            ),
+        )
 
         GetPersonalRecordsUseCase(workoutRepo, exerciseRepo)().test {
             val records = awaitItem()
@@ -132,7 +138,12 @@ class GetPersonalRecordsUseCaseTest {
                 isComplete = false
             )
         )
-        workoutRepo.updateWorkout(workoutRepo.getWorkout(workoutId)!!.workout.copy(endTime = 2_000))
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                endTime = 2_000,
+                workoutStatus = WorkoutStatus.COMPLETE,
+            ),
+        )
 
         GetPersonalRecordsUseCase(workoutRepo, exerciseRepo)().test {
             assertEquals(emptyList<Any>(), awaitItem())

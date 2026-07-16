@@ -80,7 +80,7 @@ class ActiveWorkoutService : Service() {
             .distinctUntilChanged()
             .flatMapLatest { id -> if (id == null) flowOf(null) else observeWorkout(id) }
             .onEach { workout ->
-                if (workout == null || workout.workout.endTime != null) {
+                if (workout == null || workout.workout.workoutStatus == WorkoutStatus.COMPLETE) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 } else {

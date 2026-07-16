@@ -145,7 +145,7 @@ class WorkoutDaoTest {
     }
 
     @Test
-    fun observeBestWeight_excludesWorkoutsWithNullEndTimeEvenWhenStatusSaysComplete() = runTest {
+    fun observeBestWeight_includesWorkoutsMarkedCompleteEvenWhenEndTimeIsNull() = runTest {
         val exerciseId = insertExercise()
         val workoutId =
             insertWorkout(startTime = 1_000, endTime = null, workoutStatus = WorkoutStatus.COMPLETE)
@@ -153,7 +153,7 @@ class WorkoutDaoTest {
         insertSet(weId, 1, weightKg = 500.0)
 
         workoutDao.observeBestWeight(exerciseId).test {
-            assertNull(awaitItem())
+            assertEquals(500.0, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -312,7 +312,7 @@ class WorkoutDaoTest {
     }
 
     @Test
-    fun getMostRecentSetForExercise_excludesWorkoutsWithNullEndTimeEvenWhenStatusSaysComplete() =
+    fun getMostRecentSetForExercise_includesWorkoutsMarkedCompleteEvenWhenEndTimeIsNull() =
         runTest {
             val exerciseId = insertExercise()
             val workoutId = insertWorkout(
@@ -323,7 +323,7 @@ class WorkoutDaoTest {
             val weId = insertWorkoutExercise(workoutId, exerciseId)
             insertSet(weId, 1, weightKg = 999.0)
 
-            assertNull(workoutDao.getMostRecentSetForExercise(exerciseId))
+            assertEquals(999.0, workoutDao.getMostRecentSetForExercise(exerciseId)?.weightKg)
         }
 
     @Test

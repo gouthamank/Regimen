@@ -9,6 +9,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.DeleteExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveExerciseHistoryUseCase
@@ -74,7 +75,12 @@ class ExerciseDetailViewModelTest {
                 isComplete = true
             )
         )
-        workoutRepo.updateWorkout(workoutRepo.getWorkout(workoutId)!!.workout.copy(endTime = System.currentTimeMillis() + 1_000))
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                endTime = System.currentTimeMillis() + 1_000,
+                workoutStatus = WorkoutStatus.COMPLETE,
+            ),
+        )
     }
 
     private suspend fun ReceiveTurbine<ExerciseDetailUiState>.awaitLoaded(): ExerciseDetailUiState {

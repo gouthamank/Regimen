@@ -12,11 +12,16 @@ import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.Workout
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutExerciseWithDetails
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+
+private val FINISHED_STATUSES = setOf(WorkoutStatus.COMPLETE, WorkoutStatus.EDITING)
+
+private fun Workout.isFinished(): Boolean = workoutStatus in FINISHED_STATUSES
 
 class FakeWorkoutRepository : WorkoutRepository {
 
@@ -27,7 +32,7 @@ class FakeWorkoutRepository : WorkoutRepository {
     private var nextCardioId = 1L
 
     override fun observeCompleted(): Flow<List<WorkoutWithDetails>> =
-        workouts.map { list -> list.filter { it.workout.endTime != null } }
+        workouts.map { list -> list.filter { it.workout.isFinished() } }
 
     override fun observeWorkout(id: Long): Flow<WorkoutWithDetails?> =
         workouts.map { list -> list.find { it.workout.id == id } }
@@ -35,16 +40,16 @@ class FakeWorkoutRepository : WorkoutRepository {
     override fun observeCompletedBetween(start: Long, end: Long): Flow<List<Workout>> =
         workouts.map { list ->
             list.filter {
-                it.workout.endTime != null && it.workout.startTime in start..end
+                it.workout.isFinished() && it.workout.startTime in start..end
             }.map { it.workout }
         }
 
     override fun observeInProgressId(): Flow<Long?> = workouts.map { list ->
-        list.filter { it.workout.endTime == null }.maxByOrNull { it.workout.startTime }?.workout?.id
+        list.filterNot { it.workout.isFinished() }.maxByOrNull { it.workout.startTime }?.workout?.id
     }
 
     override fun observeBestWeight(exerciseId: Long): Flow<Double?> = workouts.map { list ->
-        list.filter { it.workout.endTime != null }
+        list.filter { it.workout.isFinished() }
             .flatMap { it.exercises }
             .filter { it.exercise.id == exerciseId }
             .flatMap { it.sets }
@@ -54,7 +59,7 @@ class FakeWorkoutRepository : WorkoutRepository {
     }
 
     override fun observePersonalRecords(): Flow<List<PersonalRecordRow>> = workouts.map { list ->
-        list.filter { it.workout.endTime != null }
+        list.filter { it.workout.isFinished() }
             .flatMap { it.exercises }
             .flatMap { we ->
                 we.sets.filter { it.isComplete && it.weightKg != null }
@@ -67,7 +72,7 @@ class FakeWorkoutRepository : WorkoutRepository {
     }
 
     override fun observeBestReps(): Flow<List<RepsRecordRow>> = workouts.map { list ->
-        list.filter { it.workout.endTime != null }
+        list.filter { it.workout.isFinished() }
             .flatMap { it.exercises }
             .flatMap { we ->
                 we.sets.filter { it.isComplete && it.weightKg == null && it.reps != null }
@@ -81,7 +86,7 @@ class FakeWorkoutRepository : WorkoutRepository {
 
     override fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
         workouts.map { list ->
-            list.filter { it.workout.endTime != null }
+            list.filter { it.workout.isFinished() }
                 .flatMap { w ->
                     w.exercises.filter { it.exercise.id == exerciseId }.map { w to it }
                 }
@@ -97,19 +102,19 @@ class FakeWorkoutRepository : WorkoutRepository {
         }
 
     override suspend fun getInProgress(): WorkoutWithDetails? =
-        workouts.value.filter { it.workout.endTime == null }.maxByOrNull { it.workout.startTime }
+        workouts.value.filterNot { it.workout.isFinished() }.maxByOrNull { it.workout.startTime }
 
     override suspend fun getWorkout(id: Long): WorkoutWithDetails? =
         workouts.value.find { it.workout.id == id }
 
     override suspend fun getMostRecentForRoutine(routineId: Long): WorkoutWithDetails? =
         workouts.value
-            .filter { it.workout.routineId == routineId && it.workout.endTime != null }
+            .filter { it.workout.routineId == routineId && it.workout.isFinished() }
             .maxByOrNull { it.workout.startTime }
 
     override suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry? =
         workouts.value
-            .filter { it.workout.endTime != null }
+            .filter { it.workout.isFinished() }
             .sortedByDescending { it.workout.startTime }
             .firstNotNullOfOrNull { w ->
                 w.exercises.firstOrNull { it.exercise.id == exerciseId }?.sets?.maxByOrNull { it.setNumber }
