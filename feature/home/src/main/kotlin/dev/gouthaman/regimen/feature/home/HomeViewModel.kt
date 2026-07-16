@@ -57,8 +57,6 @@ data class HomeUiState(
     val workoutsThisMonth: Int = 0,
     val volumeThisMonth: WeightValue = WeightValue("0", UnitLabel.KG),
     val durationMillisThisMonth: Long = 0L,
-    /** Top few recent routines shown as quick-start chips. */
-    val quickStart: List<QuickStartRoutine> = emptyList(),
     /** All routines (recency-ordered) for the "Start a workout" chooser. */
     val routines: List<QuickStartRoutine> = emptyList(),
     /** Workouts per week, oldest first — fixed to the last 4 weeks. */
@@ -170,7 +168,6 @@ class HomeViewModel @Inject constructor(
                 unitLabel = UnitConverter.weightLabel(system),
             ),
             durationMillisThisMonth = summary.durationMillisThisMonth,
-            quickStart = orderedRoutines.take(MAX_QUICK_START),
             routines = orderedRoutines,
             workoutFrequency = frequency.map { it.count },
             bodyweightTrend = weightTrend,

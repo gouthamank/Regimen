@@ -12,6 +12,7 @@ import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.repository.ExerciseRepository
 import dev.gouthaman.regimen.domain.repository.RoutineRepository
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
+import dev.gouthaman.regimen.domain.util.Clock
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
@@ -23,9 +24,10 @@ import javax.inject.Inject
 class StartWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val routineRepo: RoutineRepository,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(routineId: Long?): Long {
-        val now = System.currentTimeMillis()
+        val now = clock.nowMillis()
         val workoutId = workoutRepo.createWorkout(now, routineId)
         if (routineId == null) return workoutId
 
@@ -71,6 +73,7 @@ class StartWorkoutUseCase @Inject constructor(
 
 class FinishWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
@@ -79,7 +82,7 @@ class FinishWorkoutUseCase @Inject constructor(
         // so it can't be reached via the in-progress-scoped ACTION_END path today regardless —
         // this is defense-in-depth, matching the same status guard every sibling use-case has).
         if (w.workoutStatus == WorkoutStatus.COMPLETE || w.workoutStatus == WorkoutStatus.EDITING) return
-        val now = System.currentTimeMillis()
+        val now = clock.nowMillis()
         // Settle any in-progress pause into the accumulated total so recorded duration is correct.
         val settledPaused =
             w.accumulatedPausedMs + (w.pausedAt?.let { (now - it).coerceAtLeast(0) } ?: 0)
@@ -101,6 +104,7 @@ class FinishWorkoutUseCase @Inject constructor(
  * than juggling two simultaneous timers under one mechanism. */
 class PauseWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
@@ -108,7 +112,7 @@ class PauseWorkoutUseCase @Inject constructor(
         workoutRepo.updateWorkout(
             w.copy(
                 workoutStatus = WorkoutStatus.PAUSED,
-                pausedAt = System.currentTimeMillis(),
+                pausedAt = clock.nowMillis(),
                 restTimeEndAt = null,
                 restTotalSec = null,
                 restWorkoutExerciseId = null,
@@ -120,12 +124,13 @@ class PauseWorkoutUseCase @Inject constructor(
 /** Resumes a paused session, banking the elapsed pause into the accumulated total. */
 class ResumeWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(workoutId: Long) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.PAUSED) return
         val pausedAt = w.pausedAt ?: return
-        val added = (System.currentTimeMillis() - pausedAt).coerceAtLeast(0)
+        val added = (clock.nowMillis() - pausedAt).coerceAtLeast(0)
         workoutRepo.updateWorkout(
             w.copy(
                 workoutStatus = WorkoutStatus.IN_PROGRESS,
@@ -140,6 +145,7 @@ class ResumeWorkoutUseCase @Inject constructor(
  * process death. No-op while paused or after the workout is finished. */
 class StartRestUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(workoutId: Long, workoutExerciseId: Long, durationSec: Int) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
@@ -147,7 +153,7 @@ class StartRestUseCase @Inject constructor(
         workoutRepo.updateWorkout(
             w.copy(
                 workoutStatus = WorkoutStatus.IN_REST_TIME,
-                restTimeEndAt = System.currentTimeMillis() + durationSec * 1000L,
+                restTimeEndAt = clock.nowMillis() + durationSec * 1000L,
                 restTotalSec = durationSec,
                 restWorkoutExerciseId = workoutExerciseId,
             )
@@ -159,13 +165,14 @@ class StartRestUseCase @Inject constructor(
  * can't go negative or exceed the original duration. */
 class AdjustRestUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(workoutId: Long, deltaSec: Int) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.IN_REST_TIME) return
         val endAt = w.restTimeEndAt ?: return
         val totalSec = w.restTotalSec ?: return
-        val now = System.currentTimeMillis()
+        val now = clock.nowMillis()
         workoutRepo.updateWorkout(
             w.copy(restTimeEndAt = (endAt + deltaSec * 1000L).coerceIn(now, now + totalSec * 1000L))
         )
@@ -274,12 +281,13 @@ class ObserveExerciseHistoryUseCase @Inject constructor(
 class RepeatWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val startWorkoutUseCase: StartWorkoutUseCase,
+    private val clock: Clock,
 ) {
     suspend operator fun invoke(sourceWorkoutId: Long): Long? {
         val source = workoutRepo.getWorkout(sourceWorkoutId) ?: return null
         source.workout.routineId?.let { return startWorkoutUseCase(it) }
 
-        val newId = workoutRepo.createWorkout(System.currentTimeMillis(), routineId = null)
+        val newId = workoutRepo.createWorkout(clock.nowMillis(), routineId = null)
         source.exercises.sortedBy { it.workoutExercise.position }.forEachIndexed { index, we ->
             val weId = workoutRepo.addExercise(
                 WorkoutExercise(workoutId = newId, exerciseId = we.exercise.id, position = index)

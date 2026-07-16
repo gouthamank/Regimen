@@ -35,6 +35,7 @@ import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
+import dev.gouthaman.regimen.domain.util.Clock
 import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -130,6 +131,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val stopRestUseCase: StopRestUseCase,
     private val doneEditingWorkoutUseCase: DoneEditingWorkoutUseCase,
     private val restAlerts: RestAlerts,
+    private val clock: Clock,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -279,7 +281,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 restWatchJob = null
                 if (rest == null) return@collect
                 restWatchJob = launch {
-                    val remaining = rest.endAtMillis - System.currentTimeMillis()
+                    val remaining = rest.endAtMillis - clock.nowMillis()
                     if (remaining > 0) delay(remaining)
                     restAlerts.fire(
                         workoutId = workoutId,
