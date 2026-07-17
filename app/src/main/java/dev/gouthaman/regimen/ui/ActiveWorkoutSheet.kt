@@ -104,6 +104,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -225,6 +227,22 @@ fun ActiveWorkoutSheet(
         scope.launch { sheetState.animateTo(WorkoutSheetValue.Collapsed) }
     }
 
+    // Set-row enter/exit animations are disabled both while Collapsed and for the first second
+    // after expanding - the sheet's own expand transition plus every visible set row's enter
+    // animation firing at once was enough real, measured jank that it's not worth having both
+    // compete for frame budget at the same time. Keyed on targetValue (not currentValue) so this
+    // starts counting the instant expansion is requested, and immediately turns back off - not
+    // just pauses the countdown - if collapsed again before that second is up.
+    var setRowAnimationsEnabled by remember { mutableStateOf(false) }
+    LaunchedEffect(sheetState.targetValue) {
+        if (sheetState.targetValue == WorkoutSheetValue.Expanded) {
+            delay(1000)
+            setRowAnimationsEnabled = true
+        } else {
+            setRowAnimationsEnabled = false
+        }
+    }
+
     val currentHeightPx =
         if (sheetState.offset.isNaN()) collapsedHeightPx else sheetState.requireOffset()
     val progress = if (containerHeightPx > collapsedHeightPx) {
@@ -252,9 +270,34 @@ fun ActiveWorkoutSheet(
             },
         contentAlignment = Alignment.BottomCenter,
     ) {
+        // Decorative background only (color/shape/shadow, no children) - resizing this every
+        // animation frame is cheap since there's nothing expensive inside it to remeasure. The
+        // actual content below is laid out at this Box's own constant full size instead of being
+        // nested inside this Surface, so it's never forced through the same remeasure - expanding/
+        // collapsing used to also remeasure the full Scaffold+LazyColumn of exercise cards every
+        // frame just because it lived inside the element whose height was being animated.
+        //
+        // anchoredDraggable lives here, not on the outer Box, specifically *because* this Surface
+        // is sized to the sheet's current visible bounds (currentHeightPx) - putting it on the
+        // always-full-screen outer Box instead made the whole screen capture drag/scroll gestures
+        // even while collapsed, since a modifier's touch-detection region is its own layout
+        // bounds, not "whatever's visually on top."
+        // The pill's pronounced primaryContainer tint only ever showed up incidentally, via
+        // LiveWorkoutContent's own (alpha-fading) Scaffold background happening to reveal this
+        // Surface's fixed color underneath as it faded out - which read as a deliberate color
+        // morph while collapsing, but on expand the same incidental reveal gets covered back up by
+        // that same content fading IN almost immediately, so the collapsed tint barely registers
+        // before it's gone. Interpolating this Surface's own color directly against progress (not
+        // an animateColorAsState - that would add its own lag on top of an already-live drag)
+        // makes the morph deliberate and identical in both directions, instead of a side effect of
+        // one direction's alpha fade.
+        val expandedBackground = MaterialTheme.colorScheme.background
+        val expandedOnBackground = MaterialTheme.colorScheme.onBackground
+        val collapsedBackground = MaterialTheme.colorScheme.primaryContainer
+        val collapsedOnBackground = MaterialTheme.colorScheme.onPrimaryContainer
         Surface(
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = lerp(collapsedBackground, expandedBackground, progress),
+            contentColor = lerp(collapsedOnBackground, expandedOnBackground, progress),
             shadowElevation = 2.dp,
             shape = RoundedCornerShape(
                 topStart = CollapsedCornerRadius * (1 - progress),
@@ -269,32 +312,49 @@ fun ActiveWorkoutSheet(
                     // Dragging up should grow the sheet (toward Expanded, the larger anchor).
                     reverseDirection = true,
                 ),
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Collapsed content: fades out as the sheet expands, and stops intercepting taps
-                // once it's mostly gone so the full screen underneath can take over interaction.
-                if (progress < 1f) {
-                    CollapsedBannerContent(
-                        onTap = { scope.launch { sheetState.animateTo(WorkoutSheetValue.Expanded) } },
-                        modifier = Modifier.alpha(1 - progress),
-                    )
-                }
-                // Full content: fades in as the sheet expands. Always composed (not gated behind
-                // an if) once past the very start of the drag, so the live workout's state (scroll
-                // position, the ViewModel's collected StateFlow) survives being dragged back down
-                // rather than being torn down and recreated.
-                if (progress > 0f) {
-                    LiveWorkoutContent(
-                        viewModel = viewModel,
-                        onFinished = onFinished,
-                        onDiscarded = onDiscarded,
-                        onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .alpha(progress),
-                    )
-                }
-            }
+        ) {}
+
+        // Collapsed content: fades out as the sheet expands, and stops intercepting taps once
+        // it's mostly gone so the full screen underneath can take over interaction. Fixed at
+        // CollapsedHeight (not sized off the Surface above) since it's now a sibling, not a child.
+        if (progress < 1f) {
+            CollapsedBannerContent(
+                onTap = { scope.launch { sheetState.animateTo(WorkoutSheetValue.Expanded) } },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(CollapsedHeight)
+                    .alpha(1 - progress),
+            )
+        }
+        // Full content: slides up + fades in as the sheet expands, rather than fading in place -
+        // a flat crossfade doesn't visually track the drag at all (the whole screen's worth of
+        // content just appears behind the pill, disconnected from where your finger actually is),
+        // most apparent when slowly dragging the collapsed pill up by hand. Translating by however
+        // much of the container is still "uncovered" (containerHeightPx - currentHeightPx) ties
+        // its position directly to the same drag progress that's growing the pill, so it reads as
+        // being pulled up out of it instead of materializing on its own. Still alpha-faded too -
+        // pure translation alone would mean the still-full-size top app bar visibly overlaps the
+        // collapsed banner's own fading-out content in the same 72dp space early in the drag.
+        // Always composed (not gated behind an if) once past the very start of the drag, so the
+        // live workout's state (scroll position, the ViewModel's collected StateFlow) survives
+        // being dragged back down rather than being torn down and recreated. Sized against this
+        // Box's constant full size, not the animated Surface, so the drag/expand animation never
+        // remeasures it - only repaints (alpha + a graphicsLayer transform, both draw-phase-only).
+        if (progress > 0f) {
+            LiveWorkoutContent(
+                viewModel = viewModel,
+                onFinished = onFinished,
+                onDiscarded = onDiscarded,
+                onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
+                animateSets = setRowAnimationsEnabled,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = progress
+                        translationY = containerHeightPx - currentHeightPx
+                    },
+            )
         }
     }
 }
@@ -349,6 +409,7 @@ private fun LiveWorkoutContent(
     onFinished: (Long) -> Unit,
     onDiscarded: () -> Unit,
     onCreateCustomExercise: () -> Unit,
+    animateSets: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -541,7 +602,7 @@ private fun LiveWorkoutContent(
                             onUpdateCardio = viewModel::updateCardio,
                             onStartRest = viewModel::startRest,
                             enabled = !uiState.isPaused,
-                            animateSets = false,
+                            animateSets = animateSets,
                         )
                     }
 

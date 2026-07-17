@@ -103,6 +103,19 @@ none of the live session's timer/pause/rest-timer/finish machinery applies to ed
 data. Repeating a past session (Session Detail's "Repeat") instead starts a brand-new live workout
 and expands the same `ActiveWorkoutSheet`.
 
+`ActiveWorkoutViewModel` is created the instant the sheet mounts - even fully Collapsed, not
+deferred until the first expand - so its query chain is already running (or done) by the time
+someone actually taps to expand; an indeterminate spinner covers the rare case where a very fast
+expand still beats it. The sheet's own drag/expand animation only ever resizes an empty decorative
+`Surface` (color/shape/shadow, no children); the actual banner/workout content is a sibling laid
+out at a constant full size and just alpha-crossfades, so expanding/collapsing never remeasures the
+exercise list - only that empty Surface, which is cheap regardless of animation frame rate. The
+drag gesture itself stays attached to that same Surface (not the outer container) specifically so
+its touch region matches the sheet's current visible bounds - collapsed, that's just the 72dp
+banner, not the whole screen underneath it. Each exercise's set rows skip their own enter/exit
+animations while the sheet is Collapsed and for the first second after any expand, so the sheet's
+own transition isn't competing with a wave of per-row animations for frame budget at the same time.
+
 Re-tapping the already-active tab pops that tab back to its own root rather than being a no-op.
 A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in the bar/rail.
 

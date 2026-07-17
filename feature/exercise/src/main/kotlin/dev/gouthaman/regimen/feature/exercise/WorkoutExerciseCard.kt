@@ -2,6 +2,8 @@ package dev.gouthaman.regimen.feature.exercise
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -324,8 +326,16 @@ fun ExerciseCard(
  * Wraps [SetRow] with an enter animation for new sets and a delayed exit for deletion - the real
  * [onDelete] (which removes the set from the backing list) fires only after the shrink/fade
  * finishes, since [AnimatedVisibility] needs the composable to stay mounted for its exit
- * duration ([SetRowExitDurationMs]). Set [animated] to false to skip all of this entirely and
- * render [SetRow] directly, with [onDelete] firing immediately instead of after the exit delay.
+ * duration ([SetRowExitDurationMs]). Set [animated] to false to skip both entirely - [onDelete]
+ * fires immediately instead of after the exit delay.
+ *
+ * [animated] is read directly into `visible`'s *initial* value and the enter/exit specs, rather
+ * than branching into an entirely different composable structure (an early `if (!animated) return`
+ * used to live here) - toggling [animated] later, e.g. once some external "don't animate yet"
+ * window elapses, would otherwise reset this row's `remember`ed `visible`/`removing` state, since
+ * that whole subtree wouldn't have existed in the composition while animated was false. Keeping
+ * the structure identical regardless of [animated] means a row already showing just keeps
+ * showing - toggling animated on later doesn't replay its entrance.
  */
 @Composable
 private fun AnimatedSetRow(
@@ -339,35 +349,25 @@ private fun AnimatedSetRow(
     onAutofillReps: (Int) -> Unit,
     animated: Boolean = true,
 ) {
-    if (!animated) {
-        SetRow(
-            set = set,
-            weightUnit = weightUnit,
-            isBodyweight = isBodyweight,
-            enabled = enabled,
-            onUpdate = onUpdate,
-            onDelete = onDelete,
-            onAutofillWeight = onAutofillWeight,
-            onAutofillReps = onAutofillReps,
-        )
-        return
-    }
-
-    var visible by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(!animated) }
     var removing by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
     LaunchedEffect(removing) {
         if (removing) {
-            delay(SetRowExitDurationMs.milliseconds)
+            if (animated) delay(SetRowExitDurationMs.milliseconds)
             onDelete()
         }
     }
 
     AnimatedVisibility(
         visible = visible && !removing,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut(tween(SetRowExitDurationMs.toInt())) +
-                shrinkVertically(tween(SetRowExitDurationMs.toInt())),
+        enter = if (animated) fadeIn() + expandVertically() else EnterTransition.None,
+        exit = if (animated) {
+            fadeOut(tween(SetRowExitDurationMs.toInt())) +
+                    shrinkVertically(tween(SetRowExitDurationMs.toInt()))
+        } else {
+            ExitTransition.None
+        },
     ) {
         SetRow(
             set = set,
