@@ -73,15 +73,21 @@ fun SessionDetailScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
-    onOpenActiveWorkout: (Long) -> Unit,
+    onWorkoutStarted: () -> Unit,
+    onEditWorkout: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SessionDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Repeat starts a brand new live workout (expands the ActiveWorkoutSheet, doesn't push a
+    // NavHost destination); Edit reopens this specific historical session, which is a real push.
     LaunchedEffect(Unit) {
-        viewModel.openWorkout.collect { onOpenActiveWorkout(it) }
+        viewModel.startedWorkout.collect { onWorkoutStarted() }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.editWorkout.collect { onEditWorkout(it) }
     }
 
     SessionDetailScreen(

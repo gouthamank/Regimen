@@ -35,4 +35,15 @@
     <string name="session_detail_save_as_routine_dialog_text">Creates a new routine from this session\'s strength exercises.</string>
     <string name="session_detail_routine_name_label">Routine name</string>
     <string name="session_detail_save_button">Save</string>
+
+    <string name="edit_workout_title_fallback">Workout</string>
+    <string name="edit_workout_quick_workout_fallback">Quick workout</string>
+    <string name="edit_workout_no_exercises_yet">No exercises yet. Add one to start logging.</string>
+    <string name="edit_workout_add_exercise_button">Add exercise</string>
+    <string name="edit_workout_session_note_label">Session note</string>
+    <string name="edit_workout_done_button">Done</string>
+    <string name="edit_workout_cancel_edit_action">Cancel edit</string>
+    <string name="edit_workout_cancel_edit_dialog_title">Cancel edit?</string>
+    <string name="edit_workout_cancel_edit_dialog_text">Changes you\'ve made so far are already saved. This closes editing and returns the session to its original finished state.</string>
+    <string name="edit_workout_keep_editing_button">Keep editing</string>
 </resources>

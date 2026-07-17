@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.feature.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -72,15 +73,17 @@ import kotlin.math.roundToLong
 @Composable
 fun HomeScreen(
     onCreateRoutine: () -> Unit,
-    onOpenActiveWorkout: (Long) -> Unit,
+    onOpenActiveWorkout: () -> Unit,
     onOpenMeasurements: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val windowInfo = LocalRegimenWindowInfo.current
+    // The emitted workoutId itself isn't needed here - the ActiveWorkoutSheet gets it reactively
+    // from the DB's in-progress-workout id, not from this event. This is just the "expand" signal.
     LaunchedEffect(Unit) {
-        viewModel.startedWorkout.collect { onOpenActiveWorkout(it) }
+        viewModel.startedWorkout.collect { onOpenActiveWorkout() }
     }
     HomeScreen(
         uiState = uiState,
@@ -163,11 +166,15 @@ fun HomeScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
-                        StartWorkoutButton(
-                            onClick = { showStartSheet = true },
-                            enabled = !uiState.hasWorkoutInProgress,
+                        // Hides (rather than just disabling) as the ActiveWorkoutSheet's collapsed
+                        // banner docks in below the nav host - Active Workout expands from that
+                        // sheet, not from this button, so the button shouldn't linger once redundant.
+                        AnimatedVisibility(
+                            visible = !uiState.hasWorkoutInProgress,
                             modifier = Modifier.align(Alignment.CenterHorizontally),
-                        )
+                        ) {
+                            StartWorkoutButton(onClick = { showStartSheet = true })
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -195,11 +202,13 @@ fun HomeScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    StartWorkoutButton(
-                        onClick = { showStartSheet = true },
-                        enabled = !uiState.hasWorkoutInProgress,
+                    // See the BookOrExpanded branch above for why this hides rather than disables.
+                    AnimatedVisibility(
+                        visible = !uiState.hasWorkoutInProgress,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
-                    )
+                    ) {
+                        StartWorkoutButton(onClick = { showStartSheet = true })
+                    }
                     WeekSummarySection(uiState)
                     MonthSummarySection(uiState)
                     WorkoutFrequencySection(uiState)
@@ -225,12 +234,10 @@ fun HomeScreen(
 private fun StartWorkoutButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
 ) {
     val startButtonHeight = ButtonDefaults.LargeContainerHeight
     ElevatedButton(
         onClick = onClick,
-        enabled = enabled,
         modifier = modifier.padding(top = 4.dp),
         contentPadding = ButtonDefaults.contentPaddingFor(startButtonHeight, hasStartIcon = true),
     ) {

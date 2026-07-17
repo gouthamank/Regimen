@@ -79,9 +79,16 @@ class SessionDetailViewModel @Inject constructor(
     private val workoutId = savedStateHandle.toRoute<SessionDetailRoute>().workoutId
     private var restDefaultSec = 90
 
-    // Workout id to open in Active Workout (from Repeat/Edit).
-    private val openActiveWorkout = Channel<Long>(Channel.BUFFERED)
-    val openWorkout: Flow<Long> = openActiveWorkout.receiveAsFlow()
+    // Repeat starts a brand new *live* workout - same as Home's "Start workout", it expands the
+    // persistent ActiveWorkoutSheet rather than pushing a NavHost destination (see
+    // dev.gouthaman.regimen.feature.active.ActiveNavigation.kt).
+    private val startedWorkouts = Channel<Unit>(Channel.BUFFERED)
+    val startedWorkout: Flow<Unit> = startedWorkouts.receiveAsFlow()
+
+    // Edit reopens THIS historical workout for editing, which is a real NavHost push (there's no
+    // "in progress" sheet state for editing a past session to expand into).
+    private val editWorkouts = Channel<Long>(Channel.BUFFERED)
+    val editWorkout: Flow<Long> = editWorkouts.receiveAsFlow()
 
     val uiState: StateFlow<SessionDetailUiState> = combine(
         observeWorkout(workoutId),
@@ -135,20 +142,20 @@ class SessionDetailViewModel @Inject constructor(
     /** Start the same workout again (resumes an in-progress one if there is one - single-active). */
     fun repeat() {
         viewModelScope.launch {
-            val id = getInProgressWorkoutId() ?: repeatWorkoutUseCase(workoutId) ?: return@launch
-            openActiveWorkout.send(id)
+            getInProgressWorkoutId() ?: repeatWorkoutUseCase(workoutId) ?: return@launch
+            startedWorkouts.send(Unit)
         }
     }
 
     /**
      * Reopen this finished session for editing. Not gated on another workout in progress - editing
-     * historical data never touches timer/in-progress state (see
-     * ActiveWorkoutViewModel.isEditingPastSession), so it can't conflict with a genuinely live workout.
+     * historical data never touches timer/in-progress state (see EditWorkoutViewModel), so it
+     * can't conflict with a genuinely live workout.
      */
     fun edit() {
         viewModelScope.launch {
             editWorkoutUseCase(workoutId)
-            openActiveWorkout.send(workoutId)
+            editWorkouts.send(workoutId)
         }
     }
 }

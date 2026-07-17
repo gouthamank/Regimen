@@ -43,14 +43,23 @@ also get a secondary, freeform **Quick workout** entry point.
   subpackages: `theme/` (`RegimenTheme`, `Color`, `Type`), `dialog/` (`ConfirmDialog`,
   `SaveAsRoutineDialog`, `ExercisePickerSheet`), `chart/` (`LineChart`/`Sparkline`,
   `HistoryRangeSelector`), `component/` (`Stat`, `EmptyState`, `SectionHeader`,
-  `UnitSystemSelector`, `ThemeModeSelector`, `WorkoutInProgressBanner`), `adaptive/`
+  `UnitSystemSelector`, `ThemeModeSelector`), `adaptive/`
   (`WindowAdaptive.kt`), `dragdrop/` (`ReorderableList.kt`'s drag-to-reorder state/gesture
   helpers).
 - **`:core:navigation-api`** - the `@Serializable` route types only; no composables, pure Kotlin.
 - **`:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active}`**
     - one module per bottom-tab/major screen. Each exposes a `NavGraphBuilder.xGraph()` extension
   that `RegimenNavHost` wires together, except Onboarding, which `MainActivity` shows directly as
-  a first-launch gate rather than routing it through `RegimenNavHost`.
+      a first-launch gate rather than routing it through `RegimenNavHost`. `:feature:active` now
+      holds
+      only `ActiveWorkoutViewModel` (consumed by `:app`'s `ActiveWorkoutSheet`, which owns the live
+      workout's actual UI - it has no NavHost destination of its own) and Workout Summary;
+      `:feature:exercise` additionally hosts `WorkoutExerciseCard.kt` (`ExerciseCard`/
+      `WorkoutExerciseRow`
+      and their private `SetRow`/`CardioRow` building blocks) shared by the live sheet and
+      `:feature:history`'s Edit Workout screen - both depend on `:feature:exercise` already for
+      `ExerciseIcon`, and `:core:common-ui` can't host it without a core→feature dependency
+      inversion.
 - **`build-logic`** - an included build with convention plugins (`regimen.android.library`,
   `regimen.android.library.compose`, `regimen.android.feature`, `regimen.android.hilt`,
   `regimen.jvm.library`) that centralize each module's `compileSdk`/Compose/Hilt/Kotlin
@@ -69,10 +78,22 @@ a **bottom tab bar** (or a `NavigationRail` on wide/book/expanded layouts) with 
 
 1. **Home** · 2. **Routines** · 3. **History** · 4. **Progress** · 5. **Settings**
 
-**Active Workout is not a tab.** It is a full-screen destination launched from Home or Routines,
-backed by a foreground service. While a workout is in progress, navigating elsewhere surfaces a
-persistent "workout in progress" banner (`WorkoutInProgressBanner`) docked above the tab bar/rail
-that returns the user to the active session.
+**Active Workout is not a tab, and the live in-progress workout is not a NavHost destination
+either.** It's a persistent two-state draggable sheet (`ActiveWorkoutSheet`, in `:app`) docked
+above the tab bar/rail: collapsed, it's a mini-player-style banner; expanded (via drag or tap), it
+fills the screen with the full Active Workout UI. There's no third, resting midway state -
+releasing mid-drag snaps to whichever end is closer. The sheet itself mounts/unmounts with a
+grow/shrink-from-the-bottom-edge transition (`RegimenApp`'s `AnimatedVisibility`, keyed off whether
+a workout is in progress at all) rather than abruptly appearing/disappearing - if a workout ends
+(Finish/Discard) while the sheet is Expanded, this shrinks the whole full-screen content away
+rather than cutting to whatever's behind it. It's backed by a foreground service, and persists
+across tab switches since it lives alongside `NavHost`, not inside it. Editing a past
+(already-finished) session (Session Detail's "Edit") is a different, simpler screen entirely - Edit
+Workout, a normal `EditWorkoutRoute` NavHost destination (owned by `:feature:history`) with the
+usual slide transition, since there's no "in progress" state for an edit session to collapse to and
+none of the live session's timer/pause/rest-timer/finish machinery applies to editing historical
+data. Repeating a past session (Session Detail's "Repeat") instead starts a brand-new live workout
+and expands the same `ActiveWorkoutSheet`.
 
 Re-tapping the already-active tab pops that tab back to its own root rather than being a no-op.
 A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in the bar/rail.
@@ -109,8 +130,9 @@ A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in
   list view.
 - **Session Detail** - read-only view of a past workout (date, duration, per-exercise sets/cardio,
   notes). Actions: **Repeat workout** (starts the same workout again, resuming an in-progress one
-  if there already is one), **Edit** (reopens the session in Active Workout without touching its
-  original timestamps), **Save as routine** (strength exercises only), **Delete**.
+  if there already is one), **Edit** (reopens the session in **Edit Workout** - sets/cardio/note
+  only, no timer - without touching its original timestamps), **Save as routine** (strength
+  exercises only), **Delete**.
 
 ### Tab 4 - Progress
 
@@ -148,10 +170,17 @@ Per-exercise progress (history and PRs) lives on Exercise Detail, not on a separ
   an optional audio chime (per the rest-alert sound setting), and a system notification.
 - **Workout Summary** - post-finish recap: duration, total volume, sets completed, and any PRs
   achieved. For a freeform Quick workout, offers **Save as routine**.
-- **Exercise Picker** - reusable bottom sheet for adding exercises, shared by the Routine Editor
-  and Active Workout. Search, multi-select, and a link to add a custom exercise.
-  **Context-filtered:** the Routine Editor shows strength exercises only; Active Workout shows all
-  exercises, including cardio.
+- **Exercise Picker** - reusable bottom sheet for adding exercises, shared by the Routine Editor,
+  Active Workout, and Edit Workout. Search, multi-select, and a link to add a custom exercise.
+  **Context-filtered:** the Routine Editor shows strength exercises only; Active Workout and Edit
+  Workout show all exercises, including cardio.
+- **Edit Workout** (full screen, `:feature:history`) - reopens a finished session for editing:
+  the same per-exercise set/cardio logging surface as Active Workout (shared via
+  `:feature:exercise`'s `ExerciseCard`), plus the session note and add-exercise, but with no
+  timer, Pause/Resume, rest timer, or Finish - just a top-bar Done action and a Cancel-edit
+  confirm dialog. Editing never changes the session's original timestamps and doesn't touch
+  `WorkoutStatus` in a way that could conflict with a genuinely in-progress workout running
+  elsewhere.
 - **Onboarding** (first-run only) - units and theme selection, always skippable.
 
 ---
@@ -218,12 +247,8 @@ The core loop; users spend the majority of session time here.
   `Intent` extra (`MainActivity.EXTRA_WORKOUT_ID`) read on cold start (`onCreate`) and warm start
   (`onNewIntent`, since `MainActivity` is `launchMode="singleTop"`) and consumed by `RegimenApp`
   the same way the in-app "Resume" banner navigates.
-- **Editing a past session** (via Session Detail's Edit) reopens Active Workout without a live
-  timer, Pause/Resume, or rest-timer button - the bottom toolbar instead shows a static "Editing
-  session" label. Editing never changes the session's original timestamps and does not conflict
-  with a genuinely in-progress workout running elsewhere.
 - **Bottom toolbar** - a floating pill anchored above the bottom edge, bottom-end corner (not the
-  top bar). While running or editing, it's a full-width bar tinted with the theme's
+  top bar). While running, it's a full-width bar tinted with the theme's
   `primaryFixedDim`/`onPrimaryFixed` pair, showing the elapsed timer (+ a breathing live-pulse dot)
   and Pause/Finish buttons. Pausing collapses the whole pill down to a compact "Resume" FAB (icon +
   "Resume" + the paused elapsed time), tinted `secondaryFixedDim`/`onSecondaryFixed` instead - a
@@ -231,6 +256,8 @@ The core loop; users spend the majority of session time here.
   rather than animating individual buttons' widths within a fixed-size bar. Finish isn't reachable
   from the collapsed paused state - resume first. Tapping anywhere on the pill also toggles
   Pause/Resume (mini-player pattern); the whole pill also presses down slightly on touch-down.
+  Editing a past session (Edit Workout) has none of this - see the Edit Workout entry under
+  Cross-cutting / modal screens above.
 - **Keep screen on** - a top-app-bar action toggles `keepScreenOn` on the window for as long as
   Active Workout is open; ephemeral (resets every time the screen is (re)opened), not a saved
   preference.
@@ -311,7 +338,7 @@ The core loop; users spend the majority of session time here.
 
 ## Reusable components (`:core:designsystem`, `:core:common-ui`)
 
-- **Exercise Picker sheet** - shared by the Routine Editor and Active Workout.
+- **Exercise Picker sheet** - shared by the Routine Editor, Active Workout, and Edit Workout.
 - **`Stat`** - a labeled value (e.g. "12" over "Workouts"); the building block for stat
   rows/grids on Home and Workout Summary.
 - **`ConfirmDialog`** - confirm/dismiss dialog shared by every delete/discard/finish confirmation;
@@ -370,8 +397,9 @@ Per-screen adaptive behavior:
 
 - **App shell** - `NavigationBar` (Compact/Tabletop) or `NavigationRail` (BookOrExpanded); content
   is width-capped and centered at 600dp for Compact and Tabletop (Tabletop keeps the bottom bar
-  even when the window is genuinely wide), full-bleed only for BookOrExpanded.
-  `WorkoutInProgressBanner` docks at the bottom of the content pane in every posture.
+  even when the window is genuinely wide), full-bleed only for BookOrExpanded. `ActiveWorkoutSheet`
+  docks at the bottom of the content pane in every posture when collapsed, and covers the full
+  screen (regardless of posture) when expanded.
 - **Onboarding** - Tabletop splits navigation controls into the bottom pane, content/title in the
   top pane; BookOrExpanded constrains content to 600dp, centered; Compact is unchanged.
 - **Home** - BookOrExpanded arranges the week/month summary and frequency/bodyweight charts side
@@ -392,6 +420,8 @@ Per-screen adaptive behavior:
   600dp and centered on BookOrExpanded, so the toolbar never exceeds the content's width. No
   Tabletop hinge split is needed - the toolbar is already anchored to the bottom edge, the same
   reasoning that applies to the bottom navigation bar.
+- **Edit Workout** - the exercise list is capped at 600dp and centered on BookOrExpanded, same as
+  Active Workout (no floating toolbar here to worry about).
 - **Workout Summary** - capped at 600dp and centered on BookOrExpanded.
 - **Rest Timer** - not independently adapted (a short, fixed-content sheet - low risk).
 - **Exercise Picker** - no width cap; already unaffected by the modal-sheet compact-landscape
@@ -487,16 +517,17 @@ Adopted:
   - **Bottom-tab switch** (`navigateToTab`) - a Material "fade through" (the outgoing tab
     fades+shrinks out over 90ms, the incoming tab fades+grows in over 130ms with a 90ms stagger)
     instead of the directional slide, since tabs are parallel destinations, not a hierarchy.
-    A single `SharedTransitionLayout` wraps the whole `NavHost` and hosts every row/link-expand
+    A single `SharedTransitionLayout` wraps the `NavHost` (only) and hosts every row/link-expand
     container-transform in the app: Routines row/"New routine" FAB → Routine Editor, Exercise
     Library row → Exercise Detail, Measurements row → Measurement Detail, History
     row/single-session day cell → Session Detail, Progress's "Body Measurements" link →
-    Measurements,
-    and Settings' "Exercise Library" row → Exercise Library (Settings is Library's only entry point,
-    so that one is unconditional; Progress → Measurements is conditional since Home's "Log
-    bodyweight" button also opens Measurements with no row to expand from). All the transition keys
-    live in `core/common-ui`'s `SharedTransitionKeys.kt`, not scattered per-module, since some pairs
-    (Progress/Measurements, Settings/Exercise Library) cross module boundaries with neither module
-    depending on the other.
+    Measurements, and Settings' "Exercise Library" row → Exercise Library (Settings is Library's
+    only entry point, so that one is unconditional; Progress → Measurements is conditional since
+    Home's "Log bodyweight" button also opens Measurements with no row to expand from). All the
+    transition keys live in `core/common-ui`'s `SharedTransitionKeys.kt`, not scattered per-module,
+    since some pairs (Progress/Measurements, Settings/Exercise Library) cross module boundaries
+    with neither module depending on the other. The live in-progress workout's collapse/expand
+    (`ActiveWorkoutSheet`) is a separate mechanism, not part of this shared-element system - see
+    the Navigation section above.
 
 Not implemented: shape morphing on press.

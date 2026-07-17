@@ -4,7 +4,7 @@ import androidx.room.migration.Migration
 
 /**
  * v4 -> v5: drops `workouts.preEditEndTime` (unused now - editing a past session no longer
- * touches `endTime`/`preEditEndTime`, see ActiveWorkoutViewModel.isEditingPastSession).
+ * touches `endTime`/`preEditEndTime`, see :feature:history's EditWorkoutViewModel).
  * `ALTER TABLE ... DROP COLUMN` isn't reliable across Android's SQLite versions, so this
  * rebuilds the table instead: new shape, copy surviving columns, drop old, rename.
  */

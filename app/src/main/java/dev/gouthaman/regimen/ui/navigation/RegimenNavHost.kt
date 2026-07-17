@@ -31,8 +31,12 @@ import dev.gouthaman.regimen.navigation.SettingsRoute
 
 /** True for the five bottom-tab destinations - used to tell a tab switch (via
  * [dev.gouthaman.regimen.ui.navigation.navigateToTab]) apart from a hierarchical drill-down, so
- * the two can get different transitions below. */
-private fun isTopLevelDestination(destination: NavDestination): Boolean =
+ * the two can get different transitions below. Also reused by ActiveWorkoutSheet, which only ever
+ * shows while sitting on top of a top-level tab - the instant anything else is pushed (Workout
+ * Summary, "add custom exercise"'s EditExerciseRoute), it hides entirely rather than being drawn
+ * over/under whatever's now on top, since it isn't a NavHost destination and has no natural way to
+ * participate in that stacking order otherwise. */
+internal fun isTopLevelDestination(destination: NavDestination): Boolean =
     destination.hasRoute<HomeRoute>() ||
             destination.hasRoute<RoutinesRoute>() ||
             destination.hasRoute<HistoryRoute>() ||
@@ -59,8 +63,6 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *  Detail / secondary destinations (pushed above the tabs):
  *
  *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
- *              ──▶ [✓] Active Workout     ActiveWorkoutRoute(workoutId) (Start/quick-start/Quick-workout;
- *                                            per-set logging, skip, cardio, notes)
  *    Settings  ──▶ [✓] Exercise Library   ExerciseLibraryRoute
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
@@ -70,19 +72,30 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *    Editor    ──▶ [✓] Exercise Picker    (modal bottom sheet, in-screen)
  *              ──▶ [✓] Add Custom Exercise EditExerciseRoute() (from picker)
  *    History   ──▶ [✓] Session Detail     SessionDetailRoute(workoutId)  (read-only + repeat/edit/
- *                                            save-as-routine/delete - Repeat/Edit open Active Workout)
+ *                                            save-as-routine/delete - Repeat starts the live sheet,
+ *                                            Edit opens Edit Workout below)
+ *              ──▶ [✓] Edit Workout       EditWorkoutRoute(workoutId)  (reopen a finished session
+ *                                            for editing - sets/cardio/note only, no timer)
  *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (PR list + frequency chart live on the tab root)
  *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (trend + entries)
  *    Active    ──▶ [✓] Workout Summary    WorkoutSummaryRoute(workoutId)  (recap + PRs + save-as-routine)
- *    Workout   ──▶ [✓] Rest Timer (sheet, within Active Workout; manual, adjustable, vibrate+chime)
+ *    Workout   ──▶ [✓] Rest Timer (sheet, within the live ActiveWorkoutSheet; manual, adjustable, vibrate+chime)
+ *
+ *  EditWorkoutRoute(workoutId) (owned by :feature:history) is ONLY for editing a past
+ *  (already-finished) session - the live in-progress workout isn't a destination in this NavHost
+ *  at all; it's a persistent ActiveWorkoutSheet (in RegimenApp, alongside this NavHost, not
+ *  inside it) that collapses to a mini-player banner or expands to the full workout-logging UI.
+ *  See RegimenApp.kt/ActiveWorkoutSheet.kt and docs/architecture.md's Navigation section.
  *
  *  Full-screen gate (outside this NavHost, in MainActivity):
  *    [✓] Onboarding - shown first-run while prefs.onboarded == false
  *
  *  Active Workout support:
- *    [✓] In-progress "Resume" banner (above the tab bar) + resume/single-active + notif permission
+ *    [✓] Persistent ActiveWorkoutSheet (collapsed banner ↔ expanded full screen, drag or tap) +
+ *        single-active + notif permission
  *    [✓] Foreground service (ActiveWorkoutService) + persistent Pause/Resume notification
- *    [✓] Session-Detail Repeat/Edit → Active Workout
+ *    [✓] Session-Detail Repeat → live ActiveWorkoutSheet; Edit → Edit Workout (NavHost push,
+ *        past-session editing only)
  *
  *  Each feature module owns its own destinations via a `NavGraphBuilder.xGraph()` extension
  *  (homeGraph, routinesGraph, historyGraph, activeGraph, progressGraph, settingsGraph,
@@ -97,6 +110,7 @@ fun RegimenNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     onNavigateToTab: (Any) -> Unit,
+    onWorkoutStarted: () -> Unit,
 ) {
     // Shared-axis-x transitions between hierarchical destinations (push slides in from the end +
     // fades in, popping reverses it) instead of the platform's abrupt default cross-fade.
@@ -195,9 +209,14 @@ fun RegimenNavHost(
                     onNavigateToTab(route)
                     navController.navigateToTab(route)
                 },
+                onWorkoutStarted = onWorkoutStarted,
             )
             routinesGraph(navController, sharedTransitionScope)
-            historyGraph(navController, sharedTransitionScope)
+            historyGraph(
+                navController = navController,
+                sharedTransitionScope = sharedTransitionScope,
+                onWorkoutStarted = onWorkoutStarted,
+            )
             activeGraph(navController)
             progressGraph(navController, sharedTransitionScope)
             settingsGraph(navController, sharedTransitionScope)

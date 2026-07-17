@@ -2,4 +2,30 @@
     <string name="app_name">Regimen</string>
     <string name="workout_in_progress_banner_message">Workout in progress</string>
     <string name="workout_in_progress_banner_view_label">View</string>
+
+    <!-- ActiveWorkoutSheet - the live in-progress workout, expanded -->
+    <string name="workout_title_fallback">Workout</string>
+    <string name="workout_quick_workout_fallback">Quick workout</string>
+    <string name="workout_discard_action">Discard</string>
+    <string name="workout_not_found">Workout not found</string>
+    <string name="workout_no_exercises_yet">No exercises yet. Add one to start logging.</string>
+    <string name="workout_add_exercise_button">Add exercise</string>
+    <string name="workout_session_note_label">Session note</string>
+    <string name="workout_discard_dialog_title">Discard this workout?</string>
+    <string name="workout_discard_dialog_text">Everything logged in this session will be deleted. This can\'t be undone.</string>
+    <string name="workout_keep_going_button">Keep going</string>
+    <string name="workout_finish_dialog_title">Finish workout?</string>
+    <string name="workout_finish_dialog_title_incomplete">Finishing early?</string>
+    <string name="workout_finish_dialog_text">This ends the session and saves it to your history.</string>
+    <string name="workout_finish_dialog_text_incomplete">Some sets haven\'t been marked complete yet. This ends the session and saves it to your history as-is.</string>
+    <string name="workout_finish_action">Finish</string>
+    <string name="workout_resume_description">Resume</string>
+    <string name="workout_pause_description">Pause</string>
+    <string name="workout_keep_screen_on_description">Keep screen on</string>
+    <string name="workout_allow_screen_sleep_description">Allow screen to sleep</string>
+    <string name="workout_rest_set_invalid_snackbar">Couldn\'t mark set done - fill in its weight/reps first</string>
+    <string name="workout_rest_label">Rest</string>
+    <string name="workout_rest_minus_15s">−15s</string>
+    <string name="workout_rest_plus_15s">+15s</string>
+    <string name="workout_skip_rest_button">Skip rest</string>
 </resources>

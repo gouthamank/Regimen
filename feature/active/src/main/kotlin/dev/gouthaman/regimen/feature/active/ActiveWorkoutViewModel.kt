@@ -1,9 +1,10 @@
 package dev.gouthaman.regimen.feature.active
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.model.CardioEntry
@@ -20,7 +21,6 @@ import dev.gouthaman.regimen.domain.usecase.AddSetUseCase
 import dev.gouthaman.regimen.domain.usecase.AdjustRestUseCase
 import dev.gouthaman.regimen.domain.usecase.CancelWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.DeleteSetUseCase
-import dev.gouthaman.regimen.domain.usecase.DoneEditingWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveExercisesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
@@ -36,7 +36,7 @@ import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
 import dev.gouthaman.regimen.domain.util.Clock
-import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
+import dev.gouthaman.regimen.feature.exercise.WorkoutExerciseRow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -50,24 +50,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
-
-/** One exercise in the active session with its logged data, ready to edit. */
-data class ActiveExercise(
-    val workoutExercise: WorkoutExercise,
-    val name: String,
-    val isStrength: Boolean,
-    val equipment: Equipment,
-    val isSkipped: Boolean,
-    val isDone: Boolean,
-    val sets: List<SetEntry>,
-    val cardio: CardioEntry?,
-    /** Default rest for this exercise (routine target, or the global default). */
-    val restTargetSec: Int,
-) {
-    val workoutExerciseId: Long get() = workoutExercise.id
-}
 
 /** An active rest countdown: [endAtMillis] is when it completes; [totalSec] is the original
  * duration the progress bar is normalized against, fixed even as [endAtMillis] is adjusted. */
@@ -84,7 +67,7 @@ data class ActiveWorkoutUiState(
      * distinguishes that) - resolved to display text by the Composable. */
     val routineName: String? = null,
     val startTime: Long = 0,
-    val exercises: List<ActiveExercise> = emptyList(),
+    val exercises: List<WorkoutExerciseRow> = emptyList(),
     val note: String = "",
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
@@ -101,16 +84,12 @@ data class ActiveWorkoutUiState(
     val isPaused: Boolean get() = status == WorkoutStatus.PAUSED
 
     /** True once the workout has an end time - only ever set via the in-app Finish button. */
-    val finished: Boolean get() = status == WorkoutStatus.COMPLETE || status == WorkoutStatus.EDITING
-
-    /** True while re-editing a finished session (via Session Detail's "Edit"); no live timer runs
-     * in this mode - see [dev.gouthaman.regimen.feature.active.ActiveWorkoutScreen]. */
-    val isEditingPastSession: Boolean get() = status == WorkoutStatus.EDITING
+    val finished: Boolean get() = status == WorkoutStatus.COMPLETE
 }
 
-@HiltViewModel
-class ActiveWorkoutViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+@HiltViewModel(assistedFactory = ActiveWorkoutViewModel.Factory::class)
+class ActiveWorkoutViewModel @AssistedInject constructor(
+    @Assisted val workoutId: Long,
     observeWorkout: ObserveWorkoutUseCase,
     observeRoutines: ObserveRoutinesUseCase,
     observePreferences: ObservePreferencesUseCase,
@@ -130,13 +109,18 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val startRestUseCase: StartRestUseCase,
     private val adjustRestUseCase: AdjustRestUseCase,
     private val stopRestUseCase: StopRestUseCase,
-    private val doneEditingWorkoutUseCase: DoneEditingWorkoutUseCase,
     private val restAlerts: RestAlerts,
     private val clock: Clock,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
-    val workoutId: Long = savedStateHandle.toRoute<ActiveWorkoutRoute>().workoutId
+    /** Constructs an [ActiveWorkoutViewModel] for a given [workoutId] - assisted injection instead
+     * of reading it from a NavBackStackEntry's SavedStateHandle, since this ViewModel is hosted by
+     * the persistent ActiveWorkoutSheet (:app), which has no NavBackStackEntry at all. */
+    @AssistedFactory
+    interface Factory {
+        fun create(workoutId: Long): ActiveWorkoutViewModel
+    }
 
     private var restWatchJob: Job? = null
 
@@ -189,7 +173,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 exercises = workout.exercises
                     .sortedBy { it.workoutExercise.position }
                     .map { we ->
-                        ActiveExercise(
+                        WorkoutExerciseRow(
                             workoutExercise = we.workoutExercise,
                             name = we.exercise.name,
                             isStrength = we.exercise.type == ExerciseType.STRENGTH,
@@ -264,10 +248,6 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun finish() = appScope.launch { finishWorkoutUseCase(workoutId) }
 
     fun discard() = appScope.launch { cancelWorkoutUseCase(workoutId) }
-
-    /** Leaves editing mode (Done / Cancel-edit while re-editing a finished session). Runs on the
-     * app scope for the same reason as [finish]/[discard] - the screen navigates away immediately. */
-    fun doneEditing() = appScope.launch { doneEditingWorkoutUseCase(workoutId) }
 
     // ── Rest timer (S14/item 7). Persisted on Workout so it survives process death. The sheet is
     // undismissable (see RestTimerSheet) - only Skip rest / pause / finish cancel it. ──

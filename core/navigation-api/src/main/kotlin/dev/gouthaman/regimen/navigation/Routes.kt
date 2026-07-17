@@ -34,8 +34,10 @@ data class RoutineEditorRoute(val routineId: Long = 0L)
 @Serializable
 data class SessionDetailRoute(val workoutId: Long)
 
+/** Reopens a finished session for editing (Session Detail's "Edit"). The live in-progress
+ * workout isn't a NavHost destination at all - see ActiveWorkoutSheet in :app. */
 @Serializable
-data class ActiveWorkoutRoute(val workoutId: Long)
+data class EditWorkoutRoute(val workoutId: Long)
 
 @Serializable
 data class WorkoutSummaryRoute(val workoutId: Long)

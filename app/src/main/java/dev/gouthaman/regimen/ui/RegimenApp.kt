@@ -5,9 +5,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,34 +28,31 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
-import dev.gouthaman.regimen.designsystem.component.WorkoutInProgressBanner
-import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
 import dev.gouthaman.regimen.navigation.HomeRoute
 import dev.gouthaman.regimen.navigation.WorkoutSummaryRoute
 import dev.gouthaman.regimen.ui.navigation.RegimenNavHost
 import dev.gouthaman.regimen.ui.navigation.TopLevelDestination
 import dev.gouthaman.regimen.ui.navigation.navigateToTab
 import dev.gouthaman.regimen.ui.navigation.topLevelDestinations
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegimenApp(
@@ -81,13 +82,6 @@ fun RegimenApp(
         activeTabIndex = topLevelDestinations.indexOfFirst { it.route == route }.takeIf { it >= 0 }
     }
 
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = backStackEntry?.destination
-    // Hide the resume banner while already inside the workout flow.
-    val inWorkoutFlow = currentDestination?.hierarchy?.any {
-        it.hasRoute(ActiveWorkoutRoute::class) || it.hasRoute(WorkoutSummaryRoute::class)
-    } == true
-
     DisposableEffect(navController) {
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
             val matched =
@@ -100,17 +94,18 @@ fun RegimenApp(
         onDispose { navController.removeOnDestinationChangedListener(listener) }
     }
 
+    val activeWorkoutSheetState = rememberActiveWorkoutSheetState()
+    val coroutineScope = rememberCoroutineScope()
+
     // Tapping the in-progress/rest-complete notification (MainActivity's EXTRA_WORKOUT_ID) lands
-    // here the same way the "Resume" banner's onResume does - anchored under Home regardless of
-    // the current tab. Skipped if already inside the workout flow (e.g. re-tapping the
-    // notification while the screen's already open) to avoid pushing a duplicate destination.
+    // here the same way the sheet's own tap-to-expand does - anchored under Home regardless of
+    // the current tab. Expanding is idempotent (a no-op if already expanded), so no guard is
+    // needed for re-tapping the notification while the sheet's already open.
     LaunchedEffect(deepLinkWorkoutId) {
         if (deepLinkWorkoutId != null) {
-            if (!inWorkoutFlow) {
-                onNavigateToTab(HomeRoute)
-                navController.navigateToTab(HomeRoute)
-                navController.navigate(ActiveWorkoutRoute(deepLinkWorkoutId))
-            }
+            onNavigateToTab(HomeRoute)
+            navController.navigateToTab(HomeRoute)
+            activeWorkoutSheetState.expand()
             onDeepLinkConsumed()
         }
     }
@@ -150,6 +145,9 @@ fun RegimenApp(
                 item(
                     selected = selected,
                     onClick = {
+                        // Collapse first - a tab switch should always reveal the tapped tab's
+                        // content, not leave an expanded workout sitting on top of it.
+                        coroutineScope.launch { activeWorkoutSheetState.collapse() }
                         onTabSelected(
                             navController,
                             dest,
@@ -163,47 +161,20 @@ fun RegimenApp(
             }
         },
     ) {
-        // Resume banner sits directly below RegimenNavHost regardless of bottom bar vs. side rail
-        // - same "docked next to navigation" convention as a mini-player. Grouped with
-        // RegimenNavHost as one unit so both get the same width treatment below; otherwise a
-        // capped/centered NavHost with a full-bleed banner looked inconsistent, banner visibly
-        // wider than the content above it.
-        val activeWorkoutId = inProgressWorkoutId
-        val navHostAndBanner: @Composable ColumnScope.() -> Unit = {
-            RegimenNavHost(navController, Modifier.weight(1f), onNavigateToTab)
-            if (activeWorkoutId != null && !inWorkoutFlow) {
-                WorkoutInProgressBanner(
-                    message = stringResource(R.string.workout_in_progress_banner_message),
-                    viewLabel = stringResource(R.string.workout_in_progress_banner_view_label),
-                    onResume = {
-                        // Active Workout is Home's child exclusively (see the nav map in
-                        // RegimenNavHost.kt) - Resume always anchors there regardless of which tab
-                        // it's tapped from, not whichever tab is current. The tab you were on is
-                        // saved, not lost, same as tapping a different tab in the bar/rail.
-                        onNavigateToTab(HomeRoute)
-                        navController.navigateToTab(HomeRoute)
-                        navController.navigate(ActiveWorkoutRoute(activeWorkoutId))
-                    },
-                )
-            }
-        }
-
         // NavigationSuiteScaffold doesn't pad the content pane for the bottom system-bar inset
         // (only the nav bar/rail/drawer consume insets for themselves), so this pane does it
-        // directly - otherwise the banner sits flush against the gesture-nav area.
+        // directly - otherwise content sits flush against the gesture-nav area.
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            // navHostAndBanner (everything inside RegimenNavHost) must be composed from one
-            // stable call site regardless of posture. A `when` previously calling it from two
-            // branches (bare vs. wrapped in Box/Column) tore down and recomposed the whole
-            // nav-host subtree on every posture change, orphaning/restoring-stale every
-            // rememberSaveable underneath - the actual cause of sheets spuriously
-            // closing/reopening when rotating in and out of Tabletop (see "Modal/dialog dismissed
-            // on rotation fix" below). Only the width-cap Modifier value varies by posture now,
-            // not the composable structure.
+            // A `when` previously calling RegimenNavHost from two branches (bare vs. wrapped in
+            // Box/Column) tore down and recomposed the whole nav-host subtree on every posture
+            // change, orphaning/restoring-stale every rememberSaveable underneath - the actual
+            // cause of sheets spuriously closing/reopening when rotating in and out of Tabletop
+            // (see "Modal/dialog dismissed on rotation fix" below). Only the width-cap Modifier
+            // value varies by posture now, not the composable structure.
             //
             // Compact and Tabletop both keep the bottom NavigationBar, but the window behind it
             // isn't guaranteed phone-narrow: Tabletop can be genuinely wide (confirmed via a
@@ -226,7 +197,75 @@ fun RegimenApp(
                         .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
                         .fillMaxHeight()
                 }
-                Column(modifier = widthCapModifier, content = navHostAndBanner)
+                // RegimenNavHost and ActiveWorkoutSheet overlap here (a Box, not a Column) so the
+                // sheet can grow to cover the NavHost's content when expanded - confined to this
+                // content pane specifically (not a sibling of the whole NavigationSuiteScaffold)
+                // so it never draws over the nav bar/rail, which NavigationSuiteScaffold reserves
+                // as separate space outside this Column entirely. Matches how the old NavHost-
+                // pushed Active Workout screen behaved too - it never covered the nav bar either.
+                Box(modifier = widthCapModifier) {
+                    RegimenNavHost(
+                        navController = navController,
+                        modifier = Modifier.fillMaxSize(),
+                        onNavigateToTab = onNavigateToTab,
+                        onWorkoutStarted = {
+                            // Anchor under Home regardless of which tab this was triggered from
+                            // (Home's own "Start workout" button, or History's "Repeat" action) -
+                            // a no-op tab switch if already on Home (launchSingleTop).
+                            onNavigateToTab(HomeRoute)
+                            navController.navigateToTab(HomeRoute)
+                            coroutineScope.launch { activeWorkoutSheetState.expand() }
+                        },
+                    )
+                    // AnimatedVisibility's content composes both while visible and while animating
+                    // out after visible flips false - it needs a concrete workoutId for that exit
+                    // frame too, a moment after inProgressWorkoutId has already gone null. This is
+                    // purely cosmetic (which id to animate out with), unlike the sticky value this
+                    // replaced - onFinished/onDiscarded no longer depend on it for correctness.
+                    var lastWorkoutId by remember { mutableStateOf<Long?>(null) }
+                    if (inProgressWorkoutId != null) lastWorkoutId = inProgressWorkoutId
+                    val workoutIdToAnimate = lastWorkoutId
+
+                    // Fully qualified: the Column two levels up (this content lambda's own
+                    // enclosing scope) makes ColumnScope.AnimatedVisibility an equally-reachable
+                    // implicit-receiver candidate alongside the plain top-level overload actually
+                    // wanted here, which the compiler can't disambiguate on its own.
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = inProgressWorkoutId != null,
+                        // Grows/shrinks from the bottom edge, matching the collapsed banner's dock
+                        // position - a workout starting or ending reads as the banner growing up
+                        // out of/sinking back into the bottom edge, not just fading in place. If the
+                        // sheet is Expanded when a workout ends (Discard), this shrinks the whole
+                        // full-screen content down and away instead of it just vanishing.
+                        enter = fadeIn(tween(220)) + expandVertically(
+                            animationSpec = tween(220),
+                            expandFrom = Alignment.Bottom,
+                        ),
+                        exit = fadeOut(tween(220)) + shrinkVertically(
+                            animationSpec = tween(220),
+                            shrinkTowards = Alignment.Bottom,
+                        ),
+                    ) {
+                        if (workoutIdToAnimate != null) {
+                            ActiveWorkoutSheet(
+                                workoutId = workoutIdToAnimate,
+                                state = activeWorkoutSheetState,
+                                navController = navController,
+                                // Fired directly from the sheet's own Finish/Discard confirm
+                                // dialogs, not reactively off the DB write - navigation doesn't
+                                // need to wait for that write to land, and this composable owns the
+                                // NavController (unlike the sheet, which is why it wasn't safe to
+                                // have the sheet call navController.navigate() itself). See
+                                // ActiveWorkoutSheet's doc.
+                                onFinished = { finishedWorkoutId ->
+                                    navController.navigate(WorkoutSummaryRoute(finishedWorkoutId))
+                                },
+                                onDiscarded = {},
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+                }
             }
         }
     }

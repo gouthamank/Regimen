@@ -8,14 +8,19 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import dev.gouthaman.regimen.navigation.ActiveWorkoutRoute
+import dev.gouthaman.regimen.navigation.EditExerciseRoute
+import dev.gouthaman.regimen.navigation.EditWorkoutRoute
 import dev.gouthaman.regimen.navigation.HistoryRoute
 import dev.gouthaman.regimen.navigation.SessionDetailRoute
 
+/** [onWorkoutStarted] expands the persistent ActiveWorkoutSheet (`:app`'s RegimenApp/
+ * ActiveWorkoutSheet) rather than navigating anywhere - Repeat starts a brand new live workout,
+ * which isn't a NavHost destination (same as Home's "Start workout" - see HomeNavigation.kt). */
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.historyGraph(
     navController: NavHostController,
     sharedTransitionScope: SharedTransitionScope,
+    onWorkoutStarted: () -> Unit,
 ) {
     composable<HistoryRoute> {
         HistoryScreen(
@@ -36,7 +41,18 @@ fun NavGraphBuilder.historyGraph(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,
             onBack = navController::popBackStack,
-            onOpenActiveWorkout = { navController.navigate(ActiveWorkoutRoute(it)) },
+            onWorkoutStarted = onWorkoutStarted,
+            onEditWorkout = { navController.navigate(EditWorkoutRoute(it)) },
+        )
+    }
+    composable<EditWorkoutRoute> {
+        // Done editing a past session - just return to Session Detail. No Workout Summary here:
+        // that recap (PRs, save-as-routine) is for a session that just happened, not one you were
+        // only revisiting to tweak.
+        EditWorkoutScreen(
+            onFinished = { navController.popBackStack() },
+            onDiscarded = { navController.popBackStack() },
+            onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
         )
     }
 }

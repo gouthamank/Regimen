@@ -20,6 +20,7 @@ import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.domain.util.UnitLabel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -115,6 +116,12 @@ class HomeViewModel @Inject constructor(
     fun startWorkout(routineId: Long?) {
         viewModelScope.launch {
             val id = getInProgressWorkoutId() ?: startWorkoutUseCase(routineId)
+            // The Start Workout button hides as the ActiveWorkoutSheet's collapsed banner mounts,
+            // which then gets asked to expand - this beat gives the sheet time to actually compose
+            // and set up its drag anchors (both reactively driven off the DB's in-progress-workout
+            // id, a separate path from this Channel send) before the expand request fires, instead
+            // of both racing to happen in the same frame.
+            delay(200)
             startedWorkouts.send(id)
         }
     }

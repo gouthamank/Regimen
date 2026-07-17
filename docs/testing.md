@@ -102,7 +102,7 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
 ## `:core:designsystem` - `androidTest` (Compose UI)
 
 Covered: `ConfirmDialog`, `ExercisePickerSheet`, `SaveAsRoutineDialog`, `Stat`, `EmptyState`,
-`SectionHeader`, `UnitSystemSelector`, `ThemeModeSelector`, `WorkoutInProgressBanner`, and the
+`SectionHeader`, `UnitSystemSelector`, `ThemeModeSelector`, and the
 drag-reorder primitives in `dragdrop/` (`DragDropState`/`Modifier.dragHandle` - there's no
 standalone `ReorderableList` composable; `RoutinesScreen.kt` wires the primitives directly, and
 `ReorderableListTest` tests them the same way via a small host composable).
@@ -112,6 +112,25 @@ Drag-gesture tests need moves comfortably past the platform's touch-slop thresho
 distinguishable from a tap.
 
 Not covered: adaptive posture variants, `LineChart`/`Sparkline` (Paparazzi deferred, see Approach).
+
+## `:app` - `androidTest` (Hilt-driven Compose UI)
+
+The only module with Hilt wired into its instrumentation tests. `HiltTestRunner` (swaps in
+`HiltTestApplication`) plus `TestDatabaseModule` (`@TestInstallIn`, replaces `DatabaseModule` with
+an in-memory Room instance - a clean slate every run instead of whatever's on the test device) are
+the reusable pieces; a test seeds whatever data it needs directly through the injected
+`RegimenDatabase`'s DAOs, then drives the real app via `createAndroidComposeRule<MainActivity>()`.
+
+- `ActiveWorkoutSheetBehaviorTest` - the persistent `ActiveWorkoutSheet`'s mount → expand →
+  collapse → tab-switch → re-expand → tab-switch-while-expanded flow, end to end: no workout in
+  progress (no banner) → Home's Start Workout → sheet auto-expands → back-press collapses it →
+  the banner persists across tab switches → tapping the banner re-expands it → switching tabs
+  while expanded collapses it first rather than leaving it stuck on top. Runs against the real
+  Hilt graph (real ViewModels, real `StartWorkoutUseCase`), not fakes - this is the one place in
+  the suite that exercises Home → the sheet → tab navigation as a real, wired-together flow rather
+  than each piece in isolation. Onboarding is skipped via its always-present "Skip" button rather
+  than an additional DataStore override, since its completion is a separate persisted preference
+  `TestDatabaseModule` doesn't touch.
 
 ## `:feature:*` - ViewModel JVM unit tests
 
@@ -126,7 +145,9 @@ and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope
 
 Skipped entirely: `:feature:onboarding`, `:feature:settings` (pure preference pass-through
 setters), `EditExerciseViewModel` (simple edit-vs-new branching), `HistoryViewModel`
-(grouping/sorting only), `MeasurementDetailViewModel` (flow mapping + unit conversion only).
+(grouping/sorting only), `MeasurementDetailViewModel` (flow mapping + unit conversion only),
+`EditWorkoutViewModel` (same set/cardio/note pass-through calls `ActiveWorkoutViewModel` already
+covers, minus the rest-timer branching that's actually tested).
 
 Combine()-based `StateFlow`s built from several independently-mutating fakes can legitimately
 emit more intermediate states than a test consumes (each fake mutation can trigger its own
@@ -135,7 +156,9 @@ recombination pass) - tests that poll incrementally toward a target state should
 
 ## Not tested, by design
 
-- End-to-end instrumented tests driving the real foreground service (`ActiveWorkoutService`) -
-  high setup cost (running emulator, real notification permission flow) for the value delivered.
+- The foreground service's *own* behavior (persistent notification content, Pause/Resume from the
+  notification, rest-complete alerts) - high setup cost for the value delivered.
+  `ActiveWorkoutSheetBehaviorTest` does trigger the real service as a side effect of starting a
+  workout for real (not stubbed), but doesn't assert anything about it.
 - Anything covered by the "not tested" notes above (adaptive posture, Paparazzi-deferred
   rendering, pure pass-through modules).

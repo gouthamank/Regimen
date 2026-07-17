@@ -1,6 +1,5 @@
 package dev.gouthaman.regimen.feature.active
 
-import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
@@ -13,7 +12,6 @@ import dev.gouthaman.regimen.domain.usecase.AddSetUseCase
 import dev.gouthaman.regimen.domain.usecase.AdjustRestUseCase
 import dev.gouthaman.regimen.domain.usecase.CancelWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.DeleteSetUseCase
-import dev.gouthaman.regimen.domain.usecase.DoneEditingWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveExercisesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
@@ -35,7 +33,6 @@ import dev.gouthaman.regimen.testing.FakeRestAlerts
 import dev.gouthaman.regimen.testing.FakeRoutineRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
 import dev.gouthaman.regimen.testing.MainDispatcherRule
-import dev.gouthaman.regimen.testingandroid.FakeBundleRule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -57,9 +54,6 @@ class ActiveWorkoutViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(dispatcher)
 
-    @get:Rule
-    val fakeBundleRule = FakeBundleRule()
-
     private val benchPress =
         Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
 
@@ -73,7 +67,7 @@ class ActiveWorkoutViewModelTest {
         restAlerts: FakeRestAlerts = FakeRestAlerts(),
         clock: FakeClock = FakeClock(),
     ) = ActiveWorkoutViewModel(
-        savedStateHandle = SavedStateHandle(mapOf("workoutId" to workoutId)),
+        workoutId = workoutId,
         observeWorkout = ObserveWorkoutUseCase(workoutRepo),
         observeRoutines = ObserveRoutinesUseCase(routineRepo),
         observePreferences = ObservePreferencesUseCase(preferencesRepo),
@@ -93,7 +87,6 @@ class ActiveWorkoutViewModelTest {
         startRestUseCase = StartRestUseCase(workoutRepo, clock),
         adjustRestUseCase = AdjustRestUseCase(workoutRepo, clock),
         stopRestUseCase = StopRestUseCase(workoutRepo),
-        doneEditingWorkoutUseCase = DoneEditingWorkoutUseCase(workoutRepo),
         restAlerts = restAlerts,
         clock = clock,
         appScope = appScope,
