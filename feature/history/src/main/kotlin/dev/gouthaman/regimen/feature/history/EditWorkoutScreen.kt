@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.feature.history
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -155,10 +158,16 @@ fun EditWorkoutScreen(
         } else {
             Modifier.fillMaxSize()
         }
+        val focusManager = LocalFocusManager.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                // Taps that land on a button/text field/checkbox are consumed by that element's
+                // own pointer input before this ever sees them, so this only fires for blank
+                // space (card backgrounds, padding, labels) - exactly "anywhere that isn't one
+                // of those."
+                .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) },
             contentAlignment = Alignment.TopCenter,
         ) {
             Box(modifier = contentModifier) {

@@ -82,7 +82,15 @@ a **bottom tab bar** (or a `NavigationRail` on wide/book/expanded layouts) with 
 either.** It's a persistent two-state draggable sheet (`ActiveWorkoutSheet`, in `:app`) docked
 above the tab bar/rail: collapsed, it's a mini-player-style banner; expanded (via drag or tap), it
 fills the screen with the full Active Workout UI. There's no third, resting midway state -
-releasing mid-drag snaps to whichever end is closer. The sheet itself mounts/unmounts with a
+releasing mid-drag snaps to whichever end is closer. Since the sheet is a `NavHost`-overlaying
+`Box`, not a real Scaffold `bottomBar` (it needs to grow to cover the whole pane when Expanded),
+`RegimenNavHost` itself gets an animated bottom inset matching the collapsed banner's height
+whenever a workout is in progress, so every screen's content - the five tab roots and any pushed
+destination alike (Session Detail, Exercise Library, Workout Summary, "add custom exercise") -
+leaves room for the banner instead of it floating over whatever's already at the bottom of the
+screen. The sheet shows on every destination, not just the tab roots, since the inset is applied
+unconditionally - there's no destination-gated hide to keep in sync with it. The sheet itself
+mounts/unmounts with a
 grow/shrink-from-the-bottom-edge transition (`RegimenApp`'s `AnimatedVisibility`, keyed off whether
 a workout is in progress at all) rather than abruptly appearing/disappearing - if a workout ends
 (Finish/Discard) while the sheet is Expanded, this shrinks the whole full-screen content away

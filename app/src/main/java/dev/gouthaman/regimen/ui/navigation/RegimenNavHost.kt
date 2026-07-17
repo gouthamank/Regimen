@@ -31,12 +31,8 @@ import dev.gouthaman.regimen.navigation.SettingsRoute
 
 /** True for the five bottom-tab destinations - used to tell a tab switch (via
  * [dev.gouthaman.regimen.ui.navigation.navigateToTab]) apart from a hierarchical drill-down, so
- * the two can get different transitions below. Also reused by ActiveWorkoutSheet, which only ever
- * shows while sitting on top of a top-level tab - the instant anything else is pushed (Workout
- * Summary, "add custom exercise"'s EditExerciseRoute), it hides entirely rather than being drawn
- * over/under whatever's now on top, since it isn't a NavHost destination and has no natural way to
- * participate in that stacking order otherwise. */
-internal fun isTopLevelDestination(destination: NavDestination): Boolean =
+ * the two can get different transitions below. */
+private fun isTopLevelDestination(destination: NavDestination): Boolean =
     destination.hasRoute<HomeRoute>() ||
             destination.hasRoute<RoutinesRoute>() ||
             destination.hasRoute<HistoryRoute>() ||

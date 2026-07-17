@@ -26,6 +26,8 @@ import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +56,7 @@ import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -103,8 +106,10 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -119,7 +124,6 @@ import androidx.graphics.shapes.rectangle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
@@ -130,7 +134,6 @@ import dev.gouthaman.regimen.feature.active.ActiveWorkoutViewModel
 import dev.gouthaman.regimen.feature.active.RestTimerState
 import dev.gouthaman.regimen.feature.exercise.ExerciseCard
 import dev.gouthaman.regimen.navigation.EditExerciseRoute
-import dev.gouthaman.regimen.ui.navigation.isTopLevelDestination
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
@@ -139,7 +142,9 @@ import kotlin.time.Duration.Companion.seconds
 
 internal enum class WorkoutSheetValue { Collapsed, Expanded }
 
-private val CollapsedHeight = 72.dp
+// internal, not private - RegimenApp reads this to reserve the same amount of bottom clearance in
+// every screen's content so the collapsed banner docks below it instead of overlapping it.
+internal val CollapsedHeight = 72.dp
 private val CollapsedCornerRadius = 16.dp
 
 /** Hoisted control surface for [ActiveWorkoutSheet] - lets callers outside the sheet itself
@@ -151,6 +156,14 @@ class ActiveWorkoutSheetState internal constructor(
 ) {
     suspend fun expand() = draggableState.animateTo(WorkoutSheetValue.Expanded)
     suspend fun collapse() = draggableState.animateTo(WorkoutSheetValue.Collapsed)
+
+    /** Instantly resets to Collapsed with no animation - this state outlives any single workout
+     * (created once for the whole `RegimenApp` session), so without this a new workout mounting
+     * the sheet would inherit whatever expand/collapse state a *previous* workout left it in
+     * (e.g. finishing/discarding while Expanded), showing the full screen immediately instead of
+     * the collapsed banner. Called once, right as a new workout starts being tracked - not while
+     * one is already in progress, which would undo the user's own drag/tap. */
+    internal suspend fun resetToCollapsed() = draggableState.snapTo(WorkoutSheetValue.Collapsed)
 }
 
 @Composable
@@ -169,11 +182,9 @@ fun rememberActiveWorkoutSheetState(): ActiveWorkoutSheetState {
  * normal NavHost push) instead - there's no "in progress" state to collapse an edit session to,
  * and it has none of this sheet's pause/rest-timer/finish machinery.
  *
- * Only shown while the shared NavHost is sitting on a top-level tab. The instant anything else is
- * pushed on top (Workout Summary after Finish, "add custom exercise"'s EditExerciseRoute), this
- * hides entirely rather than being drawn over/under whatever's now current - it isn't a NavHost
- * destination itself, so it has no natural way to participate in that stacking order otherwise.
- * It reappears (in whatever expand/collapse state it was left in) once back on a tab.
+ * Shown regardless of which NavHost destination is current, top-level tab or pushed screen alike
+ * (Session Detail, Workout Summary, Exercise Library, "add custom exercise") - collapsed, it's
+ * always reachable rather than only from the five tab roots.
  *
  * [workoutId] is bound directly to the DB's "is a workout in progress" signal by the caller - no
  * sticky/cached value needed. [onFinished]/[onDiscarded] fire synchronously from this composable's
@@ -199,11 +210,18 @@ fun ActiveWorkoutSheet(
 
     val scope = rememberCoroutineScope()
 
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val onTopLevelTab =
-        currentBackStackEntry?.destination?.let { isTopLevelDestination(it) } == true
+    // Created here, unconditionally - not inside LiveWorkoutContent's `if (progress > 0f)` gate -
+    // so its combine()/stateIn() query chain starts running the instant the sheet mounts, even
+    // fully Collapsed, rather than only once the user first expands it. Data is warm (or at least
+    // well on its way) by the time someone actually taps to expand, instead of that first expand
+    // racing the initial query.
+    val viewModel: ActiveWorkoutViewModel =
+        hiltViewModel<ActiveWorkoutViewModel, ActiveWorkoutViewModel.Factory>(
+            key = "active-workout-$workoutId",
+            creationCallback = { factory -> factory.create(workoutId) },
+        )
 
-    BackHandler(enabled = onTopLevelTab && sheetState.targetValue == WorkoutSheetValue.Expanded) {
+    BackHandler(enabled = sheetState.targetValue == WorkoutSheetValue.Expanded) {
         scope.launch { sheetState.animateTo(WorkoutSheetValue.Collapsed) }
     }
 
@@ -234,7 +252,6 @@ fun ActiveWorkoutSheet(
             },
         contentAlignment = Alignment.BottomCenter,
     ) {
-        if (!onTopLevelTab) return@Box
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -268,7 +285,7 @@ fun ActiveWorkoutSheet(
                 // rather than being torn down and recreated.
                 if (progress > 0f) {
                     LiveWorkoutContent(
-                        workoutId = workoutId,
+                        viewModel = viewModel,
                         onFinished = onFinished,
                         onDiscarded = onDiscarded,
                         onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
@@ -323,18 +340,16 @@ private fun CollapsedBannerContent(onTap: () -> Unit, modifier: Modifier = Modif
     }
 }
 
-/** The live in-progress workout's full-screen content - the sheet's expanded state. */
+/** The live in-progress workout's full-screen content - the sheet's expanded state. [viewModel] is
+ * created by the caller (not defaulted here via `hiltViewModel()`) since it needs to exist before
+ * this composable is ever entered - see [ActiveWorkoutSheet]. */
 @Composable
 private fun LiveWorkoutContent(
-    workoutId: Long,
+    viewModel: ActiveWorkoutViewModel,
     onFinished: (Long) -> Unit,
     onDiscarded: () -> Unit,
     onCreateCustomExercise: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ActiveWorkoutViewModel = hiltViewModel<ActiveWorkoutViewModel, ActiveWorkoutViewModel.Factory>(
-        key = "active-workout-$workoutId",
-        creationCallback = { factory -> factory.create(workoutId) },
-    ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
@@ -446,15 +461,35 @@ private fun LiveWorkoutContent(
             return@Scaffold
         }
 
+        // Query kicks off as soon as the sheet mounts (see ActiveWorkoutSheet), well before this
+        // content is ever composed - but a very fast expand right as a workout starts could still
+        // beat it. Rather than the exercise list/toolbar rendering against still-default/empty
+        // state, show an indeterminate spinner until the first real emission lands.
+        if (!uiState.loaded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
+            return@Scaffold
+        }
+
         // BookOrExpanded caps and centers content at the same 600dp breakpoint as other
         // LazyColumn-of-cards screens (Routine Editor, Session Detail, Measurement Detail);
         // Compact/Tabletop stay full-bleed. The floating toolbar shares this inner Box so it's
         // capped with the list. No Onboarding-style hinge split for Tabletop: the toolbar anchors
         // to the bottom edge regardless of content, same reasoning as the bottom nav bar.
+        val focusManager = LocalFocusManager.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                // Taps that land on a button/text field/checkbox are consumed by that element's
+                // own pointer input before this ever sees them, so this only fires for blank
+                // space (card backgrounds, padding, labels) - exactly "anywhere that isn't one
+                // of those."
+                .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) },
             contentAlignment = Alignment.TopCenter,
         ) {
             val contentModifier = if (windowInfo.posture == RegimenPosture.BookOrExpanded) {
@@ -506,6 +541,7 @@ private fun LiveWorkoutContent(
                             onUpdateCardio = viewModel::updateCardio,
                             onStartRest = viewModel::startRest,
                             enabled = !uiState.isPaused,
+                            animateSets = false,
                         )
                     }
 
@@ -619,7 +655,7 @@ private fun LiveWorkoutContent(
             onConfirm = {
                 showFinishConfirm = false
                 viewModel.finish()
-                onFinished(workoutId)
+                onFinished(viewModel.workoutId)
             },
             dismissLabel = stringResource(R.string.workout_keep_going_button),
             onDismiss = { showFinishConfirm = false },

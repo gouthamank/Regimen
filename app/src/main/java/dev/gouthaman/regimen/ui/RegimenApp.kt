@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -96,6 +98,15 @@ fun RegimenApp(
 
     val activeWorkoutSheetState = rememberActiveWorkoutSheetState()
     val coroutineScope = rememberCoroutineScope()
+
+    // activeWorkoutSheetState is created once for the whole session (not per workout) - reset it
+    // to Collapsed the moment a new workout starts being tracked, so it can't inherit whatever
+    // expand/collapse state a *previous* workout left it in. Keyed on the id itself (not just
+    // "non-null") so this fires once per new workout, not on every recomposition while one's
+    // already in progress - which would otherwise undo the user's own drag/tap mid-session.
+    LaunchedEffect(inProgressWorkoutId) {
+        if (inProgressWorkoutId != null) activeWorkoutSheetState.resetToCollapsed()
+    }
 
     // Tapping the in-progress/rest-complete notification (MainActivity's EXTRA_WORKOUT_ID) lands
     // here the same way the sheet's own tap-to-expand does - anchored under Home regardless of
@@ -204,9 +215,24 @@ fun RegimenApp(
                 // as separate space outside this Column entirely. Matches how the old NavHost-
                 // pushed Active Workout screen behaved too - it never covered the nav bar either.
                 Box(modifier = widthCapModifier) {
+                    // Reserves the collapsed banner's own footprint at the bottom of every
+                    // screen's content, rather than letting the banner float over whatever's
+                    // already there - it's a sibling Box overlay (needed so it can grow to cover
+                    // the whole pane when Expanded), which has no other way to participate in
+                    // NavHost's layout the way a real Scaffold bottomBar would. Animated in step
+                    // with the sheet's own mount/unmount transition below, since covering/
+                    // uncovering that space instantly while the banner fades in/out over several
+                    // frames would read as a mismatched jump.
+                    val bottomInset by animateDpAsState(
+                        targetValue = if (inProgressWorkoutId != null) CollapsedHeight else 0.dp,
+                        animationSpec = tween(220),
+                        label = "activeWorkoutSheetBottomInset",
+                    )
                     RegimenNavHost(
                         navController = navController,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = bottomInset),
                         onNavigateToTab = onNavigateToTab,
                         onWorkoutStarted = {
                             // Anchor under Home regardless of which tab this was triggered from
