@@ -23,6 +23,7 @@
     <string name="workout_pause_description">Pause</string>
     <string name="workout_keep_screen_on_description">Keep screen on</string>
     <string name="workout_allow_screen_sleep_description">Allow screen to sleep</string>
+    <string name="workout_keep_screen_on_snackbar">Screen will stay on while this workout is active.</string>
     <string name="workout_rest_set_invalid_snackbar">Couldn\'t mark set done - fill in its weight/reps first</string>
     <string name="workout_rest_label">Rest</string>
     <string name="workout_rest_minus_15s">−15s</string>

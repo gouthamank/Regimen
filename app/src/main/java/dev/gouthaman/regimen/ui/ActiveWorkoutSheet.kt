@@ -52,9 +52,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -489,10 +490,22 @@ private fun LiveWorkoutContent(
                 },
                 actions = {
                     // Ephemeral - resets every time this screen is (re)opened, not a saved
-                    // preference. Tinted primary while on, like a lit toggle.
-                    IconButton(onClick = { keepScreenOn = !keepScreenOn }) {
+                    // preference. Filled + tinted while on, outline + muted while off - same
+                    // glyph (sun) both states so it can't misread as a light/dark theme toggle.
+                    val keepScreenOnMessage =
+                        stringResource(R.string.workout_keep_screen_on_snackbar)
+                    IconButton(
+                        onClick = {
+                            keepScreenOn = !keepScreenOn
+                            if (keepScreenOn) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(keepScreenOnMessage)
+                                }
+                            }
+                        },
+                    ) {
                         Icon(
-                            Icons.Filled.Coffee,
+                            if (keepScreenOn) Icons.Filled.WbSunny else Icons.Outlined.WbSunny,
                             contentDescription = stringResource(
                                 if (keepScreenOn) {
                                     R.string.workout_allow_screen_sleep_description
