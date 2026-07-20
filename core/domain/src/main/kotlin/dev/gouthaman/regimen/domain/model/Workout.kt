@@ -6,6 +6,9 @@ package dev.gouthaman.regimen.domain.model
  */
 enum class WorkoutStatus { IN_PROGRESS, IN_REST_TIME, PAUSED, EDITING, COMPLETE }
 
+/** How a workout reached [WorkoutStatus.COMPLETE] - null while not yet finished. */
+enum class WorkoutEndReason { MANUAL, TIMEOUT }
+
 /** An actual workout performed on a date. Created from a routine, or freeform (routineId null). */
 data class Workout(
     val id: Long = 0,
@@ -14,6 +17,7 @@ data class Workout(
     val note: String? = null,
     val routineId: Long? = null,
     val workoutStatus: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
+    val endReason: WorkoutEndReason? = null,
     // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
     // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,

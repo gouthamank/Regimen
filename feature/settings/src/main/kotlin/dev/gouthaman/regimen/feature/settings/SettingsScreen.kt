@@ -44,9 +44,11 @@ import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.exerciseLibraryFromSettingsTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.component.EnumDropdown
 import dev.gouthaman.regimen.designsystem.component.SectionHeader
 import dev.gouthaman.regimen.designsystem.component.ThemeModeSelector
 import dev.gouthaman.regimen.designsystem.component.UnitSystemSelector
+import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
@@ -77,6 +79,7 @@ fun SettingsScreen(
         onDynamicColorChange = viewModel::setDynamicColor,
         onRestDefaultChange = viewModel::setRestDefaultSec,
         onRestChimeEnabledChange = viewModel::setRestChimeEnabled,
+        onMaxWorkoutDurationChange = viewModel::setMaxWorkoutDuration,
         onOpenExerciseLibrary = onOpenExerciseLibrary,
     )
 }
@@ -94,6 +97,7 @@ fun SettingsScreen(
     onDynamicColorChange: (Boolean) -> Unit = {},
     onRestDefaultChange: (Int) -> Unit = {},
     onRestChimeEnabledChange: (Boolean) -> Unit = {},
+    onMaxWorkoutDurationChange: (MaxWorkoutDuration) -> Unit = {},
     onOpenExerciseLibrary: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -183,6 +187,20 @@ fun SettingsScreen(
                         )
                     },
                 )
+
+                SettingRow(
+                    headline = stringResource(R.string.settings_max_workout_time_headline),
+                    supporting = stringResource(R.string.settings_max_workout_time_description),
+                ) {
+                    EnumDropdown(
+                        label = stringResource(R.string.settings_max_workout_time_headline),
+                        options = MaxWorkoutDuration.entries,
+                        selected = prefs.maxWorkoutDuration,
+                        optionLabel = { it.label() },
+                        onSelect = onMaxWorkoutDurationChange,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
 
                 HorizontalDivider()
                 SectionHeader(
@@ -279,6 +297,14 @@ private fun NavRow(
         enabled = enabled,
         modifier = modifier.then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
     )
+}
+
+@Composable
+private fun MaxWorkoutDuration.label(): String = when (this) {
+    MaxWorkoutDuration.OFF -> stringResource(R.string.max_workout_time_off)
+    MaxWorkoutDuration.FOUR_HOURS -> stringResource(R.string.max_workout_time_4h)
+    MaxWorkoutDuration.SIX_HOURS -> stringResource(R.string.max_workout_time_6h)
+    MaxWorkoutDuration.EIGHT_HOURS -> stringResource(R.string.max_workout_time_8h)
 }
 
 /** mm:ss, e.g. 90 -> "1:30". */

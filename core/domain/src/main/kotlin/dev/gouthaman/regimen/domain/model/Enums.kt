@@ -16,6 +16,23 @@ enum class UnitSystem { METRIC, IMPERIAL }
 
 enum class ThemeMode { LIGHT, DARK, SYSTEM }
 
+/** Safety-net ceiling on how long an Active Workout session can run before it's auto-finished
+ * (covers a user force-closing the app or ignoring the persistent notification). [hours] is null
+ * for [OFF] (no auto-end). */
+enum class MaxWorkoutDuration(val hours: Int?) {
+    OFF(null),
+    FOUR_HOURS(4),
+    SIX_HOURS(6),
+    EIGHT_HOURS(8),
+}
+
+private const val MILLIS_PER_HOUR = 60 * 60 * 1000L
+
+/** Absolute wall-clock deadline for [startTime], or null if this duration is [MaxWorkoutDuration.OFF].
+ * Deliberately ignores pause state - a paused-and-forgotten session still gets force-ended. */
+fun MaxWorkoutDuration.deadlineMillis(startTime: Long): Long? =
+    hours?.let { startTime + it * MILLIS_PER_HOUR }
+
 /**
  * Selectable historical-data window for charts (Progress frequency chart, Measurement trend).
  * [weeks] is null for [ALL] (no cutoff - callers resolve the actual span from the data).

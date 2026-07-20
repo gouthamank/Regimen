@@ -59,7 +59,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_5_6, MIGRATION_6_7).build()
+        ).addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -95,7 +95,35 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_6_7).build()
+        ).addMigrations(MIGRATION_6_7, MIGRATION_7_8).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
+
+    @Test
+    fun migrate7To8_addsNullableEndReason() {
+        helper.createDatabase(TEST_DB, 7).apply {
+            execSQL(
+                "INSERT INTO workouts (id, startTime, endTime, note, routineId, workoutStatus, pausedAt, accumulatedPausedMs, restTimeEndAt, restTotalSec, restWorkoutExerciseId) " +
+                        "VALUES (1, 1000, 2000, NULL, NULL, 'COMPLETE', NULL, 0, NULL, NULL, NULL)",
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 8, true, MIGRATION_7_8)
+
+        val cursor = migrated.query("SELECT endReason FROM workouts WHERE id = 1")
+        cursor.use {
+            it.moveToFirst()
+            assertEquals(null, it.getString(0))
+        }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).addMigrations(MIGRATION_7_8).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }

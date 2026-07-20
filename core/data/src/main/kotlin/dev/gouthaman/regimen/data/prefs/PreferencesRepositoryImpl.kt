@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
@@ -33,6 +34,7 @@ class PreferencesRepositoryImpl @Inject constructor(
         val DYNAMIC = booleanPreferencesKey("dynamic_color")
         val REST = intPreferencesKey("rest_default_sec")
         val REST_CHIME = booleanPreferencesKey("rest_chime_enabled")
+        val MAX_WORKOUT_DURATION = stringPreferencesKey("max_workout_duration")
         val ONBOARDED = booleanPreferencesKey("onboarded")
     }
 
@@ -48,6 +50,9 @@ class PreferencesRepositoryImpl @Inject constructor(
             dynamicColor = p[Keys.DYNAMIC] ?: true,
             restDefaultSec = p[Keys.REST] ?: 90,
             restChimeEnabled = p[Keys.REST_CHIME] ?: false,
+            maxWorkoutDuration = p[Keys.MAX_WORKOUT_DURATION]
+                ?.let { runCatching { MaxWorkoutDuration.valueOf(it) }.getOrNull() }
+                ?: MaxWorkoutDuration.FOUR_HOURS,
             onboarded = p[Keys.ONBOARDED] ?: false,
         )
     }
@@ -69,6 +74,9 @@ class PreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setRestChimeEnabled(value: Boolean) =
         edit { it[Keys.REST_CHIME] = value }
+
+    override suspend fun setMaxWorkoutDuration(value: MaxWorkoutDuration) =
+        edit { it[Keys.MAX_WORKOUT_DURATION] = value.name }
 
     override suspend fun setOnboarded(value: Boolean) =
         edit { it[Keys.ONBOARDED] = value }

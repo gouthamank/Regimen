@@ -19,22 +19,31 @@ import dev.gouthaman.regimen.MainActivity
 import dev.gouthaman.regimen.R
 import dev.gouthaman.regimen.domain.di.ApplicationScope
 import dev.gouthaman.regimen.domain.model.Workout
+import dev.gouthaman.regimen.domain.model.WorkoutEndReason
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
+import dev.gouthaman.regimen.domain.model.deadlineMillis
+import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
+import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.PauseWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ResumeWorkoutUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -62,15 +71,27 @@ class ActiveWorkoutService : Service() {
     lateinit var getInProgressWorkoutId: GetInProgressWorkoutIdUseCase
 
     @Inject
+    lateinit var observePreferences: ObservePreferencesUseCase
+
+    @Inject
+    lateinit var finishWorkout: FinishWorkoutUseCase
+
+    @Inject
     @ApplicationScope
     lateinit var appScope: CoroutineScope
 
     private val serviceScope = CoroutineScope(SupervisorJob())
 
+    // Watches the max-workout-time safety net (Settings). Runs on appScope (not serviceScope) so
+    // the eventual finish write survives this service being torn down/restarted mid-flight, same
+    // reasoning as ActiveWorkoutViewModel.finish().
+    private var autoEndJob: Job? = null
+
     override fun onCreate() {
         super.onCreate()
         createChannel()
         observeSession()
+        observeAutoEndDeadline()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,6 +110,50 @@ class ActiveWorkoutService : Service() {
                 ) {
                     NotificationManagerCompat.from(this)
                         .notify(NOTIFICATION_ID, buildNotification(workout.workout))
+                }
+            }
+            .launchIn(serviceScope)
+    }
+
+    /**
+     * Auto-ends a session after Settings' configured max workout time, as a safety net for a
+     * user who force-closed the app or ignored the notification. Deadline is wall-clock from
+     * [Workout.startTime] (ignores pause state - a paused-and-forgotten session still gets
+     * force-ended). Recomputes whenever the active workout id or the preference changes;
+     * unaffected by pause/resume/rest-timer updates on the same workout.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeAutoEndDeadline() {
+        observeActiveWorkoutId()
+            .distinctUntilChanged()
+            .flatMapLatest { id ->
+                if (id == null) {
+                    flowOf(null)
+                } else {
+                    observeWorkout(id).combine(observePreferences()) { details, prefs ->
+                        val workout = details?.workout ?: return@combine null
+                        if (workout.workoutStatus == WorkoutStatus.COMPLETE) return@combine null
+                        val deadline = prefs.maxWorkoutDuration.deadlineMillis(workout.startTime)
+                            ?: return@combine null
+                        id to deadline
+                    }
+                }
+            }
+            .distinctUntilChanged()
+            .onEach { pending ->
+                autoEndJob?.cancel()
+                autoEndJob = pending?.let { (id, deadline) ->
+                    appScope.launch {
+                        val remaining = deadline - System.currentTimeMillis()
+                        if (remaining > 0) delay(remaining)
+                        // finishWorkout's own COMPLETE write re-emits back through this same
+                        // pipeline, which reacts by cancelling autoEndJob - i.e. this exact job,
+                        // mid-write. NonCancellable stops that self-inflicted cancellation from
+                        // aborting pruneUnloggedExercises partway through.
+                        withContext(NonCancellable) {
+                            finishWorkout(id, WorkoutEndReason.TIMEOUT)
+                        }
+                    }
                 }
             }
             .launchIn(serviceScope)

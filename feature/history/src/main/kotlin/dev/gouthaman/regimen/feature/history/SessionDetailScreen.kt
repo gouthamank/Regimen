@@ -307,6 +307,24 @@ private fun SessionSummaryCard(uiState: SessionDetailUiState) {
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
+            if (uiState.autoEnded) {
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(
+                        stringResource(R.string.session_detail_auto_ended_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                    )
+                }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.testing
 
+import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
@@ -35,6 +36,10 @@ class FakePreferencesRepository : PreferencesRepository {
 
     override suspend fun setRestChimeEnabled(value: Boolean) {
         state.value = state.value.copy(restChimeEnabled = value)
+    }
+
+    override suspend fun setMaxWorkoutDuration(value: MaxWorkoutDuration) {
+        state.value = state.value.copy(maxWorkoutDuration = value)
     }
 
     override suspend fun setOnboarded(value: Boolean) {

@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.domain.repository
 
+import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
@@ -14,5 +15,6 @@ interface PreferencesRepository {
     suspend fun setDynamicColor(value: Boolean)
     suspend fun setRestDefaultSec(value: Int)
     suspend fun setRestChimeEnabled(value: Boolean)
+    suspend fun setMaxWorkoutDuration(value: MaxWorkoutDuration)
     suspend fun setOnboarded(value: Boolean)
 }

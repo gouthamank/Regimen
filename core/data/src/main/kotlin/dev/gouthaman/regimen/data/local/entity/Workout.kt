@@ -12,6 +12,7 @@ import dev.gouthaman.regimen.domain.model.PersonalRecordRow
 import dev.gouthaman.regimen.domain.model.RepsRecordRow
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.Workout
+import dev.gouthaman.regimen.domain.model.WorkoutEndReason
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutExerciseWithDetails
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
@@ -37,6 +38,7 @@ data class WorkoutEntity(
     val note: String? = null,
     val routineId: Long? = null,
     val workoutStatus: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
+    val endReason: WorkoutEndReason? = null,
     // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
     // accumulatedPausedMs = total paused time, excluded from the session timer/duration.
     val pausedAt: Long? = null,
@@ -54,6 +56,7 @@ fun WorkoutEntity.toDomain(): Workout = Workout(
     note = note,
     routineId = routineId,
     workoutStatus = workoutStatus,
+    endReason = endReason,
     pausedAt = pausedAt,
     accumulatedPausedMs = accumulatedPausedMs,
     restTimeEndAt = restTimeEndAt,
@@ -68,6 +71,7 @@ fun Workout.toEntity(): WorkoutEntity = WorkoutEntity(
     note = note,
     routineId = routineId,
     workoutStatus = workoutStatus,
+    endReason = endReason,
     pausedAt = pausedAt,
     accumulatedPausedMs = accumulatedPausedMs,
     restTimeEndAt = restTimeEndAt,

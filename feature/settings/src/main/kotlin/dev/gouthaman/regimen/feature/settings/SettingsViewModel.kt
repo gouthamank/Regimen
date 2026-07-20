@@ -3,6 +3,7 @@ package dev.gouthaman.regimen.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
@@ -45,5 +46,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setRestChimeEnabled(value: Boolean) = viewModelScope.launch {
         updatePreferences.setRestChimeEnabled(value)
+    }
+
+    fun setMaxWorkoutDuration(value: MaxWorkoutDuration) = viewModelScope.launch {
+        updatePreferences.setMaxWorkoutDuration(value)
     }
 }

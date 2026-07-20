@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
+import dev.gouthaman.regimen.domain.model.WorkoutEndReason
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 
 /** Stores enums as their name string. Dates are stored directly as epoch-millis Longs. */
@@ -31,4 +32,11 @@ class Converters {
 
     @TypeConverter
     fun stringToWorkoutStatus(v: String): WorkoutStatus = WorkoutStatus.valueOf(v)
+
+    @TypeConverter
+    fun workoutEndReasonToString(v: WorkoutEndReason?): String? = v?.name
+
+    @TypeConverter
+    fun stringToWorkoutEndReason(v: String?): WorkoutEndReason? =
+        v?.let { WorkoutEndReason.valueOf(it) }
 }

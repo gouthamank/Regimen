@@ -9,6 +9,7 @@ import dev.gouthaman.regimen.domain.model.NewSetEntry
 import dev.gouthaman.regimen.domain.model.NewWorkoutExercise
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.Workout
+import dev.gouthaman.regimen.domain.model.WorkoutEndReason
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
@@ -72,7 +73,10 @@ class FinishWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(
+        workoutId: Long,
+        reason: WorkoutEndReason = WorkoutEndReason.MANUAL
+    ) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         // Guards against a redundant re-finish (e.g. a double-tap race) and against ever
         // clobbering a session that's being re-edited (EDITING always has endTime already set,
@@ -87,6 +91,7 @@ class FinishWorkoutUseCase @Inject constructor(
             w.copy(
                 endTime = now,
                 workoutStatus = WorkoutStatus.COMPLETE,
+                endReason = reason,
                 pausedAt = null,
                 accumulatedPausedMs = settledPaused,
                 restTimeEndAt = null,

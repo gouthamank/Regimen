@@ -8,5 +8,6 @@ data class UserPreferences(
     val dynamicColor: Boolean = true,
     val restDefaultSec: Int = 90,
     val restChimeEnabled: Boolean = true,
+    val maxWorkoutDuration: MaxWorkoutDuration = MaxWorkoutDuration.FOUR_HOURS,
     val onboarded: Boolean = false,
 )

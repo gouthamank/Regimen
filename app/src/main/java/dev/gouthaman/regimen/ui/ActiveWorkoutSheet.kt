@@ -417,6 +417,7 @@ private fun LiveWorkoutContent(
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     val restSetInvalidMessage = stringResource(R.string.workout_rest_set_invalid_snackbar)
     LaunchedEffect(Unit) {

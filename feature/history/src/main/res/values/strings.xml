@@ -29,6 +29,7 @@
         <item quantity="other">Exercises</item>
     </plurals>
     <string name="session_detail_duration_label">Duration</string>
+    <string name="session_detail_auto_ended_label">Auto-ended after reaching max workout time</string>
     <string name="session_detail_skipped_chip">Skipped</string>
     <string name="session_detail_no_sets_logged">No sets logged</string>
     <string name="session_detail_no_cardio_logged">No cardio logged</string>

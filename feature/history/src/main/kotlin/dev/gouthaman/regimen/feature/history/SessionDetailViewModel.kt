@@ -11,6 +11,7 @@ import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.model.WorkoutEndReason
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.EditWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
@@ -53,6 +54,8 @@ data class SessionDetailUiState(
     val endTime: Long? = null,
     val accumulatedPausedMs: Long = 0L,
     val note: String? = null,
+    /** True if the max-workout-time safety net auto-ended this session (Settings), not a manual Finish. */
+    val autoEnded: Boolean = false,
     val exercises: List<SessionExercise> = emptyList(),
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
@@ -110,6 +113,7 @@ class SessionDetailViewModel @Inject constructor(
                 endTime = workout.workout.endTime,
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 note = workout.workout.note?.takeIf { it.isNotBlank() },
+                autoEnded = workout.workout.endReason == WorkoutEndReason.TIMEOUT,
                 weightUnit = weightUnit,
                 distanceUnit = distanceUnit,
                 exercises = workout.exercises

@@ -90,3 +90,12 @@ val MIGRATION_5_6 = Migration(5, 6) { db ->
 val MIGRATION_6_7 = Migration(6, 7) { db ->
     db.execSQL("ALTER TABLE `workout_exercises` ADD COLUMN `isDone` INTEGER NOT NULL DEFAULT 0")
 }
+
+/**
+ * v7 -> v8: adds `workouts.endReason` (nullable, [dev.gouthaman.regimen.domain.model.WorkoutEndReason]
+ * as string) - distinguishes a manual Finish from an auto-end triggered by the max-workout-time
+ * safety net. Plain `ADD COLUMN`, same reasoning as MIGRATION_6_7.
+ */
+val MIGRATION_7_8 = Migration(7, 8) { db ->
+    db.execSQL("ALTER TABLE `workouts` ADD COLUMN `endReason` TEXT")
+}

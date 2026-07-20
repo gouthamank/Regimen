@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.domain.usecase.workout
 
+import dev.gouthaman.regimen.domain.model.WorkoutEndReason
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.FinishWorkoutUseCase
 import dev.gouthaman.regimen.testing.FakeClock
@@ -23,6 +24,21 @@ class FinishWorkoutUseCaseTest {
         val workout = repo.getWorkout(id)!!.workout
         assertEquals(WorkoutStatus.COMPLETE, workout.workoutStatus)
         assertEquals(10_000L, workout.endTime)
+        assertEquals(WorkoutEndReason.MANUAL, workout.endReason)
+    }
+
+    @Test
+    fun `a timeout-triggered finish records the TIMEOUT end reason`() = runTest {
+        val repo = FakeWorkoutRepository()
+        val clock = FakeClock(10_000L)
+        val id = repo.createWorkout(startTime = 1_000, routineId = null)
+        val useCase = FinishWorkoutUseCase(repo, clock)
+
+        useCase(id, WorkoutEndReason.TIMEOUT)
+
+        val workout = repo.getWorkout(id)!!.workout
+        assertEquals(WorkoutStatus.COMPLETE, workout.workoutStatus)
+        assertEquals(WorkoutEndReason.TIMEOUT, workout.endReason)
     }
 
     @Test

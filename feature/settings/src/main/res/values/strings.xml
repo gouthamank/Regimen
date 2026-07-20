@@ -11,6 +11,12 @@
     <string name="settings_rest_timer_default_headline">Rest timer default</string>
     <string name="settings_rest_timer_sound_headline">Rest timer sound</string>
     <string name="settings_rest_timer_sound_description">Chime when a rest period ends (vibration always on)</string>
+    <string name="settings_max_workout_time_headline">Max workout time</string>
+    <string name="settings_max_workout_time_description">Automatically ends a workout that\'s been running this long, in case you forgot to finish it</string>
+    <string name="max_workout_time_off">Off</string>
+    <string name="max_workout_time_4h">4 hours</string>
+    <string name="max_workout_time_6h">6 hours</string>
+    <string name="max_workout_time_8h">8 hours</string>
     <string name="settings_library_data_header">Library &amp; data</string>
     <string name="settings_exercise_library_headline">Exercise library</string>
     <string name="settings_exercise_library_description">Browse and add exercises</string>

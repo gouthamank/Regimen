@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.domain.usecase
 
+import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
@@ -23,5 +24,6 @@ class UpdatePreferencesUseCase @Inject constructor(
     suspend fun setDynamicColor(value: Boolean) = repo.setDynamicColor(value)
     suspend fun setRestDefaultSec(value: Int) = repo.setRestDefaultSec(value)
     suspend fun setRestChimeEnabled(value: Boolean) = repo.setRestChimeEnabled(value)
+    suspend fun setMaxWorkoutDuration(value: MaxWorkoutDuration) = repo.setMaxWorkoutDuration(value)
     suspend fun setOnboarded(value: Boolean) = repo.setOnboarded(value)
 }
