@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -68,7 +69,11 @@ fun AddMeasurementSheet(
     val parsedValue = value.trim().toDoubleOrNull()
     val canSave = parsedValue != null
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.imePadding(),
+    ) {
         // Form fields get weight(1f, fill = false) so Save stays pinned below without forcing
         // full sheet height - in compact landscape the form scrolls internally instead of pushing
         // Save off-screen with nothing left to scroll it back into view.

@@ -3,6 +3,7 @@ package dev.gouthaman.regimen.designsystem.dialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,7 +57,11 @@ fun ExercisePickerSheet(
     // Keep selected items visible even if a later search query would otherwise filter them out.
     val visible = exercises.filter { it.matchesSearch(query) || it.id in selected }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = modifier) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = modifier.imePadding(),
+    ) {
         // List gets weight(1f, fill = false) so header/footer stay pinned outside it without
         // forcing full sheet height - a fixed heightIn cap instead could let header + list-cap +
         // footer exceed the sheet's available height, pushing Save off-screen with nothing left

@@ -5,12 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.PrecisionManufacturing
-import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -53,7 +53,7 @@ internal fun equipmentIcon(equipment: Equipment) = when (equipment) {
     Equipment.BARBELL, Equipment.DUMBBELL, Equipment.KETTLEBELL -> Icons.Filled.FitnessCenter
     Equipment.MACHINE -> Icons.Filled.PrecisionManufacturing
     Equipment.CABLE -> Icons.Filled.Cable
-    Equipment.BODYWEIGHT -> Icons.Filled.SelfImprovement
+    Equipment.BODYWEIGHT -> Icons.Filled.AccessibilityNew
     Equipment.CARDIO_MACHINE -> Icons.Filled.DirectionsRun
     Equipment.OTHER -> Icons.Filled.Category
 }
