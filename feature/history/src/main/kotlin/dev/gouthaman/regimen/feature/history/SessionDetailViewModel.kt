@@ -12,6 +12,7 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WorkoutEndReason
+import dev.gouthaman.regimen.domain.model.loggedVolumeKg
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.EditWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
@@ -20,6 +21,8 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.RepeatWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
+import dev.gouthaman.regimen.domain.util.UnitConverter
+import dev.gouthaman.regimen.domain.util.UnitLabel
 import dev.gouthaman.regimen.navigation.SessionDetailRoute
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +46,10 @@ data class SessionExercise(
     val cardio: List<CardioEntry>,
 )
 
+/** A formatted value + its unit label (e.g. displayValue="1,250", unitLabel=UnitLabel.KG), kept
+ * structured so the Composable can localize the "value unit" template at render time. */
+data class WeightValue(val displayValue: String, val unitLabel: UnitLabel)
+
 /** Null routineName means it was a freeform/"Quick workout" session, not that it isn't loaded yet
  * (SessionDetailUiState.loaded distinguishes that) - resolved to display text by the Composable. */
 data class SessionDetailUiState(
@@ -56,6 +63,9 @@ data class SessionDetailUiState(
     val note: String? = null,
     /** True if the max-workout-time safety net auto-ended this session (Settings), not a manual Finish. */
     val autoEnded: Boolean = false,
+    /** Null when no completed set carried a load (bodyweight-only or cardio-only session) - the
+     * Composable hides the volume stat rather than showing a meaningless "0 kg". */
+    val volume: WeightValue? = null,
     val exercises: List<SessionExercise> = emptyList(),
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
@@ -114,6 +124,17 @@ class SessionDetailViewModel @Inject constructor(
                 accumulatedPausedMs = workout.workout.accumulatedPausedMs,
                 note = workout.workout.note?.takeIf { it.isNotBlank() },
                 autoEnded = workout.workout.endReason == WorkoutEndReason.TIMEOUT,
+                volume = workout.exercises
+                    .flatMap { it.sets }
+                    .takeIf { sets -> sets.any { it.isComplete && it.weightKg != null } }
+                    ?.let {
+                        WeightValue(
+                            displayValue = UnitConverter.formatCompact(
+                                UnitConverter.kgToDisplay(workout.loggedVolumeKg(), weightUnit)
+                            ),
+                            unitLabel = UnitConverter.weightLabel(weightUnit),
+                        )
+                    },
                 weightUnit = weightUnit,
                 distanceUnit = distanceUnit,
                 exercises = workout.exercises

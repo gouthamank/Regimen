@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Schedule
@@ -58,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.common.sessionRowTransitionKey
+import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
@@ -349,6 +351,17 @@ private fun SessionSummaryCard(uiState: SessionDetailUiState) {
                     ),
                     label = stringResource(R.string.session_detail_duration_label),
                 )
+                if (uiState.volume != null) {
+                    SessionStat(
+                        icon = Icons.Filled.MonitorWeight,
+                        value = stringResource(
+                            R.string.session_detail_volume_value_label,
+                            uiState.volume.displayValue,
+                            uiState.volume.unitLabel.text(),
+                        ),
+                        label = stringResource(R.string.session_detail_volume_label),
+                    )
+                }
             }
             if (uiState.note != null) {
                 HorizontalDivider(
