@@ -18,9 +18,9 @@ import org.junit.Test
 class GetPersonalRecordsUseCaseTest {
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val pushUp =
-        Exercise(2, "Push Up", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BODYWEIGHT)
+        Exercise("2", "Push Up", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BODYWEIGHT)
 
     @Test
     fun `weight and reps records are merged and sorted with heaviest first`() = runTest {

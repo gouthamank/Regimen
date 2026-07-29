@@ -65,7 +65,7 @@ import java.time.temporal.WeekFields
 fun HistoryScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onOpenSession: (Long) -> Unit,
+    onOpenSession: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
@@ -89,7 +89,7 @@ fun HistoryScreen(
     uiState: HistoryUiState,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onOpenSession: (Long) -> Unit,
+    onOpenSession: (String) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
 ) {

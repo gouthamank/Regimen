@@ -10,7 +10,7 @@ package dev.gouthaman.regimen.common
 
 /** Links a Routines row's card to the Routine Editor screen's root container for that same
  * routine, so Editor expands from the tapped card when editing an existing routine. */
-fun routineRowTransitionKey(routineId: Long) = "routine-row-$routineId"
+fun routineRowTransitionKey(routineId: String) = "routine-row-$routineId"
 
 /** Links the Routines tab's "New routine" FAB to the Routine Editor screen's root container, so
  * Editor expands from the FAB when creating a new routine. One FAB is visible at a time, so -
@@ -19,7 +19,7 @@ const val routineCreateFabTransitionKey = "routine-create-fab"
 
 /** Links a Library row's card to the Exercise Detail screen's root container for that same
  * exercise, so Detail expands from the tapped card. */
-fun exerciseRowTransitionKey(exerciseId: Long) = "exercise-row-$exerciseId"
+fun exerciseRowTransitionKey(exerciseId: String) = "exercise-row-$exerciseId"
 
 /** Links Settings' "Exercise Library" row to the Exercise Library screen's root container -
  * Settings is Library's only entry point, so this is applied unconditionally. */
@@ -27,7 +27,7 @@ const val exerciseLibraryFromSettingsTransitionKey = "exercise-library-from-sett
 
 /** Links a Measurements row's card to the Measurement Detail screen's root container for that
  * same measurement type, so Detail expands from the tapped card. */
-fun measurementRowTransitionKey(typeId: Long) = "measurement-row-$typeId"
+fun measurementRowTransitionKey(typeId: String) = "measurement-row-$typeId"
 
 /** Shared-element key for the "Add entry" FAB, present (identically) on both Measurements and
  * Measurement Detail. Without this, the FAB has no identity across the transition and just gets
@@ -47,4 +47,4 @@ const val measurementsFromProgressTransitionKey = "measurements-from-progress"
  * it was tapped instead of sliding in. Days with more than one session open a picker dialog
  * instead - dialogs run in their own window and can't participate in the shared-element
  * transform, so that path keeps the default transition. */
-fun sessionRowTransitionKey(workoutId: Long) = "session-row-$workoutId"
+fun sessionRowTransitionKey(workoutId: String) = "session-row-$workoutId"

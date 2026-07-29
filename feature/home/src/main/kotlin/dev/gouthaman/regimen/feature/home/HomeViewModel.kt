@@ -36,7 +36,7 @@ import javax.inject.Inject
 
 /** A routine offered as a quick-start chip. */
 data class QuickStartRoutine(
-    val routineId: Long,
+    val routineId: String,
     val name: String,
 )
 
@@ -87,8 +87,8 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     // In-progress workout ids to navigate to (one-shot; buffered so the event isn't lost).
-    private val startedWorkouts = Channel<Long>(Channel.BUFFERED)
-    val startedWorkout: Flow<Long> = startedWorkouts.receiveAsFlow()
+    private val startedWorkouts = Channel<String>(Channel.BUFFERED)
+    val startedWorkout: Flow<String> = startedWorkouts.receiveAsFlow()
 
     // Bodyweight is the built-in measurement type, resolved dynamically since it's a seeded row,
     // not a fixed id - no type yet (fresh install) means an empty trend.
@@ -113,7 +113,7 @@ class HomeViewModel @Inject constructor(
      * Opens the active workout: resumes one already in progress (single-active - avoids
      * orphaning a session), or starts a new one from [routineId] (null = freeform).
      */
-    fun startWorkout(routineId: Long?) {
+    fun startWorkout(routineId: String?) {
         viewModelScope.launch {
             val id = getInProgressWorkoutId() ?: startWorkoutUseCase(routineId)
             // The Start Workout button hides as the ActiveWorkoutSheet's collapsed banner mounts,
@@ -140,7 +140,7 @@ class HomeViewModel @Inject constructor(
         val system = prefs.weightUnit
 
         // Order quick-start chips by most-recently-used routine, then by manual position.
-        val lastUsed: Map<Long, Long> = history
+        val lastUsed: Map<String, Long> = history
             .mapNotNull { w -> w.workout.routineId?.let { it to w.workout.startTime } }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, times) -> times.max() }

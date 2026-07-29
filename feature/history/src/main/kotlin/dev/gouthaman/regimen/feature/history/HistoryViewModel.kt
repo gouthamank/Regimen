@@ -24,7 +24,7 @@ import javax.inject.Inject
  * Null [routineName] means it was a freeform/"Quick workout" session - resolved to display text by
  * the Composable. */
 data class DaySession(
-    val workoutId: Long,
+    val workoutId: String,
     val routineName: String?,
     val startMillis: Long,
 ) : Serializable

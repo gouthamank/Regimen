@@ -16,16 +16,16 @@ class FakeMeasurementRepository : MeasurementRepository {
 
     override fun observeTypes(): Flow<List<MeasurementType>> = types
 
-    override fun observeMetrics(typeId: Long): Flow<List<BodyMetric>> =
+    override fun observeMetrics(typeId: String): Flow<List<BodyMetric>> =
         metrics.map { list -> list.filter { it.measurementTypeId == typeId }.sortedBy { it.date } }
 
-    override fun observeLatest(typeId: Long): Flow<BodyMetric?> =
+    override fun observeLatest(typeId: String): Flow<BodyMetric?> =
         metrics.map { list ->
             list.filter { it.measurementTypeId == typeId }.maxByOrNull { it.date }
         }
 
-    override suspend fun addType(name: String, unit: String): Long {
-        val id = nextTypeId++
+    override suspend fun addType(name: String, unit: String): String {
+        val id = (nextTypeId++).toString()
         types.value = types.value + MeasurementType(id = id, name = name, unit = unit)
         return id
     }
@@ -35,8 +35,8 @@ class FakeMeasurementRepository : MeasurementRepository {
         metrics.value = metrics.value.filterNot { it.measurementTypeId == type.id }
     }
 
-    override suspend fun addMetric(typeId: Long, date: Long, value: Double): Long {
-        val id = nextMetricId++
+    override suspend fun addMetric(typeId: String, date: Long, value: Double): String {
+        val id = (nextMetricId++).toString()
         metrics.value = metrics.value + BodyMetric(
             id = id,
             measurementTypeId = typeId,
@@ -52,11 +52,11 @@ class FakeMeasurementRepository : MeasurementRepository {
 
     fun seedTypes(vararg seeded: MeasurementType) {
         types.value = seeded.toList()
-        nextTypeId = (seeded.maxOfOrNull { it.id } ?: 0) + 1
+        nextTypeId = (seeded.mapNotNull { it.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
     }
 
     fun seedMetrics(vararg seeded: BodyMetric) {
         metrics.value = seeded.toList()
-        nextMetricId = (seeded.maxOfOrNull { it.id } ?: 0) + 1
+        nextMetricId = (seeded.mapNotNull { it.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
     }
 }

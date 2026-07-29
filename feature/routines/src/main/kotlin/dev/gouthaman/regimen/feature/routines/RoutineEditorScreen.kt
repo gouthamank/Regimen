@@ -110,10 +110,10 @@ fun RoutineEditorScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onNameChange: (String) -> Unit,
-    onAddExercises: (List<Long>) -> Unit,
+    onAddExercises: (List<String>) -> Unit,
     onCreateCustomExercise: () -> Unit,
     onRemove: (Int) -> Unit,
-    onReorder: (orderedExerciseIds: List<Long>) -> Unit,
+    onReorder: (orderedExerciseIds: List<String>) -> Unit,
     onSetsChange: (Int, Int) -> Unit,
     onRepsChange: (Int, Int) -> Unit,
     onRestChange: (Int, Int) -> Unit,
@@ -125,7 +125,7 @@ fun RoutineEditorScreen(
 
     // Expands from the tapped Routines row when editing, or from the "New routine" FAB when
     // creating (see RoutinesScreen's RoutineCard / FAB) via the shared-bounds container transform.
-    val transitionKey = if (uiState.routineId != 0L) {
+    val transitionKey = if (uiState.routineId.isNotEmpty()) {
         routineRowTransitionKey(uiState.routineId)
     } else {
         routineCreateFabTransitionKey

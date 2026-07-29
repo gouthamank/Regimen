@@ -22,7 +22,7 @@ class GetWorkoutFrequencyUseCaseTest {
     private fun thisWeekMonday(): LocalDate =
         LocalDate.now(zone).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
-    private fun completedAt(id: Long, day: LocalDate) = WorkoutWithDetails(
+    private fun completedAt(id: String, day: LocalDate) = WorkoutWithDetails(
         workout = Workout(
             id = id,
             startTime = day.atTime(12, 0).atZone(zone).toInstant().toEpochMilli(),
@@ -36,7 +36,7 @@ class GetWorkoutFrequencyUseCaseTest {
     fun `four week range returns exactly four weeks ending at the current week`() = runTest {
         val repo = FakeWorkoutRepository()
         val monday = thisWeekMonday()
-        repo.seed(completedAt(1, monday), completedAt(2, monday.minusWeeks(1)))
+        repo.seed(completedAt("1", monday), completedAt("2", monday.minusWeeks(1)))
 
         GetWorkoutFrequencyUseCase(repo)(HistoryRange.FOUR_WEEKS).test {
             val weeks = awaitItem()
@@ -61,7 +61,7 @@ class GetWorkoutFrequencyUseCaseTest {
     fun `all range spans back to the earliest logged workout`() = runTest {
         val repo = FakeWorkoutRepository()
         val monday = thisWeekMonday()
-        repo.seed(completedAt(1, monday), completedAt(2, monday.minusWeeks(5)))
+        repo.seed(completedAt("1", monday), completedAt("2", monday.minusWeeks(5)))
 
         GetWorkoutFrequencyUseCase(repo)(HistoryRange.ALL).test {
             val weeks = awaitItem()

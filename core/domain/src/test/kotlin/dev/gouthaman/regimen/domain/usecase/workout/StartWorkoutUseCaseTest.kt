@@ -26,13 +26,13 @@ class StartWorkoutUseCaseTest {
 
     private val clock = FakeClock(1_000L)
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val squat =
-        Exercise(2, "Squat", ExerciseType.STRENGTH, MuscleGroup.LEGS, Equipment.BARBELL)
+        Exercise("2", "Squat", ExerciseType.STRENGTH, MuscleGroup.LEGS, Equipment.BARBELL)
 
     private fun routineWith(vararg exercises: Pair<Exercise, RoutineExercise>) =
         RoutineWithExercises(
-            routine = Routine(id = 1, name = "Push Day", position = 0),
+            routine = Routine(id = "1", name = "Push Day", position = 0),
             exercises = exercises.map { (exercise, routineExercise) ->
                 RoutineExerciseWithExercise(
                     routineExercise,
@@ -49,7 +49,7 @@ class StartWorkoutUseCaseTest {
 
         val id = useCase(null)
 
-        assertEquals(1L, id)
+        assertEquals("1", id)
         assertEquals(0, workoutRepo.getWorkout(id)?.exercises?.size)
     }
 
@@ -59,7 +59,7 @@ class StartWorkoutUseCaseTest {
         val routineRepo = FakeRoutineRepository()
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
-        val id = useCase(routineId = 42)
+        val id = useCase(routineId = "42")
 
         assertEquals(0, workoutRepo.getWorkout(id)?.exercises?.size)
     }
@@ -71,8 +71,8 @@ class StartWorkoutUseCaseTest {
         routineRepo.seed(
             routineWith(
                 benchPress to RoutineExercise(
-                    1,
-                    1,
+                    "1",
+                    "1",
                     benchPress.id,
                     0,
                     targetSets = 3,
@@ -83,7 +83,7 @@ class StartWorkoutUseCaseTest {
         )
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
-        val id = useCase(routineId = 1)
+        val id = useCase(routineId = "1")
 
         val details = workoutRepo.getWorkout(id)!!
         assertEquals(1, details.exercises.size)
@@ -103,8 +103,8 @@ class StartWorkoutUseCaseTest {
             routineRepo.seed(
                 routineWith(
                     benchPress to RoutineExercise(
-                        1,
-                        1,
+                        "1",
+                        "1",
                         benchPress.id,
                         0,
                         targetSets = 2,
@@ -114,11 +114,15 @@ class StartWorkoutUseCaseTest {
                 ),
             )
             workoutRepo.seed(
-                priorSessionFor(routineId = 1, exercise = benchPress, note = "Add 2.5kg next time"),
+                priorSessionFor(
+                    routineId = "1",
+                    exercise = benchPress,
+                    note = "Add 2.5kg next time"
+                ),
             )
             val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
-            val id = useCase(routineId = 1)
+            val id = useCase(routineId = "1")
 
             val details = workoutRepo.getWorkout(id)!!
             val sets = details.exercises[0].sets.sortedBy { it.setNumber }
@@ -134,12 +138,12 @@ class StartWorkoutUseCaseTest {
         val workoutRepo = FakeWorkoutRepository()
         val routineRepo = FakeRoutineRepository()
         routineRepo.seed(
-            routineWith(benchPress to RoutineExercise(1, 1, benchPress.id, 0, 2, 8, 90)),
+            routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
         )
-        workoutRepo.seed(priorSessionFor(routineId = 1, exercise = benchPress, note = "   "))
+        workoutRepo.seed(priorSessionFor(routineId = "1", exercise = benchPress, note = "   "))
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
-        val id = useCase(routineId = 1)
+        val id = useCase(routineId = "1")
 
         assertNull(workoutRepo.getWorkout(id)!!.workout.note)
     }
@@ -151,8 +155,8 @@ class StartWorkoutUseCaseTest {
         routineRepo.seed(
             routineWith(
                 benchPress to RoutineExercise(
-                    1,
-                    1,
+                    "1",
+                    "1",
                     benchPress.id,
                     0,
                     targetSets = 0,
@@ -163,13 +167,13 @@ class StartWorkoutUseCaseTest {
         )
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
-        val id = useCase(routineId = 1)
+        val id = useCase(routineId = "1")
 
         assertEquals(1, workoutRepo.getWorkout(id)!!.exercises[0].sets.size)
     }
 
     private suspend fun priorSessionFor(
-        routineId: Long,
+        routineId: String,
         exercise: Exercise,
         note: String?
     ): WorkoutWithDetails {
@@ -210,13 +214,13 @@ class StartWorkoutUseCaseTest {
         val routineRepo = FakeRoutineRepository()
         routineRepo.seed(
             routineWith(
-                squat to RoutineExercise(2, 1, squat.id, 1, 3, 5, 120),
-                benchPress to RoutineExercise(1, 1, benchPress.id, 0, 3, 8, 90),
+                squat to RoutineExercise("2", "1", squat.id, 1, 3, 5, 120),
+                benchPress to RoutineExercise("1", "1", benchPress.id, 0, 3, 8, 90),
             ),
         )
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
-        val id = useCase(routineId = 1)
+        val id = useCase(routineId = "1")
 
         val details = workoutRepo.getWorkout(id)!!
         assertTrue(details.exercises[0].exercise.id == benchPress.id)

@@ -24,7 +24,7 @@ class GetPersonalRecordsUseCase @Inject constructor(
 ) {
     /** [excludingWorkoutId], if given, leaves that workout's own sets out of the "best" - used to
      * find the record a just-finished session needs to beat, not merely tie, to count as new. */
-    operator fun invoke(excludingWorkoutId: Long? = null): Flow<List<PersonalRecord>> =
+    operator fun invoke(excludingWorkoutId: String? = null): Flow<List<PersonalRecord>> =
         combine(
             workoutRepo.observePersonalRecords(excludingWorkoutId),
             workoutRepo.observeBestReps(excludingWorkoutId),

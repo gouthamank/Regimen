@@ -13,44 +13,44 @@ import kotlinx.coroutines.flow.Flow
 
 interface WorkoutRepository {
     fun observeCompleted(): Flow<List<WorkoutWithDetails>>
-    fun observeWorkout(id: Long): Flow<WorkoutWithDetails?>
+    fun observeWorkout(id: String): Flow<WorkoutWithDetails?>
     fun observeCompletedBetween(start: Long, end: Long): Flow<List<Workout>>
 
-    fun observeInProgressId(): Flow<Long?>
-    fun observeBestWeight(exerciseId: Long): Flow<Double?>
-    fun observePersonalRecords(excludingWorkoutId: Long? = null): Flow<List<PersonalRecordRow>>
-    fun observeBestReps(excludingWorkoutId: Long? = null): Flow<List<RepsRecordRow>>
-    fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>>
+    fun observeInProgressId(): Flow<String?>
+    fun observeBestWeight(exerciseId: String): Flow<Double?>
+    fun observePersonalRecords(excludingWorkoutId: String? = null): Flow<List<PersonalRecordRow>>
+    fun observeBestReps(excludingWorkoutId: String? = null): Flow<List<RepsRecordRow>>
+    fun observeExerciseHistory(exerciseId: String): Flow<List<ExerciseHistorySession>>
 
     suspend fun getInProgress(): WorkoutWithDetails?
-    suspend fun getWorkout(id: Long): WorkoutWithDetails?
-    suspend fun getMostRecentForRoutine(routineId: Long): WorkoutWithDetails?
+    suspend fun getWorkout(id: String): WorkoutWithDetails?
+    suspend fun getMostRecentForRoutine(routineId: String): WorkoutWithDetails?
 
-    suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry?
+    suspend fun getMostRecentSetForExercise(exerciseId: String): SetEntry?
 
-    suspend fun isExerciseUsed(exerciseId: Long): Boolean
+    suspend fun isExerciseUsed(exerciseId: String): Boolean
 
-    suspend fun createWorkout(startTime: Long, routineId: Long?): Long
+    suspend fun createWorkout(startTime: Long, routineId: String?): String
 
     /** Atomically creates a workout with all its exercises and prefilled sets in one transaction,
      * instead of the caller awaiting a separate DB round trip per exercise/set. */
     suspend fun startWorkout(
         startTime: Long,
-        routineId: Long?,
+        routineId: String?,
         note: String?,
         exercises: List<NewWorkoutExercise>,
-    ): Long
+    ): String
 
     suspend fun updateWorkout(workout: Workout)
     suspend fun deleteWorkout(workout: Workout)
 
-    suspend fun addExercise(item: WorkoutExercise): Long
+    suspend fun addExercise(item: WorkoutExercise): String
     suspend fun updateExercise(item: WorkoutExercise)
     suspend fun removeExercise(item: WorkoutExercise)
 
-    suspend fun upsertSet(set: SetEntry): Long
+    suspend fun upsertSet(set: SetEntry): String
     suspend fun deleteSet(set: SetEntry)
 
-    suspend fun upsertCardio(cardio: CardioEntry): Long
+    suspend fun upsertCardio(cardio: CardioEntry): String
     suspend fun deleteCardio(cardio: CardioEntry)
 }

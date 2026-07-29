@@ -44,15 +44,15 @@ import dev.gouthaman.regimen.domain.model.matchesSearch
 @Composable
 fun ExercisePickerSheet(
     exercises: List<Exercise>,
-    onConfirm: (List<Long>) -> Unit,
+    onConfirm: (List<String>) -> Unit,
     onDismiss: () -> Unit,
     onCreateCustom: () -> Unit,
     modifier: Modifier = Modifier,
-    initiallySelected: Set<Long> = emptySet(),
+    initiallySelected: Set<String> = emptySet(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
-    val selected = remember { mutableStateListOf<Long>().apply { addAll(initiallySelected) } }
+    val selected = remember { mutableStateListOf<String>().apply { addAll(initiallySelected) } }
 
     // Keep selected items visible even if a later search query would otherwise filter them out.
     val visible = exercises.filter { it.matchesSearch(query) || it.id in selected }

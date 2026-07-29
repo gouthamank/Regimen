@@ -24,6 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class WorkoutDaoTest {
@@ -50,57 +51,76 @@ class WorkoutDaoTest {
     private suspend fun insertExercise(
         name: String = "Bench Press",
         type: ExerciseType = ExerciseType.STRENGTH,
-    ): Long = exerciseDao.insert(
-        ExerciseEntity(
-            name = name,
-            type = type,
-            muscleGroup = MuscleGroup.CHEST,
-            equipment = Equipment.BARBELL
-        ),
-    )
+    ): String {
+        val id = UUID.randomUUID().toString()
+        exerciseDao.insert(
+            ExerciseEntity(
+                id = id,
+                name = name,
+                type = type,
+                muscleGroup = MuscleGroup.CHEST,
+                equipment = Equipment.BARBELL
+            ),
+        )
+        return id
+    }
 
     private suspend fun insertWorkout(
         startTime: Long,
         endTime: Long? = null,
-        routineId: Long? = null,
+        routineId: String? = null,
         workoutStatus: WorkoutStatus = if (endTime != null) WorkoutStatus.COMPLETE else WorkoutStatus.IN_PROGRESS,
-    ): Long = workoutDao.insertWorkout(
-        WorkoutEntity(
-            startTime = startTime,
-            endTime = endTime,
-            routineId = routineId,
-            workoutStatus = workoutStatus,
-        ),
-    )
+    ): String {
+        val id = UUID.randomUUID().toString()
+        workoutDao.insertWorkout(
+            WorkoutEntity(
+                id = id,
+                startTime = startTime,
+                endTime = endTime,
+                routineId = routineId,
+                workoutStatus = workoutStatus,
+            ),
+        )
+        return id
+    }
 
     private suspend fun insertWorkoutExercise(
-        workoutId: Long,
-        exerciseId: Long,
+        workoutId: String,
+        exerciseId: String,
         position: Int = 0
-    ): Long =
+    ): String {
+        val id = UUID.randomUUID().toString()
         workoutDao.insertWorkoutExercise(
             WorkoutExerciseEntity(
+                id = id,
                 workoutId = workoutId,
                 exerciseId = exerciseId,
                 position = position
             ),
         )
+        return id
+    }
 
     private suspend fun insertSet(
-        workoutExerciseId: Long,
+        workoutExerciseId: String,
         setNumber: Int,
         weightKg: Double? = null,
         reps: Int? = null,
         isComplete: Boolean = true,
-    ): Long = workoutDao.upsertSet(
-        SetEntryEntity(
-            workoutExerciseId = workoutExerciseId,
-            setNumber = setNumber,
-            weightKg = weightKg,
-            reps = reps,
-            isComplete = isComplete,
-        ),
-    )
+    ): String {
+        val id = UUID.randomUUID().toString()
+        workoutDao.upsertSet(
+            SetEntryEntity(
+                id = id,
+                workoutExerciseId = workoutExerciseId,
+                setNumber = setNumber,
+                weightKg = weightKg,
+                reps = reps,
+                isComplete = isComplete,
+            ),
+        )
+        return id
+    }
 
     @Test
     fun observeBestWeight_returnsHeaviestCompletedSet() = runTest {
@@ -372,7 +392,8 @@ class WorkoutDaoTest {
 
     @Test
     fun getMostRecentCompletedForRoutine_ignoresRoutinesWithoutAFinishedSession() = runTest {
-        val routineId = routineDao.insertRoutine(RoutineEntity(name = "Push Day", position = 0))
+        val routineId = UUID.randomUUID().toString()
+        routineDao.insertRoutine(RoutineEntity(id = routineId, name = "Push Day", position = 0))
         insertWorkout(startTime = 1_000, endTime = null, routineId = routineId)
 
         assertNull(workoutDao.getMostRecentCompletedForRoutine(routineId))
@@ -380,7 +401,8 @@ class WorkoutDaoTest {
 
     @Test
     fun getMostRecentCompletedForRoutine_picksTheLatestFinishedSession() = runTest {
-        val routineId = routineDao.insertRoutine(RoutineEntity(name = "Push Day", position = 0))
+        val routineId = UUID.randomUUID().toString()
+        routineDao.insertRoutine(RoutineEntity(id = routineId, name = "Push Day", position = 0))
         insertWorkout(startTime = 1_000, endTime = 1_500, routineId = routineId)
         val latest = insertWorkout(startTime = 5_000, endTime = 5_500, routineId = routineId)
 
@@ -389,7 +411,8 @@ class WorkoutDaoTest {
 
     @Test
     fun getMostRecentCompletedForRoutine_includesEditingStatusWorkoutsWithEndTimeSet() = runTest {
-        val routineId = routineDao.insertRoutine(RoutineEntity(name = "Push Day", position = 0))
+        val routineId = UUID.randomUUID().toString()
+        routineDao.insertRoutine(RoutineEntity(id = routineId, name = "Push Day", position = 0))
         val workoutId = insertWorkout(
             startTime = 1_000,
             endTime = 1_500,
@@ -420,7 +443,7 @@ class WorkoutDaoTest {
 
     @Test
     fun observeWorkout_returnsNullForAMissingId() = runTest {
-        workoutDao.observeWorkout(999).test {
+        workoutDao.observeWorkout("missing").test {
             assertNull(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -451,6 +474,7 @@ class WorkoutDaoTest {
         val cardioWe = insertWorkoutExercise(workoutId, cardioId, 1)
         workoutDao.upsertCardio(
             CardioEntryEntity(
+                id = UUID.randomUUID().toString(),
                 workoutExerciseId = cardioWe,
                 durationSec = 600,
                 distanceMeters = 2_000.0
@@ -470,7 +494,7 @@ class WorkoutDaoTest {
 
     @Test
     fun getWorkoutWithDetails_returnsNullForAMissingId() = runTest {
-        assertNull(workoutDao.getWorkoutWithDetails(999))
+        assertNull(workoutDao.getWorkoutWithDetails("missing"))
     }
 
     @Test

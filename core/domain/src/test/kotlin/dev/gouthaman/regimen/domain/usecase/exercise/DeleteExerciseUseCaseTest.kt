@@ -22,7 +22,7 @@ import org.junit.Test
 class DeleteExerciseUseCaseTest {
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
 
     @Test
     fun `an exercise used by no routine or workout is deleted`() = runTest {
@@ -44,10 +44,10 @@ class DeleteExerciseUseCaseTest {
         val routineRepo = FakeRoutineRepository()
         routineRepo.seed(
             RoutineWithExercises(
-                routine = Routine(1, "Push Day", 0),
+                routine = Routine("1", "Push Day", 0),
                 exercises = listOf(
                     RoutineExerciseWithExercise(
-                        RoutineExercise(1, 1, benchPress.id, 0, 3, 8, 90),
+                        RoutineExercise("1", "1", benchPress.id, 0, 3, 8, 90),
                         benchPress
                     ),
                 ),

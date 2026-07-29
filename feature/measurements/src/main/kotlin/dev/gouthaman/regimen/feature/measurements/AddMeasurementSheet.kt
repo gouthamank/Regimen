@@ -51,8 +51,8 @@ fun AddMeasurementSheet(
     types: List<MeasurementType>,
     weightUnit: UnitSystem,
     onDismiss: () -> Unit,
-    onSave: (typeId: Long, date: Long, displayValue: Double) -> Unit,
-    fixedTypeId: Long? = null,
+    onSave: (typeId: String, date: Long, displayValue: Double) -> Unit,
+    fixedTypeId: String? = null,
 ) {
     if (types.isEmpty()) return
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

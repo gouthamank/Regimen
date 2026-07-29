@@ -19,16 +19,16 @@ interface ExerciseDao {
     fun observeByType(type: ExerciseType): Flow<List<ExerciseEntity>>
 
     @Query("SELECT * FROM exercises WHERE id = :id")
-    fun observeById(id: Long): Flow<ExerciseEntity?>
+    fun observeById(id: String): Flow<ExerciseEntity?>
 
     @Query("SELECT * FROM exercises WHERE id = :id")
-    suspend fun getById(id: Long): ExerciseEntity?
+    suspend fun getById(id: String): ExerciseEntity?
 
     @Query("SELECT COUNT(*) FROM exercises")
     suspend fun count(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(exercise: ExerciseEntity): Long
+    suspend fun insert(exercise: ExerciseEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(exercises: List<ExerciseEntity>)

@@ -11,11 +11,11 @@ enum class WorkoutEndReason { MANUAL, TIMEOUT }
 
 /** An actual workout performed on a date. Created from a routine, or freeform (routineId null). */
 data class Workout(
-    val id: Long = 0,
+    val id: String = "",
     val startTime: Long,
     val endTime: Long? = null,
     val note: String? = null,
-    val routineId: Long? = null,
+    val routineId: String? = null,
     val workoutStatus: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
     val endReason: WorkoutEndReason? = null,
     // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
@@ -25,25 +25,25 @@ data class Workout(
     // Rest countdown - all three non-null only while workoutStatus == IN_REST_TIME.
     val restTimeEndAt: Long? = null,
     val restTotalSec: Int? = null,
-    val restWorkoutExerciseId: Long? = null,
+    val restWorkoutExerciseId: String? = null,
 )
 
 data class WorkoutExercise(
-    val id: Long = 0,
-    val workoutId: Long,
-    val exerciseId: Long,
+    val id: String = "",
+    val workoutId: String,
+    val exerciseId: String,
     val position: Int,
     val isSkipped: Boolean = false,
     // True once every set is logged and checked complete (or auto-set when the last one is,
     // whether via checkbox or rest-timer completion) - collapses the card until Edit reopens it.
     val isDone: Boolean = false,
-    val supersetGroupId: Long? = null,
+    val supersetGroupId: String? = null,
 )
 
 /** One logged set of a strength exercise. Weight stored canonically in kg. */
 data class SetEntry(
-    val id: Long = 0,
-    val workoutExerciseId: Long,
+    val id: String = "",
+    val workoutExerciseId: String,
     val setNumber: Int,
     val weightKg: Double? = null,
     val reps: Int? = null,
@@ -53,7 +53,7 @@ data class SetEntry(
 /** One exercise, with its prefilled sets/cardio, to seed a new workout with - see
  * [dev.gouthaman.regimen.domain.repository.WorkoutRepository.startWorkout]. */
 data class NewWorkoutExercise(
-    val exerciseId: Long,
+    val exerciseId: String,
     val position: Int,
     val sets: List<NewSetEntry> = emptyList(),
     val cardio: NewCardioEntry? = null,
@@ -75,8 +75,8 @@ data class NewCardioEntry(
 
 /** A logged cardio bout. Distance stored canonically in meters. */
 data class CardioEntry(
-    val id: Long = 0,
-    val workoutExerciseId: Long,
+    val id: String = "",
+    val workoutExerciseId: String,
     val durationSec: Long,
     val distanceMeters: Double? = null,
 )
@@ -103,13 +103,13 @@ fun WorkoutWithDetails.loggedVolumeKg(): Double = exercises.sumOf { we ->
 
 /** Aggregate result: heaviest weight lifted per exercise (the PR definition). */
 data class PersonalRecordRow(
-    val exerciseId: Long,
+    val exerciseId: String,
     val bestWeightKg: Double,
 )
 
 /** Aggregate result: best reps in a single set for bodyweight exercises - PR definition when there's no [PersonalRecordRow]. */
 data class RepsRecordRow(
-    val exerciseId: Long,
+    val exerciseId: String,
     val bestReps: Int,
 )
 

@@ -12,7 +12,7 @@ import dev.gouthaman.regimen.domain.model.MeasurementType
 /** A body-measurement type. "Bodyweight" is built-in; users add custom types. */
 @Entity(tableName = "measurement_types")
 data class MeasurementTypeEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val unit: String,
     val isBuiltIn: Boolean = false,
@@ -37,8 +37,8 @@ fun MeasurementType.toEntity(): MeasurementTypeEntity =
     indices = [Index("measurementTypeId")],
 )
 data class BodyMetricEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val measurementTypeId: Long,
+    @PrimaryKey val id: String,
+    val measurementTypeId: String,
     val date: Long,
     val value: Double,
 )

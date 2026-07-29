@@ -99,3 +99,39 @@ val MIGRATION_6_7 = Migration(6, 7) { db ->
 val MIGRATION_7_8 = Migration(7, 8) { db ->
     db.execSQL("ALTER TABLE `workouts` ADD COLUMN `endReason` TEXT")
 }
+
+/**
+ * v8 -> v9: swaps every entity's autoincrement `Long` primary key (and every FK column pointing at
+ * one) for a client-generated UUID `String` - a prerequisite for any real multi-device sync
+ * (see docs/todo-remote-sync.md). Two offline devices can independently generate the same next
+ * autoincrement id; they can't independently generate the same UUID.
+ *
+ * Rebuilds every table (new UUID-keyed shape, not a plain `ALTER TABLE`) and walks existing rows
+ * in FK dependency order - parents first (`exercises`/`routines`/`measurement_types`), then their
+ * children (`routine_exercises`/`workouts`/`body_metrics`), then `workout_exercises`, then
+ * `set_entries`/`cardio_entries` - generating a UUID per old row and remapping every FK column via
+ * an old-`Long`-id -> new-UUID map for that entity, built while that entity's own table is copied.
+ *
+ * `workouts.restWorkoutExerciseId` is the one forward reference (a workout pointing at one of its
+ * own not-yet-migrated `workout_exercises` rows) - it's copied over as `NULL` in the initial
+ * `workouts` pass and patched in after `workout_exercises` (and its id map) exist.
+ *
+ * Built-in (seed) rows are the one exception to "fresh random UUID per row": `exercises` rows
+ * with `isCustom = 0` and the `measurement_types` row with `isBuiltIn = 1` are remapped to
+ * [BuiltInData.stableId]'s deterministic, name-derived id instead of a random one, so an
+ * upgrading install's "Bench Press" (etc.) ends up with the exact same id a fresh install's seed
+ * would assign it - required because future sync would still FK-reference built-ins by id even
+ * though the built-in rows themselves would never be synced.
+ */
+val MIGRATION_8_9 = Migration(8, 9) { db ->
+    val exerciseIdMap = migrateExercises8To9(db)
+    val measurementTypeIdMap = migrateMeasurementTypes8To9(db)
+    val routineIdMap = migrateRoutines8To9(db)
+    migrateRoutineExercises8To9(db, routineIdMap, exerciseIdMap)
+    val (workoutIdMap, pendingRest) = migrateWorkouts8To9(db, routineIdMap)
+    migrateBodyMetrics8To9(db, measurementTypeIdMap)
+    val workoutExerciseIdMap = migrateWorkoutExercises8To9(db, workoutIdMap, exerciseIdMap)
+    patchWorkoutsRestWorkoutExerciseId8To9(db, pendingRest, workoutExerciseIdMap)
+    migrateSetEntries8To9(db, workoutExerciseIdMap)
+    migrateCardioEntries8To9(db, workoutExerciseIdMap)
+}

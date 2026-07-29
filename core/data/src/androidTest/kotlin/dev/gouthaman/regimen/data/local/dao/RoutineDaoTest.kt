@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class RoutineDaoTest {
@@ -42,17 +43,25 @@ class RoutineDaoTest {
         db.close()
     }
 
-    private suspend fun insertExercise(name: String = "Bench Press"): Long = exerciseDao.insert(
-        ExerciseEntity(
-            name = name,
-            type = ExerciseType.STRENGTH,
-            muscleGroup = MuscleGroup.CHEST,
-            equipment = Equipment.BARBELL
-        ),
-    )
+    private suspend fun insertExercise(name: String = "Bench Press"): String {
+        val id = UUID.randomUUID().toString()
+        exerciseDao.insert(
+            ExerciseEntity(
+                id = id,
+                name = name,
+                type = ExerciseType.STRENGTH,
+                muscleGroup = MuscleGroup.CHEST,
+                equipment = Equipment.BARBELL
+            ),
+        )
+        return id
+    }
 
-    private suspend fun insertRoutine(name: String, position: Int): Long =
-        routineDao.insertRoutine(RoutineEntity(name = name, position = position))
+    private suspend fun insertRoutine(name: String, position: Int): String {
+        val id = UUID.randomUUID().toString()
+        routineDao.insertRoutine(RoutineEntity(id = id, name = name, position = position))
+        return id
+    }
 
     @Test
     fun observeRoutinesWithExercises_resolvesExercisesInPositionOrder() = runTest {
@@ -62,6 +71,7 @@ class RoutineDaoTest {
         routineDao.insertRoutineExercises(
             listOf(
                 RoutineExerciseEntity(
+                    id = UUID.randomUUID().toString(),
                     routineId = routineId,
                     exerciseId = squatId,
                     position = 1,
@@ -70,6 +80,7 @@ class RoutineDaoTest {
                     targetRestSec = 120
                 ),
                 RoutineExerciseEntity(
+                    id = UUID.randomUUID().toString(),
                     routineId = routineId,
                     exerciseId = benchId,
                     position = 0,
@@ -103,7 +114,7 @@ class RoutineDaoTest {
 
     @Test
     fun observeRoutine_returnsNullForAMissingId() = runTest {
-        routineDao.observeRoutine(999).test {
+        routineDao.observeRoutine("missing").test {
             assertNull(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -136,6 +147,7 @@ class RoutineDaoTest {
         routineDao.insertRoutineExercises(
             listOf(
                 RoutineExerciseEntity(
+                    id = UUID.randomUUID().toString(),
                     routineId = routineId,
                     exerciseId = exerciseId,
                     position = 0,
@@ -154,7 +166,7 @@ class RoutineDaoTest {
 
     @Test
     fun getRoutineWithExercises_returnsNullForAMissingId() = runTest {
-        assertNull(routineDao.getRoutineWithExercises(999))
+        assertNull(routineDao.getRoutineWithExercises("missing"))
     }
 
     @Test
@@ -179,6 +191,7 @@ class RoutineDaoTest {
         routineDao.insertRoutineExercises(
             listOf(
                 RoutineExerciseEntity(
+                    id = UUID.randomUUID().toString(),
                     routineId = routineId,
                     exerciseId = benchId,
                     position = 0,
@@ -193,6 +206,7 @@ class RoutineDaoTest {
             routineId,
             listOf(
                 RoutineExerciseEntity(
+                    id = UUID.randomUUID().toString(),
                     routineId = routineId,
                     exerciseId = squatId,
                     position = 0,
@@ -219,6 +233,7 @@ class RoutineDaoTest {
         routineDao.insertRoutineExercises(
             listOf(
                 RoutineExerciseEntity(
+                    id = UUID.randomUUID().toString(),
                     routineId = routineId,
                     exerciseId = exerciseId,
                     position = 0,

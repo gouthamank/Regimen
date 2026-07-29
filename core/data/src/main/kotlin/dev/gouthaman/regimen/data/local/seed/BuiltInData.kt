@@ -21,12 +21,28 @@ import dev.gouthaman.regimen.domain.model.MuscleGroup.CORE
 import dev.gouthaman.regimen.domain.model.MuscleGroup.FULL_BODY
 import dev.gouthaman.regimen.domain.model.MuscleGroup.LEGS
 import dev.gouthaman.regimen.domain.model.MuscleGroup.SHOULDERS
+import java.util.UUID
 
 /** Curated built-in library (~60 movements) shipped with the app. */
 object BuiltInData {
 
+    /** Deterministic (name-derived) UUID so a built-in row gets the identical id on every fresh
+     * install - required since future sync would FK-reference built-ins by id even though the
+     * built-in rows themselves wouldn't be synced (see docs/todo-remote-sync.md). Internal (not
+     * private) so [dev.gouthaman.regimen.data.local.migration.MIGRATION_8_9] can remap an existing
+     * install's built-in rows to this exact same id, rather than a fresh random one. */
+    internal fun stableId(seed: String): String =
+        UUID.nameUUIDFromBytes(seed.toByteArray()).toString()
+
     private fun ex(name: String, mg: MuscleGroup, eq: Equipment, type: ExerciseType = STRENGTH) =
-        ExerciseEntity(name = name, type = type, muscleGroup = mg, equipment = eq, isCustom = false)
+        ExerciseEntity(
+            id = stableId("exercise:$name"),
+            name = name,
+            type = type,
+            muscleGroup = mg,
+            equipment = eq,
+            isCustom = false,
+        )
 
     val exercises: List<ExerciseEntity> = listOf(
         ex("Barbell Bench Press", CHEST, BARBELL),
@@ -104,6 +120,11 @@ object BuiltInData {
 
     /** Built-in measurement type. Bodyweight is stored in kg canonically. */
     val measurementTypes: List<MeasurementTypeEntity> = listOf(
-        MeasurementTypeEntity(name = "Bodyweight", unit = "kg", isBuiltIn = true),
+        MeasurementTypeEntity(
+            id = stableId("measurementType:Bodyweight"),
+            name = "Bodyweight",
+            unit = "kg",
+            isBuiltIn = true,
+        ),
     )
 }

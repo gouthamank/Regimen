@@ -94,7 +94,10 @@ class WorkoutSummaryViewModel @Inject constructor(
                         sessionBestWeight != null &&
                                 (priorWeight == null || sessionBestWeight > priorWeight)
 
-                    val sessionBestReps = completedSets.mapNotNull { it.reps }.maxOrNull()
+                    // Reps-PR is bodyweight-only (matches priorBestReps' own definition) - a
+                    // weighted set's reps count toward the weight PR, not this one.
+                    val sessionBestReps = completedSets.filter { it.weightKg == null }
+                        .mapNotNull { it.reps }.maxOrNull()
                     val priorReps = priorBestReps[we.exercise.id]
                     val hitRepsPr =
                         sessionBestReps != null && (priorReps == null || sessionBestReps > priorReps)

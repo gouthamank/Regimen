@@ -32,11 +32,11 @@ import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
     indices = [Index("routineId")],
 )
 data class WorkoutEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val startTime: Long,
     val endTime: Long? = null,
     val note: String? = null,
-    val routineId: Long? = null,
+    val routineId: String? = null,
     val workoutStatus: WorkoutStatus = WorkoutStatus.IN_PROGRESS,
     val endReason: WorkoutEndReason? = null,
     // Session pause (S13): pausedAt non-null = currently paused (value = pause start time);
@@ -46,7 +46,7 @@ data class WorkoutEntity(
     // Rest countdown - all three non-null only while workoutStatus == IN_REST_TIME.
     val restTimeEndAt: Long? = null,
     val restTotalSec: Int? = null,
-    val restWorkoutExerciseId: Long? = null,
+    val restWorkoutExerciseId: String? = null,
 )
 
 fun WorkoutEntity.toDomain(): Workout = Workout(
@@ -98,13 +98,13 @@ fun Workout.toEntity(): WorkoutEntity = WorkoutEntity(
     indices = [Index("workoutId"), Index("exerciseId")],
 )
 data class WorkoutExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutId: Long,
-    val exerciseId: Long,
+    @PrimaryKey val id: String,
+    val workoutId: String,
+    val exerciseId: String,
     val position: Int,
     val isSkipped: Boolean = false,
     val isDone: Boolean = false,
-    val supersetGroupId: Long? = null,
+    val supersetGroupId: String? = null,
 )
 
 fun WorkoutExerciseEntity.toDomain(): WorkoutExercise = WorkoutExercise(
@@ -141,8 +141,8 @@ fun WorkoutExercise.toEntity(): WorkoutExerciseEntity = WorkoutExerciseEntity(
     indices = [Index("workoutExerciseId")],
 )
 data class SetEntryEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutExerciseId: Long,
+    @PrimaryKey val id: String,
+    val workoutExerciseId: String,
     val setNumber: Int,
     val weightKg: Double? = null,
     val reps: Int? = null,
@@ -181,8 +181,8 @@ fun SetEntry.toEntity(): SetEntryEntity = SetEntryEntity(
     indices = [Index("workoutExerciseId")],
 )
 data class CardioEntryEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutExerciseId: Long,
+    @PrimaryKey val id: String,
+    val workoutExerciseId: String,
     val durationSec: Long,
     val distanceMeters: Double? = null,
 )
@@ -238,7 +238,7 @@ fun WorkoutWithDetailsEntity.toDomain(): WorkoutWithDetails = WorkoutWithDetails
 
 /** Aggregate result: heaviest weight lifted per exercise (the PR definition). */
 data class PersonalRecordRowEntity(
-    val exerciseId: Long,
+    val exerciseId: String,
     val bestWeightKg: Double,
 )
 
@@ -247,7 +247,7 @@ fun PersonalRecordRowEntity.toDomain(): PersonalRecordRow =
 
 /** Aggregate result: best reps in a single set for bodyweight exercises - PR definition when there's no [PersonalRecordRowEntity]. */
 data class RepsRecordRowEntity(
-    val exerciseId: Long,
+    val exerciseId: String,
     val bestReps: Int,
 )
 

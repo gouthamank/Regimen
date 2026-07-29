@@ -23,27 +23,27 @@ data object SettingsRoute
 data object ExerciseLibraryRoute
 
 @Serializable
-data class ExerciseDetailRoute(val exerciseId: Long)
+data class ExerciseDetailRoute(val exerciseId: String)
 
 @Serializable
-data class EditExerciseRoute(val exerciseId: Long = 0L)
+data class EditExerciseRoute(val exerciseId: String = "")
 
 @Serializable
-data class RoutineEditorRoute(val routineId: Long = 0L)
+data class RoutineEditorRoute(val routineId: String = "")
 
 @Serializable
-data class SessionDetailRoute(val workoutId: Long)
+data class SessionDetailRoute(val workoutId: String)
 
 /** Reopens a finished session for editing (Session Detail's "Edit"). The live in-progress
  * workout isn't a NavHost destination at all - see ActiveWorkoutSheet in :app. */
 @Serializable
-data class EditWorkoutRoute(val workoutId: Long)
+data class EditWorkoutRoute(val workoutId: String)
 
 @Serializable
-data class WorkoutSummaryRoute(val workoutId: Long)
+data class WorkoutSummaryRoute(val workoutId: String)
 
 @Serializable
 data object MeasurementsRoute
 
 @Serializable
-data class MeasurementDetailRoute(val typeId: Long)
+data class MeasurementDetailRoute(val typeId: String)

@@ -16,7 +16,7 @@ class AddSetUseCaseTest {
         val repo = FakeWorkoutRepository()
         val workoutId = repo.createWorkout(startTime = 1_000, routineId = null)
         val weId =
-            repo.addExercise(WorkoutExercise(workoutId = workoutId, exerciseId = 1, position = 0))
+            repo.addExercise(WorkoutExercise(workoutId = workoutId, exerciseId = "1", position = 0))
         val useCase = AddSetUseCase(repo)
 
         useCase(weId, lastSet = null)
@@ -33,9 +33,9 @@ class AddSetUseCaseTest {
         val repo = FakeWorkoutRepository()
         val workoutId = repo.createWorkout(startTime = 1_000, routineId = null)
         val weId =
-            repo.addExercise(WorkoutExercise(workoutId = workoutId, exerciseId = 1, position = 0))
+            repo.addExercise(WorkoutExercise(workoutId = workoutId, exerciseId = "1", position = 0))
         val lastSet =
-            SetEntry(id = 1, workoutExerciseId = weId, setNumber = 2, weightKg = 80.0, reps = 6)
+            SetEntry(id = "1", workoutExerciseId = weId, setNumber = 2, weightKg = 80.0, reps = 6)
         val useCase = AddSetUseCase(repo)
 
         useCase(weId, lastSet)

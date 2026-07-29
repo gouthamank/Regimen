@@ -33,7 +33,7 @@ import javax.inject.Inject
  * of the two is non-empty, per the exercise's type) - kept raw so the Composable can localize each
  * entry's label via SessionFormat.setLabel/cardioLabel at render time. */
 data class ExerciseHistoryItem(
-    val workoutId: Long,
+    val workoutId: String,
     val dateLabel: String,
     val sets: List<SetEntry> = emptyList(),
     val cardio: List<CardioEntry> = emptyList(),
@@ -56,7 +56,7 @@ data class ExerciseDeleteBlockedInfo(
 )
 
 data class ExerciseDetailUiState(
-    val exerciseId: Long = 0L,
+    val exerciseId: String = "",
     val exercise: Exercise? = null,
     /** Heaviest weight lifted, or best reps for a bodyweight exercise (null = none yet). */
     val pr: ExercisePrValue? = null,

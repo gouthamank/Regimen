@@ -51,14 +51,14 @@ class MeasurementsViewModelTest {
             val measurementRepo = FakeMeasurementRepository()
             measurementRepo.seedTypes(
                 MeasurementType(
-                    id = 1,
+                    id = "1",
                     name = "Bodyweight",
                     unit = "kg",
                     isBuiltIn = true
                 )
             )
             measurementRepo.seedMetrics(
-                BodyMetric(id = 1, measurementTypeId = 1, date = 1_000, value = 80.0),
+                BodyMetric(id = "1", measurementTypeId = "1", date = 1_000, value = 80.0),
             )
             val preferencesRepo = FakePreferencesRepository()
             preferencesRepo.seed(UserPreferences(weightUnit = UnitSystem.IMPERIAL))
@@ -77,14 +77,14 @@ class MeasurementsViewModelTest {
         val measurementRepo = FakeMeasurementRepository()
         measurementRepo.seedTypes(
             MeasurementType(
-                id = 1,
+                id = "1",
                 name = "Waist",
                 unit = "cm",
                 isBuiltIn = false
             )
         )
         measurementRepo.seedMetrics(
-            BodyMetric(id = 1, measurementTypeId = 1, date = 1_000, value = 80.0),
+            BodyMetric(id = "1", measurementTypeId = "1", date = 1_000, value = 80.0),
         )
         val preferencesRepo = FakePreferencesRepository()
         preferencesRepo.seed(UserPreferences(weightUnit = UnitSystem.IMPERIAL))
@@ -101,15 +101,15 @@ class MeasurementsViewModelTest {
         val measurementRepo = FakeMeasurementRepository()
         measurementRepo.seedTypes(
             MeasurementType(
-                id = 1,
+                id = "1",
                 name = "Bodyweight",
                 unit = "kg",
                 isBuiltIn = true
             )
         )
         measurementRepo.seedMetrics(
-            BodyMetric(id = 1, measurementTypeId = 1, date = 5_000, value = 78.0),
-            BodyMetric(id = 2, measurementTypeId = 1, date = 1_000, value = 82.0),
+            BodyMetric(id = "1", measurementTypeId = "1", date = 5_000, value = 78.0),
+            BodyMetric(id = "2", measurementTypeId = "1", date = 1_000, value = 82.0),
         )
         val viewModel = viewModel(measurementRepo, FakePreferencesRepository())
 
@@ -123,15 +123,15 @@ class MeasurementsViewModelTest {
         val measurementRepo = FakeMeasurementRepository()
         measurementRepo.seedTypes(
             MeasurementType(
-                id = 1,
+                id = "1",
                 name = "Bodyweight",
                 unit = "kg",
                 isBuiltIn = true
             )
         )
         measurementRepo.seedMetrics(
-            BodyMetric(id = 1, measurementTypeId = 1, date = 1_000, value = 80.0),
-            BodyMetric(id = 2, measurementTypeId = 1, date = 2_000, value = 79.0),
+            BodyMetric(id = "1", measurementTypeId = "1", date = 1_000, value = 80.0),
+            BodyMetric(id = "2", measurementTypeId = "1", date = 2_000, value = 79.0),
         )
         val viewModel = viewModel(measurementRepo, FakePreferencesRepository())
 
@@ -158,7 +158,7 @@ class MeasurementsViewModelTest {
             val measurementRepo = FakeMeasurementRepository()
             measurementRepo.seedTypes(
                 MeasurementType(
-                    id = 1,
+                    id = "1",
                     name = "Bodyweight",
                     unit = "kg",
                     isBuiltIn = true
@@ -169,7 +169,7 @@ class MeasurementsViewModelTest {
             val viewModel = viewModel(measurementRepo, preferencesRepo)
 
             viewModel.uiState.test { awaitItem() }
-            viewModel.addEntry(typeId = 1, date = 1_000, displayValue = 176.37)
+            viewModel.addEntry(typeId = "1", date = 1_000, displayValue = 176.37)
 
             viewModel.uiState.test {
                 val latest = awaitItem().rows.single().latestValue!!
@@ -182,7 +182,7 @@ class MeasurementsViewModelTest {
         val measurementRepo = FakeMeasurementRepository()
         measurementRepo.seedTypes(
             MeasurementType(
-                id = 1,
+                id = "1",
                 name = "Bodyweight",
                 unit = "kg",
                 isBuiltIn = true
@@ -191,9 +191,9 @@ class MeasurementsViewModelTest {
         val viewModel = viewModel(measurementRepo, FakePreferencesRepository())
         viewModel.uiState.test { awaitItem() }
 
-        viewModel.addEntry(typeId = 999, date = 1_000, displayValue = 50.0)
+        viewModel.addEntry(typeId = "missing", date = 1_000, displayValue = 50.0)
 
-        measurementRepo.observeMetrics(1).test {
+        measurementRepo.observeMetrics("1").test {
             assertEquals(emptyList<Any>(), awaitItem())
         }
     }

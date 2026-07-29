@@ -18,9 +18,9 @@ import org.junit.Test
 class AddExercisesToWorkoutUseCaseTest {
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val running =
-        Exercise(2, "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
+        Exercise("2", "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
 
     @Test
     fun `missing workout is a no-op`() = runTest {
@@ -29,7 +29,7 @@ class AddExercisesToWorkoutUseCaseTest {
         exerciseRepo.seed(benchPress)
         val useCase = AddExercisesToWorkoutUseCase(workoutRepo, exerciseRepo)
 
-        useCase(999, listOf(benchPress.id))
+        useCase("missing", listOf(benchPress.id))
     }
 
     @Test
@@ -111,7 +111,7 @@ class AddExercisesToWorkoutUseCaseTest {
         val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
         val useCase = AddExercisesToWorkoutUseCase(workoutRepo, exerciseRepo)
 
-        useCase(workoutId, listOf(999, benchPress.id))
+        useCase(workoutId, listOf("missing", benchPress.id))
 
         val exercises = workoutRepo.getWorkout(workoutId)!!.exercises
         assertEquals(1, exercises.size)

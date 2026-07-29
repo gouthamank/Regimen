@@ -71,12 +71,12 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SessionDetailScreen(
-    workoutId: Long,
+    workoutId: String,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onWorkoutStarted: () -> Unit,
-    onEditWorkout: (Long) -> Unit,
+    onEditWorkout: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SessionDetailViewModel = hiltViewModel(),
 ) {
@@ -115,7 +115,7 @@ fun SessionDetailScreen(
 fun SessionDetailScreen(
     uiState: SessionDetailUiState,
     snackbarHostState: SnackbarHostState,
-    workoutId: Long,
+    workoutId: String,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,

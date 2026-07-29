@@ -31,7 +31,7 @@ sealed interface PersonalRecordValue {
 
 /** One personal record ready for display: exercise name + its best value. */
 data class PersonalRecordItem(
-    val exerciseId: Long,
+    val exerciseId: String,
     val exerciseName: String,
     val value: PersonalRecordValue,
 )

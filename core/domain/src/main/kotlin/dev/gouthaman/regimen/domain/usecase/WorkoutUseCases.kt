@@ -30,14 +30,14 @@ class StartWorkoutUseCase @Inject constructor(
     private val routineRepo: RoutineRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(routineId: Long?): Long {
+    suspend operator fun invoke(routineId: String?): String {
         val now = clock.nowMillis()
         if (routineId == null) return workoutRepo.createWorkout(now, routineId)
 
         val routine = routineRepo.getRoutine(routineId)
             ?: return workoutRepo.createWorkout(now, routineId)
         val prior = workoutRepo.getMostRecentForRoutine(routineId)
-        val priorSetsByExercise: Map<Long, List<SetEntry>> = prior?.let { p ->
+        val priorSetsByExercise: Map<String, List<SetEntry>> = prior?.let { p ->
             p.exercises.associate { it.exercise.id to it.sets.sortedBy { s -> s.setNumber } }
         } ?: emptyMap()
 
@@ -74,7 +74,7 @@ class FinishWorkoutUseCase @Inject constructor(
     private val clock: Clock,
 ) {
     suspend operator fun invoke(
-        workoutId: Long,
+        workoutId: String,
         reason: WorkoutEndReason = WorkoutEndReason.MANUAL
     ) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
@@ -106,7 +106,7 @@ class FinishWorkoutUseCase @Inject constructor(
      * sets and still-default cardio bouts (never touched from their [StartWorkoutUseCase]
      * placeholder). An exercise left with nothing logged is marked skipped, same as if the user
      * had explicitly skipped it, rather than showing an empty card in History. */
-    private suspend fun pruneUnloggedExercises(workoutId: Long) {
+    private suspend fun pruneUnloggedExercises(workoutId: String) {
         val details = workoutRepo.getWorkout(workoutId) ?: return
         for (we in details.exercises) {
             we.sets.filterNot { it.isComplete }.forEach { workoutRepo.deleteSet(it) }
@@ -128,7 +128,7 @@ class PauseWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus == WorkoutStatus.PAUSED) return
         workoutRepo.updateWorkout(
@@ -148,7 +148,7 @@ class ResumeWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.PAUSED) return
         val pausedAt = w.pausedAt ?: return
@@ -169,7 +169,7 @@ class StartRestUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(workoutId: Long, workoutExerciseId: Long, durationSec: Int) {
+    suspend operator fun invoke(workoutId: String, workoutExerciseId: String, durationSec: Int) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus == WorkoutStatus.PAUSED || w.workoutStatus == WorkoutStatus.COMPLETE) return
         workoutRepo.updateWorkout(
@@ -189,7 +189,7 @@ class AdjustRestUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(workoutId: Long, deltaSec: Int) {
+    suspend operator fun invoke(workoutId: String, deltaSec: Int) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.IN_REST_TIME) return
         val endAt = w.restTimeEndAt ?: return
@@ -205,7 +205,7 @@ class AdjustRestUseCase @Inject constructor(
 class StopRestUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.IN_REST_TIME) return
         workoutRepo.updateWorkout(
@@ -223,7 +223,7 @@ class StopRestUseCase @Inject constructor(
 class EditWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.COMPLETE) return
         workoutRepo.updateWorkout(w.copy(workoutStatus = WorkoutStatus.EDITING))
@@ -234,7 +234,7 @@ class EditWorkoutUseCase @Inject constructor(
 class DoneEditingWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val w = workoutRepo.getWorkout(workoutId)?.workout ?: return
         if (w.workoutStatus != WorkoutStatus.EDITING) return
         workoutRepo.updateWorkout(w.copy(workoutStatus = WorkoutStatus.COMPLETE))
@@ -245,7 +245,7 @@ class DoneEditingWorkoutUseCase @Inject constructor(
 class CancelWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val current = workoutRepo.getWorkout(workoutId) ?: return
         workoutRepo.deleteWorkout(current.workout)
     }
@@ -254,20 +254,20 @@ class CancelWorkoutUseCase @Inject constructor(
 class ObserveActiveWorkoutIdUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    operator fun invoke(): Flow<Long?> = workoutRepo.observeInProgressId()
+    operator fun invoke(): Flow<String?> = workoutRepo.observeInProgressId()
 }
 
 /** One-shot lookup of the current in-progress workout id, if any (for resume / single-active). */
 class GetInProgressWorkoutIdUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(): Long? = workoutRepo.getInProgress()?.workout?.id
+    suspend operator fun invoke(): String? = workoutRepo.getInProgress()?.workout?.id
 }
 
 class ObserveWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    operator fun invoke(id: Long): Flow<WorkoutWithDetails?> = workoutRepo.observeWorkout(id)
+    operator fun invoke(id: String): Flow<WorkoutWithDetails?> = workoutRepo.observeWorkout(id)
 }
 
 class ObserveHistoryUseCase @Inject constructor(
@@ -291,7 +291,7 @@ class ObserveWorkoutsInRangeUseCase @Inject constructor(
 class ObserveExerciseHistoryUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    operator fun invoke(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
+    operator fun invoke(exerciseId: String): Flow<List<ExerciseHistorySession>> =
         workoutRepo.observeExerciseHistory(exerciseId)
 }
 
@@ -305,7 +305,7 @@ class RepeatWorkoutUseCase @Inject constructor(
     private val startWorkoutUseCase: StartWorkoutUseCase,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(sourceWorkoutId: Long): Long? {
+    suspend operator fun invoke(sourceWorkoutId: String): String? {
         val source = workoutRepo.getWorkout(sourceWorkoutId) ?: return null
         source.workout.routineId?.let { return startWorkoutUseCase(it) }
 
@@ -342,7 +342,7 @@ class RepeatWorkoutUseCase @Inject constructor(
 class DeleteWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long) {
+    suspend operator fun invoke(workoutId: String) {
         val current = workoutRepo.getWorkout(workoutId) ?: return
         workoutRepo.deleteWorkout(current.workout)
     }
@@ -357,7 +357,7 @@ class SaveWorkoutAsRoutineUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val routineRepo: RoutineRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long, name: String, defaultRestSec: Int): Long? {
+    suspend operator fun invoke(workoutId: String, name: String, defaultRestSec: Int): String? {
         val workout = workoutRepo.getWorkout(workoutId) ?: return null
         val specs = workout.exercises
             .filter { it.exercise.type == ExerciseType.STRENGTH }
@@ -392,7 +392,7 @@ class UpsertSetUseCase @Inject constructor(
 class AddSetUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutExerciseId: Long, lastSet: SetEntry?) {
+    suspend operator fun invoke(workoutExerciseId: String, lastSet: SetEntry?) {
         workoutRepo.upsertSet(
             SetEntry(
                 workoutExerciseId = workoutExerciseId,
@@ -439,7 +439,7 @@ class AddExercisesToWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val exerciseRepo: ExerciseRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long, exerciseIds: List<Long>) {
+    suspend operator fun invoke(workoutId: String, exerciseIds: List<String>) {
         val existing = workoutRepo.getWorkout(workoutId) ?: return
         var position = existing.exercises.size
         for (exId in exerciseIds) {
@@ -480,7 +480,7 @@ class UpsertCardioUseCase @Inject constructor(
 class UpdateWorkoutNoteUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
 ) {
-    suspend operator fun invoke(workoutId: Long, note: String?) {
+    suspend operator fun invoke(workoutId: String, note: String?) {
         val current = workoutRepo.getWorkout(workoutId) ?: return
         workoutRepo.updateWorkout(current.workout.copy(note = note?.ifBlank { null }))
     }

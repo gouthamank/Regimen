@@ -21,11 +21,11 @@ class ExercisePickerSheetTest {
     val composeTestRule = createComposeRule()
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val squat =
-        Exercise(2, "Squat", ExerciseType.STRENGTH, MuscleGroup.LEGS, Equipment.BARBELL)
+        Exercise("2", "Squat", ExerciseType.STRENGTH, MuscleGroup.LEGS, Equipment.BARBELL)
     private val running =
-        Exercise(3, "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
+        Exercise("3", "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
 
     @Test
     fun rendersEveryProvidedExercise() {
@@ -81,7 +81,7 @@ class ExercisePickerSheetTest {
 
     @Test
     fun confirmingReturnsTheCheckedExerciseIds() {
-        var confirmedIds: List<Long>? = null
+        var confirmedIds: List<String>? = null
         composeTestRule.setContent {
             ExercisePickerSheet(
                 exercises = listOf(benchPress, squat),

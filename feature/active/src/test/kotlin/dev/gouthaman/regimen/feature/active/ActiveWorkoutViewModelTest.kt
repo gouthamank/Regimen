@@ -55,10 +55,10 @@ class ActiveWorkoutViewModelTest {
     val mainDispatcherRule = MainDispatcherRule(dispatcher)
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
 
     private fun viewModel(
-        workoutId: Long,
+        workoutId: String,
         workoutRepo: FakeWorkoutRepository,
         appScope: CoroutineScope,
         routineRepo: FakeRoutineRepository = FakeRoutineRepository(),

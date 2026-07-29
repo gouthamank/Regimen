@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
     // Set from onCreate/onNewIntent, consumed (and cleared) once RegimenApp navigates to it -
     // see extractWorkoutDeepLink. Compose state (not a plain var) so a warm-start onNewIntent
     // triggers recomposition/navigation without needing to recreate the Activity.
-    private var pendingWorkoutDeepLink by mutableStateOf<Long?>(null)
+    private var pendingWorkoutDeepLink by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -65,8 +65,8 @@ class MainActivity : ComponentActivity() {
         pendingWorkoutDeepLink = extractWorkoutDeepLink(intent)
     }
 
-    private fun extractWorkoutDeepLink(intent: Intent?): Long? =
-        intent?.getLongExtra(EXTRA_WORKOUT_ID, -1L)?.takeIf { it != -1L }
+    private fun extractWorkoutDeepLink(intent: Intent?): String? =
+        intent?.getStringExtra(EXTRA_WORKOUT_ID)
 
     companion object {
         /** Deep-links a workout's in-progress/rest-complete notification tap straight into

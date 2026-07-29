@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun RegimenApp(
     viewModel: RegimenAppViewModel = hiltViewModel(),
-    deepLinkWorkoutId: Long? = null,
+    deepLinkWorkoutId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
@@ -248,7 +248,7 @@ fun RegimenApp(
                     // frame too, a moment after inProgressWorkoutId has already gone null. This is
                     // purely cosmetic (which id to animate out with), unlike the sticky value this
                     // replaced - onFinished/onDiscarded no longer depend on it for correctness.
-                    var lastWorkoutId by remember { mutableStateOf<Long?>(null) }
+                    var lastWorkoutId by remember { mutableStateOf<String?>(null) }
                     if (inProgressWorkoutId != null) lastWorkoutId = inProgressWorkoutId
                     val workoutIdToAnimate = lastWorkoutId
 

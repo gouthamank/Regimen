@@ -26,9 +26,9 @@ class RepeatWorkoutUseCaseTest {
 
     private val clock = FakeClock(1_000L)
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val running =
-        Exercise(2, "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
+        Exercise("2", "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
 
     @Test
     fun `missing source workout returns null`() = runTest {
@@ -40,7 +40,7 @@ class RepeatWorkoutUseCaseTest {
             clock
         )
 
-        val result = useCase(999)
+        val result = useCase("missing")
 
         assertNull(result)
     }
@@ -51,16 +51,16 @@ class RepeatWorkoutUseCaseTest {
         val routineRepo = FakeRoutineRepository()
         routineRepo.seed(
             RoutineWithExercises(
-                routine = Routine(id = 1, name = "Push Day", position = 0),
+                routine = Routine(id = "1", name = "Push Day", position = 0),
                 exercises = listOf(
                     RoutineExerciseWithExercise(
-                        RoutineExercise(1, 1, benchPress.id, 0, 3, 8, 90),
+                        RoutineExercise("1", "1", benchPress.id, 0, 3, 8, 90),
                         benchPress,
                     ),
                 ),
             ),
         )
-        val sourceId = workoutRepo.createWorkout(startTime = 1_000, routineId = 1)
+        val sourceId = workoutRepo.createWorkout(startTime = 1_000, routineId = "1")
         val useCase = RepeatWorkoutUseCase(
             workoutRepo,
             StartWorkoutUseCase(workoutRepo, routineRepo, clock),

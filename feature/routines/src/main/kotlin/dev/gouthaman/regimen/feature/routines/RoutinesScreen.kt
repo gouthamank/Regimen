@@ -66,7 +66,7 @@ fun RoutinesScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onCreateRoutine: () -> Unit,
-    onOpenRoutine: (Long) -> Unit,
+    onOpenRoutine: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RoutinesListViewModel = hiltViewModel(),
 ) {
@@ -90,9 +90,9 @@ fun RoutinesScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onCreateRoutine: () -> Unit,
-    onOpenRoutine: (Long) -> Unit,
+    onOpenRoutine: (String) -> Unit,
     onDelete: (RoutineWithExercises) -> Unit,
-    onReorder: (List<Long>) -> Unit,
+    onReorder: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val windowInfo = LocalRegimenWindowInfo.current
@@ -168,9 +168,9 @@ private fun RoutineList(
     routines: List<RoutineWithExercises>,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onOpenRoutine: (Long) -> Unit,
+    onOpenRoutine: (String) -> Unit,
     onDelete: (RoutineWithExercises) -> Unit,
-    onReorder: (List<Long>) -> Unit,
+    onReorder: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Working copy the drag reorders in place; re-synced from the source whenever it changes and

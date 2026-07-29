@@ -199,10 +199,10 @@ fun rememberActiveWorkoutSheetState(): ActiveWorkoutSheetState {
  */
 @Composable
 fun ActiveWorkoutSheet(
-    workoutId: Long,
+    workoutId: String,
     state: ActiveWorkoutSheetState,
     navController: NavHostController,
-    onFinished: (Long) -> Unit,
+    onFinished: (String) -> Unit,
     onDiscarded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -407,7 +407,7 @@ private fun CollapsedBannerContent(onTap: () -> Unit, modifier: Modifier = Modif
 @Composable
 private fun LiveWorkoutContent(
     viewModel: ActiveWorkoutViewModel,
-    onFinished: (Long) -> Unit,
+    onFinished: (String) -> Unit,
     onDiscarded: () -> Unit,
     onCreateCustomExercise: () -> Unit,
     animateSets: Boolean,

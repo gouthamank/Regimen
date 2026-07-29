@@ -82,7 +82,7 @@ data class WorkoutExerciseRow(
     val cardio: CardioEntry?,
     val restTargetSec: Int = 0,
 ) {
-    val workoutExerciseId: Long get() = workoutExercise.id
+    val workoutExerciseId: String get() = workoutExercise.id
 }
 
 /** Which body [ExerciseCard] shows - skipped and done are mutually exclusive at the toggle level
@@ -95,14 +95,14 @@ fun ExerciseCard(
     weightUnit: UnitSystem,
     distanceUnit: UnitSystem,
     onUpdateSet: (SetEntry) -> Unit,
-    onAddSet: (Long, SetEntry?) -> Unit,
+    onAddSet: (String, SetEntry?) -> Unit,
     onDeleteSet: (SetEntry) -> Unit,
-    onAutofillWeight: (Long, Double) -> Unit,
-    onAutofillReps: (Long, Int) -> Unit,
+    onAutofillWeight: (String, Double) -> Unit,
+    onAutofillReps: (String, Int) -> Unit,
     onToggleSkip: (WorkoutExercise) -> Unit,
     onToggleDone: (WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
-    onStartRest: (Long, Int) -> Unit,
+    onStartRest: (String, Int) -> Unit,
     modifier: Modifier = Modifier,
     showRestTimer: Boolean = true,
     enabled: Boolean = true,
@@ -529,7 +529,7 @@ private fun SetRow(
 @Composable
 private fun CardioRow(
     cardio: CardioEntry?,
-    workoutExerciseId: Long,
+    workoutExerciseId: String,
     distanceUnit: UnitSystem,
     enabled: Boolean,
     onUpdate: (CardioEntry) -> Unit,

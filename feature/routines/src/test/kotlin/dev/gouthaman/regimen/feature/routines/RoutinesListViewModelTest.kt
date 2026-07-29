@@ -19,7 +19,7 @@ private class GatedReorderRoutineRepository(
     private val delegate: FakeRoutineRepository,
     private val reorderGate: CompletableDeferred<Unit>,
 ) : RoutineRepository by delegate {
-    override suspend fun reorder(orderedIds: List<Long>) {
+    override suspend fun reorder(orderedIds: List<String>) {
         reorderGate.await()
         delegate.reorder(orderedIds)
     }
@@ -30,9 +30,9 @@ class RoutinesListViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val routineA = RoutineWithExercises(Routine(1, "A", 0), emptyList())
-    private val routineB = RoutineWithExercises(Routine(2, "B", 1), emptyList())
-    private val routineC = RoutineWithExercises(Routine(3, "C", 2), emptyList())
+    private val routineA = RoutineWithExercises(Routine("1", "A", 0), emptyList())
+    private val routineB = RoutineWithExercises(Routine("2", "B", 1), emptyList())
+    private val routineC = RoutineWithExercises(Routine("3", "C", 2), emptyList())
 
     private fun viewModelFor(repo: RoutineRepository) = RoutinesListViewModel(
         observeRoutines = ObserveRoutinesUseCase(repo),

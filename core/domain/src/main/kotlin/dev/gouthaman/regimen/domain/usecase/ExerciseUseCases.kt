@@ -36,7 +36,7 @@ class ObserveExercisesUseCase @Inject constructor(
 class ObserveExerciseUseCase @Inject constructor(
     private val repo: ExerciseRepository,
 ) {
-    operator fun invoke(id: Long): Flow<Exercise?> = repo.observeById(id)
+    operator fun invoke(id: String): Flow<Exercise?> = repo.observeById(id)
 }
 
 class AddCustomExerciseUseCase @Inject constructor(
@@ -46,7 +46,7 @@ class AddCustomExerciseUseCase @Inject constructor(
         name: String,
         muscleGroup: MuscleGroup,
         equipment: Equipment
-    ): Long =
+    ): String =
         repo.addCustom(name, muscleGroup, equipment)
 }
 

@@ -35,7 +35,7 @@ data class MeasurementEntry(
 )
 
 data class MeasurementDetailUiState(
-    val typeId: Long = 0L,
+    val typeId: String = "",
     val type: MeasurementType? = null,
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     /** Display-unit values in chronological order, for the trend chart (filtered by [range]). */

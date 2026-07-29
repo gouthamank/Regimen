@@ -34,6 +34,6 @@ class UpdateWorkoutNoteUseCaseTest {
     @Test
     fun `a missing workout is a no-op`() = runTest {
         val repo = FakeWorkoutRepository()
-        UpdateWorkoutNoteUseCase(repo)(999, "note")
+        UpdateWorkoutNoteUseCase(repo)("missing", "note")
     }
 }

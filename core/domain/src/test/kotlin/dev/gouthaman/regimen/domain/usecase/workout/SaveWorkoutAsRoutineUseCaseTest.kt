@@ -17,9 +17,9 @@ import org.junit.Test
 class SaveWorkoutAsRoutineUseCaseTest {
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val running =
-        Exercise(2, "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
+        Exercise("2", "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
 
     @Test
     fun `a workout with only cardio exercises produces no routine`() = runTest {
@@ -47,7 +47,7 @@ class SaveWorkoutAsRoutineUseCaseTest {
         val routineRepo = FakeRoutineRepository()
         val useCase = SaveWorkoutAsRoutineUseCase(workoutRepo, routineRepo)
 
-        assertNull(useCase(999, "My Routine", defaultRestSec = 90))
+        assertNull(useCase("missing", "My Routine", defaultRestSec = 90))
     }
 
     @Test

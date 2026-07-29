@@ -42,12 +42,12 @@ class SessionDetailViewModelTest {
 
     private val clock = FakeClock(1_000L)
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val running =
-        Exercise(2, "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
+        Exercise("2", "Running", ExerciseType.CARDIO, MuscleGroup.CARDIO, Equipment.CARDIO_MACHINE)
 
     private fun viewModel(
-        workoutId: Long,
+        workoutId: String,
         workoutRepo: FakeWorkoutRepository,
         routineRepo: FakeRoutineRepository = FakeRoutineRepository(),
         preferencesRepo: FakePreferencesRepository = FakePreferencesRepository(),
@@ -69,7 +69,7 @@ class SessionDetailViewModelTest {
 
     @Test
     fun `a missing workout reports not found`() = runTest {
-        val viewModel = viewModel(999, FakeWorkoutRepository())
+        val viewModel = viewModel("missing", FakeWorkoutRepository())
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -146,9 +146,9 @@ class SessionDetailViewModelTest {
     @Test
     fun `a routine-based session resolves its routine name`() = runTest {
         val routineRepo = FakeRoutineRepository()
-        routineRepo.seed(RoutineWithExercises(Routine(1, "Push Day", 0), emptyList()))
+        routineRepo.seed(RoutineWithExercises(Routine("1", "Push Day", 0), emptyList()))
         val workoutRepo = FakeWorkoutRepository()
-        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = 1)
+        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = "1")
         val viewModel = viewModel(workoutId, workoutRepo, routineRepo)
 
         viewModel.uiState.test {
@@ -159,10 +159,10 @@ class SessionDetailViewModelTest {
     @Test
     fun `a routine-based session can still be saved as a routine`() = runTest {
         val routineRepo = FakeRoutineRepository()
-        routineRepo.seed(RoutineWithExercises(Routine(1, "Push Day", 0), emptyList()))
+        routineRepo.seed(RoutineWithExercises(Routine("1", "Push Day", 0), emptyList()))
         val workoutRepo = FakeWorkoutRepository()
         workoutRepo.exerciseLookup = { benchPress }
-        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = 1)
+        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = "1")
         workoutRepo.addExercise(
             WorkoutExercise(
                 workoutId = workoutId,

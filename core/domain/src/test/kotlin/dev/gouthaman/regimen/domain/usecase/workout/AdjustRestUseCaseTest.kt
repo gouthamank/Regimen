@@ -14,14 +14,14 @@ class AdjustRestUseCaseTest {
         repo: FakeWorkoutRepository,
         endAt: Long,
         totalSec: Int,
-    ): Long {
+    ): String {
         val id = repo.createWorkout(startTime = 1_000, routineId = null)
         repo.updateWorkout(
             repo.getWorkout(id)!!.workout.copy(
                 workoutStatus = WorkoutStatus.IN_REST_TIME,
                 restTimeEndAt = endAt,
                 restTotalSec = totalSec,
-                restWorkoutExerciseId = 1L,
+                restWorkoutExerciseId = "1",
             ),
         )
         return id

@@ -100,7 +100,7 @@ fun HomeScreen(
 fun HomeScreen(
     uiState: HomeUiState,
     windowInfo: RegimenWindowInfo,
-    onStartWorkout: (Long?) -> Unit,
+    onStartWorkout: (String?) -> Unit,
     onCreateRoutine: () -> Unit,
     onOpenMeasurements: () -> Unit,
     modifier: Modifier = Modifier,
@@ -258,7 +258,7 @@ private fun StartWorkoutButton(
 @Composable
 private fun StartWorkoutSheet(
     routines: List<QuickStartRoutine>,
-    onPick: (Long?) -> Unit,
+    onPick: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {

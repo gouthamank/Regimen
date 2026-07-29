@@ -14,7 +14,7 @@ import javax.inject.Inject
 class RegimenAppViewModel @Inject constructor(
     observeActiveWorkoutId: ObserveActiveWorkoutIdUseCase,
 ) : ViewModel() {
-    val inProgressWorkoutId: StateFlow<Long?> =
+    val inProgressWorkoutId: StateFlow<String?> =
         observeActiveWorkoutId().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),

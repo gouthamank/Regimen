@@ -58,11 +58,11 @@ data class RestTimerState(
     val endAtMillis: Long,
     val totalSec: Int,
     /** The exercise this rest was started from, so its next set can auto-complete on finish. */
-    val workoutExerciseId: Long,
+    val workoutExerciseId: String,
 )
 
 data class ActiveWorkoutUiState(
-    val workoutId: Long = 0,
+    val workoutId: String = "",
     /** Null means it's a freeform/"Quick workout" session, not that it isn't loaded yet ([loaded]
      * distinguishes that) - resolved to display text by the Composable. */
     val routineName: String? = null,
@@ -89,7 +89,7 @@ data class ActiveWorkoutUiState(
 
 @HiltViewModel(assistedFactory = ActiveWorkoutViewModel.Factory::class)
 class ActiveWorkoutViewModel @AssistedInject constructor(
-    @Assisted val workoutId: Long,
+    @Assisted val workoutId: String,
     observeWorkout: ObserveWorkoutUseCase,
     observeRoutines: ObserveRoutinesUseCase,
     observePreferences: ObservePreferencesUseCase,
@@ -119,7 +119,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
      * the persistent ActiveWorkoutSheet (:app), which has no NavBackStackEntry at all. */
     @AssistedFactory
     interface Factory {
-        fun create(workoutId: Long): ActiveWorkoutViewModel
+        fun create(workoutId: String): ActiveWorkoutViewModel
     }
 
     private var restWatchJob: Job? = null
@@ -167,7 +167,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
                     RestTimerState(
                         endAtMillis = workout.workout.restTimeEndAt ?: 0L,
                         totalSec = workout.workout.restTotalSec ?: 0,
-                        workoutExerciseId = workout.workout.restWorkoutExerciseId ?: 0L,
+                        workoutExerciseId = workout.workout.restWorkoutExerciseId ?: "",
                     )
                 } else null,
                 exercises = workout.exercises
@@ -195,14 +195,14 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
         if (set.isComplete) autoMarkDoneIfAllComplete(set)
     }
 
-    fun addSet(workoutExerciseId: Long, lastSet: SetEntry?) =
+    fun addSet(workoutExerciseId: String, lastSet: SetEntry?) =
         viewModelScope.launch { addSetUseCase(workoutExerciseId, lastSet) }
 
     fun deleteSet(set: SetEntry) = viewModelScope.launch { deleteSetUseCase(set) }
 
     /** On blur of a weight field (item 3): fills every later set in the same exercise whose
      * weight is still empty with the value just entered into [fromSetId]. */
-    fun autofillWeightBelow(workoutExerciseId: Long, fromSetId: Long, weightKg: Double) {
+    fun autofillWeightBelow(workoutExerciseId: String, fromSetId: String, weightKg: Double) {
         viewModelScope.launch {
             val sets = uiState.value.exercises
                 .firstOrNull { it.workoutExerciseId == workoutExerciseId }?.sets ?: return@launch
@@ -213,7 +213,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
     }
 
     /** Same as [autofillWeightBelow], for reps. */
-    fun autofillRepsBelow(workoutExerciseId: Long, fromSetId: Long, reps: Int) {
+    fun autofillRepsBelow(workoutExerciseId: String, fromSetId: String, reps: Int) {
         viewModelScope.launch {
             val sets = uiState.value.exercises
                 .firstOrNull { it.workoutExerciseId == workoutExerciseId }?.sets ?: return@launch
@@ -231,7 +231,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
     fun toggleDone(exercise: WorkoutExercise) =
         viewModelScope.launch { toggleDoneUseCase(exercise) }
 
-    fun addExercises(ids: List<Long>) =
+    fun addExercises(ids: List<String>) =
         viewModelScope.launch { addExercisesUseCase(workoutId, ids) }
 
     fun updateCardio(cardio: CardioEntry) = viewModelScope.launch { upsertCardio(cardio) }
@@ -279,7 +279,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
      * the manual checkbox's validation (SetRow's `fieldsValid`) so a rest-timeout/skip can't mark a
      * set done with missing weight/reps - if the set isn't valid yet, it's left unchecked and the
      * UI is notified via [restSetInvalidEvents] instead. */
-    private suspend fun completeRestSet(workoutExerciseId: Long) {
+    private suspend fun completeRestSet(workoutExerciseId: String) {
         val exercise = uiState.value.exercises
             .firstOrNull { it.workoutExerciseId == workoutExerciseId } ?: return
         val target = exercise.sets.firstOrNull { !it.isComplete } ?: return
@@ -309,7 +309,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
     }
 
     /** Starts (or restarts) a rest countdown for [durationSec] tied to [workoutExerciseId]. */
-    fun startRest(workoutExerciseId: Long, durationSec: Int) =
+    fun startRest(workoutExerciseId: String, durationSec: Int) =
         viewModelScope.launch { startRestUseCase(workoutId, workoutExerciseId, durationSec) }
 
     /** Adjusts the running rest by [deltaSec] (e.g. +/- 15s), clamped so remaining time can't

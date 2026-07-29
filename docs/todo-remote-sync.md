@@ -31,16 +31,16 @@ Prerequisite for *any* real backend sync (custom server or Firestore) - autoincr
 IDs collide across devices, since two offline devices can independently generate the same next
 ID. Worth doing before a backend exists, since it's a local-only schema change either way.
 
-- [ ] Swap every entity's `@PrimaryKey`/FK column from `Long` to a client-generated `String`
+- [x] Swap every entity's `@PrimaryKey`/FK column from `Long` to a client-generated `String`
   UUID (`java.util.UUID.randomUUID().toString()`), generated at creation time rather than
   relying on Room's autoincrement-and-read-back.
     - Entities: `Exercise`, `Routine`, `RoutineExercise`, `Workout`, `WorkoutExercise`,
       `SetEntry`, `CardioEntry`, `MeasurementType`, `BodyMetric`.
-- [ ] Update `:core:domain` models and repository interfaces to match (`id: String` instead of
+- [x] Update `:core:domain` models and repository interfaces to match (`id: String` instead of
   `id: Long`).
-- [ ] Update nav route args (`:app`'s `Destinations`, each feature's route types) and any
+- [x] Update nav route args (`:app`'s `Destinations`, each feature's route types) and any
   ViewModel taking an ID param.
-- [ ] Write the Room `Migration` for existing installs:
+- [x] Write the Room `Migration` for existing installs:
     - Create new UUID-keyed tables.
     - Walk existing rows in FK dependency order (parents first: `Exercise`/`Routine`/
       `MeasurementType`, then `RoutineExercise`/`Workout`/`BodyMetric`, then `WorkoutExercise`,
@@ -54,9 +54,9 @@ ID. Worth doing before a backend exists, since it's a local-only schema change e
         `MigrationTestHelper` against committed schema JSONs in `core/data/schemas/` - confirm the
         current version's schema JSON is committed before relying on this, since `MIGRATION_4_5` has
         no test today precisely because `4.json` was never committed.
-- [ ] Bump `Database version` past the current 8 and note it in `docs/architecture.md`'s data
+- [x] Bump `Database version` past the current 8 and note it in `docs/architecture.md`'s data
   model section once done.
-- [ ] Exception for built-in (seed) data: `Exercise` rows are seeded via `BuiltInData.kt` with no
+- [x] Exception for built-in (seed) data: `Exercise` rows are seeded via `BuiltInData.kt` with no
   explicit ID today, relying on Room's autoincrement assigning the same sequential IDs on every
   fresh install (consistent only because every install seeds the identical built-in list in the
   same order). If seeding also switches to a random UUID per row, the same built-in exercise

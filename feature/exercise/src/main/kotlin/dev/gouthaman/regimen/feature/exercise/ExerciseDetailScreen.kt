@@ -58,7 +58,7 @@ fun ExerciseDetailScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
-    onEdit: (Long) -> Unit,
+    onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ExerciseDetailViewModel = hiltViewModel(),
 ) {
@@ -90,7 +90,7 @@ fun ExerciseDetailScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
-    onEdit: (Long) -> Unit,
+    onEdit: (String) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     deleteBlockedInfo: ExerciseDeleteBlockedInfo? = null,

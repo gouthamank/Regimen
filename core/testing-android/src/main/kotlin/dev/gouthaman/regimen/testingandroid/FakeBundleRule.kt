@@ -47,6 +47,18 @@ class FakeBundleRule : TestWatcher() {
             store(self as Bundle)[firstArg()] as? String ?: secondArg()
         }
 
+        // String route args (UUID ids) go through SavedStateHandle's CharSequence path, not
+        // putString/getString directly.
+        every { anyConstructed<Bundle>().putCharSequence(any(), any()) } answers {
+            store(self as Bundle)[firstArg()] = secondArg<CharSequence?>()
+        }
+        every { anyConstructed<Bundle>().getCharSequence(any()) } answers {
+            store(self as Bundle)[firstArg()] as? CharSequence
+        }
+        every { anyConstructed<Bundle>().getCharSequence(any(), any()) } answers {
+            store(self as Bundle)[firstArg()] as? CharSequence ?: secondArg()
+        }
+
         every { anyConstructed<Bundle>().putBoolean(any(), any()) } answers {
             store(self as Bundle)[firstArg()] = secondArg<Boolean>()
         }
@@ -62,6 +74,13 @@ class FakeBundleRule : TestWatcher() {
         }
         every { anyConstructed<Bundle>().isEmpty } answers {
             store(self as Bundle).isEmpty()
+        }
+
+        // Generic untyped getter (declared on BaseBundle) - SavedStateHandle's/Navigation's route
+        // decoding calls this directly for String-typed route args rather than getString/
+        // getCharSequence.
+        every { anyConstructed<Bundle>().get(any()) } answers {
+            store(self as Bundle)[firstArg()]
         }
     }
 

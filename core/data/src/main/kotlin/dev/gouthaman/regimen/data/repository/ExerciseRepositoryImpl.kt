@@ -11,6 +11,7 @@ import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.repository.ExerciseRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,17 +25,21 @@ class ExerciseRepositoryImpl @Inject constructor(
     override fun observeByType(type: ExerciseType): Flow<List<Exercise>> =
         dao.observeByType(type).map { list -> list.map { it.toDomain() } }
 
-    override fun observeById(id: Long): Flow<Exercise?> = dao.observeById(id).map { it?.toDomain() }
-    override suspend fun getById(id: Long): Exercise? = dao.getById(id)?.toDomain()
+    override fun observeById(id: String): Flow<Exercise?> =
+        dao.observeById(id).map { it?.toDomain() }
+
+    override suspend fun getById(id: String): Exercise? = dao.getById(id)?.toDomain()
 
     /** Custom exercises are strength-only in v1. */
     override suspend fun addCustom(
         name: String,
         muscleGroup: MuscleGroup,
         equipment: Equipment
-    ): Long =
+    ): String {
+        val id = UUID.randomUUID().toString()
         dao.insert(
             ExerciseEntity(
+                id = id,
                 name = name.trim(),
                 type = ExerciseType.STRENGTH,
                 muscleGroup = muscleGroup,
@@ -42,6 +47,8 @@ class ExerciseRepositoryImpl @Inject constructor(
                 isCustom = true,
             )
         )
+        return id
+    }
 
     override suspend fun update(exercise: Exercise) = dao.update(exercise.toEntity())
     override suspend fun delete(exercise: Exercise) = dao.delete(exercise.toEntity())

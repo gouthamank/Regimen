@@ -17,8 +17,8 @@ import dev.gouthaman.regimen.data.local.entity.WorkoutExerciseEntity
 import dev.gouthaman.regimen.data.local.entity.WorkoutWithDetailsEntity
 import kotlinx.coroutines.flow.Flow
 
-/** One row to insert via [WorkoutDao.insertWorkoutWithExercises] - workoutId/workoutExerciseId
- * placeholders in [workoutExercise]/[sets]/[cardio] are overwritten there once real ids exist. */
+/** One row to insert via [WorkoutDao.insertWorkoutWithExercises] - [workoutExercise]/[sets]/
+ * [cardio] already carry their final (caller-generated) ids and workoutId/workoutExerciseId FKs. */
 data class NewWorkoutExerciseRow(
     val workoutExercise: WorkoutExerciseEntity,
     val sets: List<SetEntryEntity> = emptyList(),
@@ -36,11 +36,11 @@ interface WorkoutDao {
 
     @Transaction
     @Query("SELECT * FROM workouts WHERE id = :id")
-    fun observeWorkout(id: Long): Flow<WorkoutWithDetailsEntity?>
+    fun observeWorkout(id: String): Flow<WorkoutWithDetailsEntity?>
 
     @Transaction
     @Query("SELECT * FROM workouts WHERE id = :id")
-    suspend fun getWorkoutWithDetails(id: Long): WorkoutWithDetailsEntity?
+    suspend fun getWorkoutWithDetails(id: String): WorkoutWithDetailsEntity?
 
     /** The in-progress workout, if any. Used to resume after process death. */
     @Transaction
@@ -54,7 +54,7 @@ interface WorkoutDao {
         "SELECT id FROM workouts WHERE workoutStatus IN ('IN_PROGRESS', 'PAUSED', 'IN_REST_TIME') " +
                 "ORDER BY startTime DESC LIMIT 1"
     )
-    fun observeInProgressId(): Flow<Long?>
+    fun observeInProgressId(): Flow<String?>
 
     /** Most recent completed session of a routine - source for prefill. */
     @Transaction
@@ -63,7 +63,7 @@ interface WorkoutDao {
                 "AND workoutStatus IN ('COMPLETE', 'EDITING') " +
                 "ORDER BY startTime DESC LIMIT 1"
     )
-    suspend fun getMostRecentCompletedForRoutine(routineId: Long): WorkoutWithDetailsEntity?
+    suspend fun getMostRecentCompletedForRoutine(routineId: String): WorkoutWithDetailsEntity?
 
     @Query(
         "SELECT * FROM workouts WHERE workoutStatus IN ('COMPLETE', 'EDITING') " +
@@ -79,11 +79,12 @@ interface WorkoutDao {
                 "WHERE we.exerciseId = :exerciseId " +
                 "AND w.workoutStatus IN ('COMPLETE', 'EDITING') AND se.isComplete = 1"
     )
-    fun observeBestWeight(exerciseId: Long): Flow<Double?>
+    fun observeBestWeight(exerciseId: String): Flow<Double?>
 
     /** Heaviest completed set per exercise across all finished workouts. [excludingWorkoutId]
-     * (a sentinel of -1 means "none") lets a just-finished workout be compared against the
-     * record it holds excluding its own sets, to tell "beat the old PR" from "merely tied it". */
+     * (a sentinel of "" means "none", since a real workout id is never blank) lets a
+     * just-finished workout be compared against the record it holds excluding its own sets, to
+     * tell "beat the old PR" from "merely tied it". */
     @Query(
         "SELECT we.exerciseId AS exerciseId, MAX(se.weightKg) AS bestWeightKg FROM set_entries se " +
                 "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
@@ -92,7 +93,7 @@ interface WorkoutDao {
                 "AND se.weightKg IS NOT NULL AND w.id != :excludingWorkoutId " +
                 "GROUP BY we.exerciseId"
     )
-    fun observePersonalRecords(excludingWorkoutId: Long = -1): Flow<List<PersonalRecordRowEntity>>
+    fun observePersonalRecords(excludingWorkoutId: String = ""): Flow<List<PersonalRecordRowEntity>>
 
     /** Best reps per exercise for sets logged without weight (bodyweight) - PR definition
      * when [SetEntryEntity.weightKg] is never stored. See [observePersonalRecords] for
@@ -105,7 +106,7 @@ interface WorkoutDao {
                 "AND se.weightKg IS NULL AND se.reps IS NOT NULL AND w.id != :excludingWorkoutId " +
                 "GROUP BY we.exerciseId"
     )
-    fun observeBestReps(excludingWorkoutId: Long = -1): Flow<List<RepsRecordRowEntity>>
+    fun observeBestReps(excludingWorkoutId: String = ""): Flow<List<RepsRecordRowEntity>>
 
     /** Most recent logged set for an exercise, from any finished workout - prefill source
      * when adding it ad hoc, outside a routine's own history-based prefill. */
@@ -117,7 +118,7 @@ interface WorkoutDao {
                 "AND w.workoutStatus IN ('COMPLETE', 'EDITING') " +
                 "ORDER BY w.startTime DESC, se.setNumber DESC LIMIT 1"
     )
-    suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntryEntity?
+    suspend fun getMostRecentSetForExercise(exerciseId: String): SetEntryEntity?
 
     /** Every finished session that logged this exercise, most recent first - source for Exercise Detail's History section. */
     @Transaction
@@ -128,32 +129,30 @@ interface WorkoutDao {
                 "AND w.workoutStatus IN ('COMPLETE', 'EDITING') " +
                 "ORDER BY w.startTime DESC"
     )
-    fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySessionEntity>>
+    fun observeExerciseHistory(exerciseId: String): Flow<List<ExerciseHistorySessionEntity>>
 
     /** True if any workout references this exercise (active or finished); blocks deletion (cascade risk). */
     @Query("SELECT EXISTS(SELECT 1 FROM workout_exercises WHERE exerciseId = :exerciseId)")
-    suspend fun isExerciseUsedInAnyWorkout(exerciseId: Long): Boolean
+    suspend fun isExerciseUsedInAnyWorkout(exerciseId: String): Boolean
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWorkout(workout: WorkoutEntity): Long
+    suspend fun insertWorkout(workout: WorkoutEntity)
 
     /** Inserts [workout] plus every exercise (and its prefilled sets/cardio) in one transaction,
      * instead of one round trip per row - the sequential-await version of this was the dominant
-     * latency source when starting a routine-based (or repeated freeform) workout. Each row's
-     * workoutId/workoutExerciseId placeholders are overwritten here once the real parent ids exist. */
+     * latency source when starting a routine-based (or repeated freeform) workout. Every row in
+     * [exercises] already carries its final (caller-generated) id and FK columns. */
     @Transaction
     suspend fun insertWorkoutWithExercises(
         workout: WorkoutEntity,
         exercises: List<NewWorkoutExerciseRow>,
-    ): Long {
-        val workoutId = insertWorkout(workout)
+    ) {
+        insertWorkout(workout)
         exercises.forEach { row ->
-            val workoutExerciseId =
-                insertWorkoutExercise(row.workoutExercise.copy(workoutId = workoutId))
-            row.sets.forEach { upsertSet(it.copy(workoutExerciseId = workoutExerciseId)) }
-            row.cardio?.let { upsertCardio(it.copy(workoutExerciseId = workoutExerciseId)) }
+            insertWorkoutExercise(row.workoutExercise)
+            row.sets.forEach { upsertSet(it) }
+            row.cardio?.let { upsertCardio(it) }
         }
-        return workoutId
     }
 
     @Update
@@ -163,7 +162,7 @@ interface WorkoutDao {
     suspend fun deleteWorkout(workout: WorkoutEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWorkoutExercise(item: WorkoutExerciseEntity): Long
+    suspend fun insertWorkoutExercise(item: WorkoutExerciseEntity)
 
     @Update
     suspend fun updateWorkoutExercise(item: WorkoutExerciseEntity)
@@ -172,13 +171,13 @@ interface WorkoutDao {
     suspend fun deleteWorkoutExercise(item: WorkoutExerciseEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertSet(set: SetEntryEntity): Long
+    suspend fun upsertSet(set: SetEntryEntity)
 
     @Delete
     suspend fun deleteSet(set: SetEntryEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertCardio(cardio: CardioEntryEntity): Long
+    suspend fun upsertCardio(cardio: CardioEntryEntity)
 
     @Delete
     suspend fun deleteCardio(cardio: CardioEntryEntity)

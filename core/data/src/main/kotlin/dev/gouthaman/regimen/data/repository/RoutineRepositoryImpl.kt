@@ -11,6 +11,7 @@ import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.repository.RoutineRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,24 +22,28 @@ class RoutineRepositoryImpl @Inject constructor(
     override fun observeAll(): Flow<List<RoutineWithExercises>> =
         dao.observeRoutinesWithExercises().map { list -> list.map { it.toDomain() } }
 
-    override fun observeRoutine(id: Long): Flow<RoutineWithExercises?> =
+    override fun observeRoutine(id: String): Flow<RoutineWithExercises?> =
         dao.observeRoutine(id).map { it?.toDomain() }
 
     override fun observeCount(): Flow<Int> = dao.observeCount()
-    override suspend fun getRoutine(id: Long): RoutineWithExercises? =
+    override suspend fun getRoutine(id: String): RoutineWithExercises? =
         dao.getRoutineWithExercises(id)?.toDomain()
 
-    override suspend fun isExerciseUsed(exerciseId: Long): Boolean =
+    override suspend fun isExerciseUsed(exerciseId: String): Boolean =
         dao.isExerciseUsedInAnyRoutine(exerciseId)
 
     /** Create or update a routine and its exercise list in one shot. Returns the routine id. */
     override suspend fun saveRoutine(
-        routineId: Long?,
+        routineId: String?,
         name: String,
         specs: List<ExerciseSpec>,
-    ): Long {
+    ): String {
         val id = if (routineId == null) {
-            dao.insertRoutine(RoutineEntity(name = name.trim(), position = dao.maxPosition() + 1))
+            val newId = UUID.randomUUID().toString()
+            dao.insertRoutine(
+                RoutineEntity(id = newId, name = name.trim(), position = dao.maxPosition() + 1)
+            )
+            newId
         } else {
             val position = dao.positionOf(routineId) ?: (dao.maxPosition() + 1)
             dao.updateRoutine(
@@ -52,6 +57,7 @@ class RoutineRepositoryImpl @Inject constructor(
         }
         val items = specs.mapIndexed { index, spec ->
             RoutineExerciseEntity(
+                id = UUID.randomUUID().toString(),
                 routineId = id,
                 exerciseId = spec.exerciseId,
                 position = index,
@@ -67,5 +73,5 @@ class RoutineRepositoryImpl @Inject constructor(
     override suspend fun delete(routine: Routine) = dao.deleteRoutine(routine.toEntity())
 
     /** Persist a new routine ordering; [orderedIds] is the full list top-to-bottom. */
-    override suspend fun reorder(orderedIds: List<Long>) = dao.applyOrder(orderedIds)
+    override suspend fun reorder(orderedIds: List<String>) = dao.applyOrder(orderedIds)
 }

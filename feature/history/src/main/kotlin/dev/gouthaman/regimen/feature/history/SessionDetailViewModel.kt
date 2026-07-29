@@ -37,7 +37,7 @@ import javax.inject.Inject
 /** One exercise within a past session. Sets/cardio kept raw (not pre-formatted) so the Composable
  * can localize each entry's label at render time via SessionFormat.setLabel/cardioLabel. */
 data class SessionExercise(
-    val workoutExerciseId: Long,
+    val workoutExerciseId: String,
     val name: String,
     val isStrength: Boolean,
     val equipment: Equipment,
@@ -100,8 +100,8 @@ class SessionDetailViewModel @Inject constructor(
 
     // Edit reopens THIS historical workout for editing, which is a real NavHost push (there's no
     // "in progress" sheet state for editing a past session to expand into).
-    private val editWorkouts = Channel<Long>(Channel.BUFFERED)
-    val editWorkout: Flow<Long> = editWorkouts.receiveAsFlow()
+    private val editWorkouts = Channel<String>(Channel.BUFFERED)
+    val editWorkout: Flow<String> = editWorkouts.receiveAsFlow()
 
     val uiState: StateFlow<SessionDetailUiState> = combine(
         observeWorkout(workoutId),

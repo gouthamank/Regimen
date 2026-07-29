@@ -23,7 +23,7 @@ class HasRoutinesUseCaseTest {
     @Test
     fun `at least one routine yields true`() = runTest {
         val repo = FakeRoutineRepository()
-        repo.seed(RoutineWithExercises(Routine(1, "Push Day", 0), emptyList()))
+        repo.seed(RoutineWithExercises(Routine("1", "Push Day", 0), emptyList()))
         HasRoutinesUseCase(repo)().test {
             assertTrue(awaitItem())
         }

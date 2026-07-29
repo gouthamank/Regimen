@@ -117,14 +117,14 @@ class EditWorkoutViewModel @Inject constructor(
 
     fun updateSet(set: SetEntry) = viewModelScope.launch { upsertSet(set) }
 
-    fun addSet(workoutExerciseId: Long, lastSet: SetEntry?) =
+    fun addSet(workoutExerciseId: String, lastSet: SetEntry?) =
         viewModelScope.launch { addSetUseCase(workoutExerciseId, lastSet) }
 
     fun deleteSet(set: SetEntry) = viewModelScope.launch { deleteSetUseCase(set) }
 
     /** On blur of a weight field: fills every later set in the same exercise whose weight is
      * still empty with the value just entered into [fromSetId]. */
-    fun autofillWeightBelow(workoutExerciseId: Long, fromSetId: Long, weightKg: Double) {
+    fun autofillWeightBelow(workoutExerciseId: String, fromSetId: String, weightKg: Double) {
         viewModelScope.launch {
             val sets = uiState.value.exercises
                 .firstOrNull { it.workoutExerciseId == workoutExerciseId }?.sets ?: return@launch
@@ -135,7 +135,7 @@ class EditWorkoutViewModel @Inject constructor(
     }
 
     /** Same as [autofillWeightBelow], for reps. */
-    fun autofillRepsBelow(workoutExerciseId: Long, fromSetId: Long, reps: Int) {
+    fun autofillRepsBelow(workoutExerciseId: String, fromSetId: String, reps: Int) {
         viewModelScope.launch {
             val sets = uiState.value.exercises
                 .firstOrNull { it.workoutExerciseId == workoutExerciseId }?.sets ?: return@launch
@@ -153,7 +153,7 @@ class EditWorkoutViewModel @Inject constructor(
     fun toggleDone(exercise: WorkoutExercise) =
         viewModelScope.launch { toggleDoneUseCase(exercise) }
 
-    fun addExercises(ids: List<Long>) =
+    fun addExercises(ids: List<String>) =
         viewModelScope.launch { addExercisesUseCase(workoutId, ids) }
 
     fun updateCardio(cardio: CardioEntry) = viewModelScope.launch { upsertCardio(cardio) }

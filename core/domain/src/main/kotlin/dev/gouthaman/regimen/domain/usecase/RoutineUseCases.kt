@@ -17,7 +17,7 @@ class ObserveRoutinesUseCase @Inject constructor(
 class ObserveRoutineUseCase @Inject constructor(
     private val repo: RoutineRepository,
 ) {
-    operator fun invoke(id: Long): Flow<RoutineWithExercises?> = repo.observeRoutine(id)
+    operator fun invoke(id: String): Flow<RoutineWithExercises?> = repo.observeRoutine(id)
 }
 
 /** Whether the user has any routines - drives the cold-start funnel on Home. */
@@ -30,7 +30,11 @@ class HasRoutinesUseCase @Inject constructor(
 class SaveRoutineUseCase @Inject constructor(
     private val repo: RoutineRepository,
 ) {
-    suspend operator fun invoke(routineId: Long?, name: String, specs: List<ExerciseSpec>): Long =
+    suspend operator fun invoke(
+        routineId: String?,
+        name: String,
+        specs: List<ExerciseSpec>
+    ): String =
         repo.saveRoutine(routineId, name, specs)
 }
 
@@ -44,5 +48,5 @@ class DeleteRoutineUseCase @Inject constructor(
 class ReorderRoutinesUseCase @Inject constructor(
     private val repo: RoutineRepository,
 ) {
-    suspend operator fun invoke(orderedIds: List<Long>) = repo.reorder(orderedIds)
+    suspend operator fun invoke(orderedIds: List<String>) = repo.reorder(orderedIds)
 }

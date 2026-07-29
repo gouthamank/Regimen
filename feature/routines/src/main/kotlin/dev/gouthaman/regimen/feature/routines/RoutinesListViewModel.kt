@@ -26,7 +26,7 @@ class RoutinesListViewModel @Inject constructor(
      * Optimistic ordering applied on drop so the list doesn't flicker back while the DB write
      * round-trips. Cleared once the persisted DB order matches it. Null = follow the DB order.
      */
-    private val optimisticOrder = MutableStateFlow<List<Long>?>(null)
+    private val optimisticOrder = MutableStateFlow<List<String>?>(null)
 
     val routines: StateFlow<List<RoutineWithExercises>> =
         combine(observeRoutines(), optimisticOrder) { list, order ->
@@ -47,7 +47,7 @@ class RoutinesListViewModel @Inject constructor(
     }
 
     /** Persist a new top-to-bottom ordering produced by a drag-and-drop reorder. */
-    fun reorder(orderedIds: List<Long>) {
+    fun reorder(orderedIds: List<String>) {
         optimisticOrder.value = orderedIds
         viewModelScope.launch {
             reorderRoutines(orderedIds)

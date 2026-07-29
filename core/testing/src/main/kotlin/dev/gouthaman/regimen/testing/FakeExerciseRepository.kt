@@ -19,17 +19,17 @@ class FakeExerciseRepository : ExerciseRepository {
     override fun observeByType(type: ExerciseType): Flow<List<Exercise>> =
         exercises.map { list -> list.filter { it.type == type } }
 
-    override fun observeById(id: Long): Flow<Exercise?> =
+    override fun observeById(id: String): Flow<Exercise?> =
         exercises.map { list -> list.find { it.id == id } }
 
-    override suspend fun getById(id: Long): Exercise? = exercises.value.find { it.id == id }
+    override suspend fun getById(id: String): Exercise? = exercises.value.find { it.id == id }
 
     override suspend fun addCustom(
         name: String,
         muscleGroup: MuscleGroup,
         equipment: Equipment
-    ): Long {
-        val id = nextId++
+    ): String {
+        val id = (nextId++).toString()
         exercises.value = exercises.value + Exercise(
             id = id,
             name = name,
@@ -51,6 +51,6 @@ class FakeExerciseRepository : ExerciseRepository {
 
     fun seed(vararg seeded: Exercise) {
         exercises.value = seeded.toList()
-        nextId = (seeded.maxOfOrNull { it.id } ?: 0) + 1
+        nextId = (seeded.mapNotNull { it.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
     }
 }

@@ -7,16 +7,16 @@ import kotlinx.coroutines.flow.Flow
 
 interface RoutineRepository {
     fun observeAll(): Flow<List<RoutineWithExercises>>
-    fun observeRoutine(id: Long): Flow<RoutineWithExercises?>
+    fun observeRoutine(id: String): Flow<RoutineWithExercises?>
     fun observeCount(): Flow<Int>
-    suspend fun getRoutine(id: Long): RoutineWithExercises?
-    suspend fun isExerciseUsed(exerciseId: Long): Boolean
+    suspend fun getRoutine(id: String): RoutineWithExercises?
+    suspend fun isExerciseUsed(exerciseId: String): Boolean
 
     /** Create or update a routine and its exercise list in one shot. Returns the routine id. */
-    suspend fun saveRoutine(routineId: Long?, name: String, specs: List<ExerciseSpec>): Long
+    suspend fun saveRoutine(routineId: String?, name: String, specs: List<ExerciseSpec>): String
 
     suspend fun delete(routine: Routine)
 
     /** Persist a new routine ordering; [orderedIds] is the full list top-to-bottom. */
-    suspend fun reorder(orderedIds: List<Long>)
+    suspend fun reorder(orderedIds: List<String>)
 }

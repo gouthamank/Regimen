@@ -25,7 +25,7 @@ class GetHomeSummaryUseCaseTest {
 
     private val zone = ZoneId.systemDefault()
     private val exercise = Exercise(
-        id = 1,
+        id = "1",
         name = "Bench Press",
         type = ExerciseType.STRENGTH,
         muscleGroup = MuscleGroup.CHEST,
@@ -39,7 +39,7 @@ class GetHomeSummaryUseCaseTest {
         LocalDate.now(zone).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
     private fun completedWorkout(
-        id: Long,
+        id: String,
         day: LocalDate,
         durationMillis: Long,
         sets: List<SetEntry>,
@@ -82,7 +82,7 @@ class GetHomeSummaryUseCaseTest {
     @Test
     fun `in-progress workouts are excluded from the summary`() = runTest {
         val repo = FakeWorkoutRepository()
-        val inProgress = completedWorkout(1, thisWeekMonday(), 60_000, emptyList())
+        val inProgress = completedWorkout("1", thisWeekMonday(), 60_000, emptyList())
             .let {
                 it.copy(
                     workout = it.workout.copy(
@@ -103,21 +103,21 @@ class GetHomeSummaryUseCaseTest {
         val repo = FakeWorkoutRepository()
         val monday = thisWeekMonday()
         val workout = completedWorkout(
-            id = 1,
+            id = "1",
             day = monday,
             durationMillis = 60_000,
             sets = listOf(
                 SetEntry(
-                    id = 1,
-                    workoutExerciseId = 1,
+                    id = "1",
+                    workoutExerciseId = "1",
                     setNumber = 1,
                     weightKg = 100.0,
                     reps = 5,
                     isComplete = true
                 ),
                 SetEntry(
-                    id = 2,
-                    workoutExerciseId = 1,
+                    id = "2",
+                    workoutExerciseId = "1",
                     setNumber = 2,
                     weightKg = 200.0,
                     reps = 5,
@@ -139,8 +139,8 @@ class GetHomeSummaryUseCaseTest {
         val repo = FakeWorkoutRepository()
         val monday = thisWeekMonday()
         repo.seed(
-            completedWorkout(1, monday.minusWeeks(1), 60_000, emptyList()),
-            completedWorkout(2, monday.minusWeeks(2), 60_000, emptyList()),
+            completedWorkout("1", monday.minusWeeks(1), 60_000, emptyList()),
+            completedWorkout("2", monday.minusWeeks(2), 60_000, emptyList()),
         )
 
         val summary = GetHomeSummaryUseCase(repo)().first()
@@ -154,8 +154,8 @@ class GetHomeSummaryUseCaseTest {
         val repo = FakeWorkoutRepository()
         val monday = thisWeekMonday()
         repo.seed(
-            completedWorkout(1, monday, 60_000, emptyList()),
-            completedWorkout(2, monday.minusWeeks(2), 60_000, emptyList()),
+            completedWorkout("1", monday, 60_000, emptyList()),
+            completedWorkout("2", monday.minusWeeks(2), 60_000, emptyList()),
         )
 
         val summary = GetHomeSummaryUseCase(repo)().first()
@@ -169,8 +169,8 @@ class GetHomeSummaryUseCaseTest {
         val thisMonth = LocalDate.now(zone).withDayOfMonth(1)
         val lastMonth = thisMonth.minusMonths(1).withDayOfMonth(15)
         repo.seed(
-            completedWorkout(1, thisMonth, 60_000, emptyList()),
-            completedWorkout(2, lastMonth, 90_000, emptyList()),
+            completedWorkout("1", thisMonth, 60_000, emptyList()),
+            completedWorkout("2", lastMonth, 90_000, emptyList()),
         )
 
         val summary = GetHomeSummaryUseCase(repo)().first()

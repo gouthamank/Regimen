@@ -29,11 +29,11 @@ class RoutineEditorViewModelTest {
     val fakeBundleRule = FakeBundleRule()
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val squat =
-        Exercise(2, "Squat", ExerciseType.STRENGTH, MuscleGroup.LEGS, Equipment.BARBELL)
+        Exercise("2", "Squat", ExerciseType.STRENGTH, MuscleGroup.LEGS, Equipment.BARBELL)
     private val deadlift =
-        Exercise(3, "Deadlift", ExerciseType.STRENGTH, MuscleGroup.BACK, Equipment.BARBELL)
+        Exercise("3", "Deadlift", ExerciseType.STRENGTH, MuscleGroup.BACK, Equipment.BARBELL)
 
     private fun newViewModel(restDefaultSec: Int = 90): RoutineEditorViewModel {
         val exerciseRepo = FakeExerciseRepository().apply { seed(benchPress, squat, deadlift) }
@@ -42,7 +42,7 @@ class RoutineEditorViewModelTest {
             seed(UserPreferences(restDefaultSec = restDefaultSec))
         }
         return RoutineEditorViewModel(
-            savedStateHandle = SavedStateHandle(mapOf("routineId" to 0L)),
+            savedStateHandle = SavedStateHandle(mapOf("routineId" to "")),
             observeExercises = ObserveExercisesUseCase(exerciseRepo),
             observeRoutine = ObserveRoutineUseCase(routineRepo),
             observePreferences = ObservePreferencesUseCase(preferencesRepo),
@@ -110,7 +110,7 @@ class RoutineEditorViewModelTest {
     fun `unknown ids from the picker are ignored`() = runTest {
         val viewModel = newViewModel()
 
-        viewModel.setExercises(listOf(benchPress.id, 999L))
+        viewModel.setExercises(listOf(benchPress.id, "999"))
 
         val exercises = viewModel.uiState.value.exercises
         assertEquals(listOf(benchPress.id), exercises.map { it.exerciseId })

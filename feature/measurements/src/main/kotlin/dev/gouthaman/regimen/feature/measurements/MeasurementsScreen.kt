@@ -61,7 +61,7 @@ fun MeasurementsScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     cameFromProgress: Boolean,
     onBack: () -> Unit,
-    onOpenType: (Long) -> Unit,
+    onOpenType: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MeasurementsViewModel = hiltViewModel(),
 ) {
@@ -90,9 +90,9 @@ fun MeasurementsScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     cameFromProgress: Boolean,
     onBack: () -> Unit,
-    onOpenType: (Long) -> Unit,
+    onOpenType: (String) -> Unit,
     onAddType: (String, String) -> Unit,
-    onAddEntry: (Long, Long, Double) -> Unit,
+    onAddEntry: (String, Long, Double) -> Unit,
     weightUnit: dev.gouthaman.regimen.domain.model.UnitSystem,
     modifier: Modifier = Modifier,
 ) {

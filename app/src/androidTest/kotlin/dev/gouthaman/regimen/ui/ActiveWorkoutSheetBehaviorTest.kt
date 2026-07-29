@@ -57,7 +57,8 @@ class ActiveWorkoutSheetBehaviorTest {
         // "Start Workout" reachable - this test is about the sheet's mount/collapse/expand
         // mechanics, not exercise logging.
         runBlocking {
-            database.routineDao().insertRoutine(RoutineEntity(name = "Push Day", position = 0))
+            database.routineDao()
+                .insertRoutine(RoutineEntity(id = "0", name = "Push Day", position = 0))
         }
     }
 

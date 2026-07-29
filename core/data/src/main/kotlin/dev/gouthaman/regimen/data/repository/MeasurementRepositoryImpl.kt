@@ -10,6 +10,7 @@ import dev.gouthaman.regimen.domain.model.MeasurementType
 import dev.gouthaman.regimen.domain.repository.MeasurementRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,25 +21,34 @@ class MeasurementRepositoryImpl @Inject constructor(
     override fun observeTypes(): Flow<List<MeasurementType>> =
         dao.observeTypes().map { list -> list.map { it.toDomain() } }
 
-    override fun observeMetrics(typeId: Long): Flow<List<BodyMetric>> =
+    override fun observeMetrics(typeId: String): Flow<List<BodyMetric>> =
         dao.observeMetricsForType(typeId).map { list -> list.map { it.toDomain() } }
 
-    override fun observeLatest(typeId: Long): Flow<BodyMetric?> =
+    override fun observeLatest(typeId: String): Flow<BodyMetric?> =
         dao.observeLatestForType(typeId).map { it?.toDomain() }
 
-    override suspend fun addType(name: String, unit: String): Long =
+    override suspend fun addType(name: String, unit: String): String {
+        val id = UUID.randomUUID().toString()
         dao.insertType(
             MeasurementTypeEntity(
+                id = id,
                 name = name.trim(),
                 unit = unit.trim(),
                 isBuiltIn = false
             )
         )
+        return id
+    }
 
     override suspend fun deleteType(type: MeasurementType) = dao.deleteType(type.toEntity())
 
-    override suspend fun addMetric(typeId: Long, date: Long, value: Double): Long =
-        dao.insertMetric(BodyMetricEntity(measurementTypeId = typeId, date = date, value = value))
+    override suspend fun addMetric(typeId: String, date: Long, value: Double): String {
+        val id = UUID.randomUUID().toString()
+        dao.insertMetric(
+            BodyMetricEntity(id = id, measurementTypeId = typeId, date = date, value = value)
+        )
+        return id
+    }
 
     override suspend fun deleteMetric(metric: BodyMetric) = dao.deleteMetric(metric.toEntity())
 }

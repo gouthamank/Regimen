@@ -32,11 +32,11 @@ class ProgressViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val inclinePress =
-        Exercise(2, "Incline Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("2", "Incline Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val pullUp =
-        Exercise(3, "Pull-up", ExerciseType.STRENGTH, MuscleGroup.BACK, Equipment.BODYWEIGHT)
+        Exercise("3", "Pull-up", ExerciseType.STRENGTH, MuscleGroup.BACK, Equipment.BODYWEIGHT)
 
     private val exerciseRepo =
         FakeExerciseRepository().apply { seed(benchPress, inclinePress, pullUp) }
@@ -52,7 +52,7 @@ class ProgressViewModelTest {
     )
 
     private suspend fun loggedSet(
-        exerciseId: Long,
+        exerciseId: String,
         weightKg: Double?,
         reps: Int?,
         startTime: Long = System.currentTimeMillis(),

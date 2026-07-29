@@ -19,7 +19,7 @@ interface MeasurementDao {
     suspend fun typeCount(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertType(type: MeasurementTypeEntity): Long
+    suspend fun insertType(type: MeasurementTypeEntity)
 
     @Update
     suspend fun updateType(type: MeasurementTypeEntity)
@@ -28,13 +28,13 @@ interface MeasurementDao {
     suspend fun deleteType(type: MeasurementTypeEntity)
 
     @Query("SELECT * FROM body_metrics WHERE measurementTypeId = :typeId ORDER BY date ASC")
-    fun observeMetricsForType(typeId: Long): Flow<List<BodyMetricEntity>>
+    fun observeMetricsForType(typeId: String): Flow<List<BodyMetricEntity>>
 
     @Query("SELECT * FROM body_metrics WHERE measurementTypeId = :typeId ORDER BY date DESC LIMIT 1")
-    fun observeLatestForType(typeId: Long): Flow<BodyMetricEntity?>
+    fun observeLatestForType(typeId: String): Flow<BodyMetricEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMetric(metric: BodyMetricEntity): Long
+    suspend fun insertMetric(metric: BodyMetricEntity)
 
     @Delete
     suspend fun deleteMetric(metric: BodyMetricEntity)

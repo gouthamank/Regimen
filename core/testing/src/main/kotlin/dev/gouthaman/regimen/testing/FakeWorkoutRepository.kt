@@ -35,7 +35,7 @@ class FakeWorkoutRepository : WorkoutRepository {
     override fun observeCompleted(): Flow<List<WorkoutWithDetails>> =
         workouts.map { list -> list.filter { it.workout.isFinished() } }
 
-    override fun observeWorkout(id: Long): Flow<WorkoutWithDetails?> =
+    override fun observeWorkout(id: String): Flow<WorkoutWithDetails?> =
         workouts.map { list -> list.find { it.workout.id == id } }
 
     override fun observeCompletedBetween(start: Long, end: Long): Flow<List<Workout>> =
@@ -45,11 +45,11 @@ class FakeWorkoutRepository : WorkoutRepository {
             }.map { it.workout }
         }
 
-    override fun observeInProgressId(): Flow<Long?> = workouts.map { list ->
+    override fun observeInProgressId(): Flow<String?> = workouts.map { list ->
         list.filterNot { it.workout.isFinished() }.maxByOrNull { it.workout.startTime }?.workout?.id
     }
 
-    override fun observeBestWeight(exerciseId: Long): Flow<Double?> = workouts.map { list ->
+    override fun observeBestWeight(exerciseId: String): Flow<Double?> = workouts.map { list ->
         list.filter { it.workout.isFinished() }
             .flatMap { it.exercises }
             .filter { it.exercise.id == exerciseId }
@@ -59,7 +59,7 @@ class FakeWorkoutRepository : WorkoutRepository {
             .maxOrNull()
     }
 
-    override fun observePersonalRecords(excludingWorkoutId: Long?): Flow<List<PersonalRecordRow>> =
+    override fun observePersonalRecords(excludingWorkoutId: String?): Flow<List<PersonalRecordRow>> =
         workouts.map { list ->
             list.filter { it.workout.isFinished() && it.workout.id != excludingWorkoutId }
                 .flatMap { it.exercises }
@@ -73,7 +73,7 @@ class FakeWorkoutRepository : WorkoutRepository {
                 }
         }
 
-    override fun observeBestReps(excludingWorkoutId: Long?): Flow<List<RepsRecordRow>> =
+    override fun observeBestReps(excludingWorkoutId: String?): Flow<List<RepsRecordRow>> =
         workouts.map { list ->
             list.filter { it.workout.isFinished() && it.workout.id != excludingWorkoutId }
                 .flatMap { it.exercises }
@@ -87,7 +87,7 @@ class FakeWorkoutRepository : WorkoutRepository {
                 }
         }
 
-    override fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistorySession>> =
+    override fun observeExerciseHistory(exerciseId: String): Flow<List<ExerciseHistorySession>> =
         workouts.map { list ->
             list.filter { it.workout.isFinished() }
                 .flatMap { w ->
@@ -107,15 +107,15 @@ class FakeWorkoutRepository : WorkoutRepository {
     override suspend fun getInProgress(): WorkoutWithDetails? =
         workouts.value.filterNot { it.workout.isFinished() }.maxByOrNull { it.workout.startTime }
 
-    override suspend fun getWorkout(id: Long): WorkoutWithDetails? =
+    override suspend fun getWorkout(id: String): WorkoutWithDetails? =
         workouts.value.find { it.workout.id == id }
 
-    override suspend fun getMostRecentForRoutine(routineId: Long): WorkoutWithDetails? =
+    override suspend fun getMostRecentForRoutine(routineId: String): WorkoutWithDetails? =
         workouts.value
             .filter { it.workout.routineId == routineId && it.workout.isFinished() }
             .maxByOrNull { it.workout.startTime }
 
-    override suspend fun getMostRecentSetForExercise(exerciseId: Long): SetEntry? =
+    override suspend fun getMostRecentSetForExercise(exerciseId: String): SetEntry? =
         workouts.value
             .filter { it.workout.isFinished() }
             .sortedByDescending { it.workout.startTime }
@@ -123,11 +123,11 @@ class FakeWorkoutRepository : WorkoutRepository {
                 w.exercises.firstOrNull { it.exercise.id == exerciseId }?.sets?.maxByOrNull { it.setNumber }
             }
 
-    override suspend fun isExerciseUsed(exerciseId: Long): Boolean =
+    override suspend fun isExerciseUsed(exerciseId: String): Boolean =
         workouts.value.any { w -> w.exercises.any { it.exercise.id == exerciseId } }
 
-    override suspend fun createWorkout(startTime: Long, routineId: Long?): Long {
-        val id = nextWorkoutId++
+    override suspend fun createWorkout(startTime: Long, routineId: String?): String {
+        val id = (nextWorkoutId++).toString()
         workouts.value = workouts.value + WorkoutWithDetails(
             workout = Workout(id = id, startTime = startTime, routineId = routineId),
             exercises = emptyList(),
@@ -137,10 +137,10 @@ class FakeWorkoutRepository : WorkoutRepository {
 
     override suspend fun startWorkout(
         startTime: Long,
-        routineId: Long?,
+        routineId: String?,
         note: String?,
         exercises: List<NewWorkoutExercise>,
-    ): Long {
+    ): String {
         val workoutId = createWorkout(startTime, routineId)
         if (note != null) updateWorkout(
             Workout(
@@ -191,8 +191,8 @@ class FakeWorkoutRepository : WorkoutRepository {
         workouts.value = workouts.value.filterNot { it.workout.id == workout.id }
     }
 
-    override suspend fun addExercise(item: WorkoutExercise): Long {
-        val id = nextWorkoutExerciseId++
+    override suspend fun addExercise(item: WorkoutExercise): String {
+        val id = (nextWorkoutExerciseId++).toString()
         val withId = item.copy(id = id)
         workouts.value = workouts.value.map { w ->
             if (w.workout.id == item.workoutId) {
@@ -227,8 +227,8 @@ class FakeWorkoutRepository : WorkoutRepository {
         }
     }
 
-    override suspend fun upsertSet(set: SetEntry): Long {
-        val id = if (set.id != 0L) set.id else nextSetId++
+    override suspend fun upsertSet(set: SetEntry): String {
+        val id = set.id.ifEmpty { (nextSetId++).toString() }
         val withId = set.copy(id = id)
         workouts.value = workouts.value.map { w ->
             w.copy(exercises = w.exercises.map { we ->
@@ -254,8 +254,8 @@ class FakeWorkoutRepository : WorkoutRepository {
         }
     }
 
-    override suspend fun upsertCardio(cardio: CardioEntry): Long {
-        val id = if (cardio.id != 0L) cardio.id else nextCardioId++
+    override suspend fun upsertCardio(cardio: CardioEntry): String {
+        val id = cardio.id.ifEmpty { (nextCardioId++).toString() }
         val withId = cardio.copy(id = id)
         workouts.value = workouts.value.map { w ->
             w.copy(exercises = w.exercises.map { we ->
@@ -281,7 +281,7 @@ class FakeWorkoutRepository : WorkoutRepository {
         }
     }
 
-    var exerciseLookup: (Long) -> Exercise = { id ->
+    var exerciseLookup: (String) -> Exercise = { id ->
         Exercise(
             id = id,
             name = "Exercise $id",
@@ -293,12 +293,12 @@ class FakeWorkoutRepository : WorkoutRepository {
 
     fun seed(vararg seeded: WorkoutWithDetails) {
         workouts.value = seeded.toList()
-        nextWorkoutId = (seeded.maxOfOrNull { it.workout.id } ?: 0) + 1
-        nextWorkoutExerciseId =
-            (seeded.flatMap { it.exercises }.maxOfOrNull { it.workoutExercise.id } ?: 0) + 1
-        nextSetId =
-            (seeded.flatMap { it.exercises }.flatMap { it.sets }.maxOfOrNull { it.id } ?: 0) + 1
-        nextCardioId =
-            (seeded.flatMap { it.exercises }.flatMap { it.cardio }.maxOfOrNull { it.id } ?: 0) + 1
+        nextWorkoutId = (seeded.mapNotNull { it.workout.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
+        nextWorkoutExerciseId = (seeded.flatMap { it.exercises }
+            .mapNotNull { it.workoutExercise.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
+        nextSetId = (seeded.flatMap { it.exercises }.flatMap { it.sets }
+            .mapNotNull { it.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
+        nextCardioId = (seeded.flatMap { it.exercises }.flatMap { it.cardio }
+            .mapNotNull { it.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
     }
 }

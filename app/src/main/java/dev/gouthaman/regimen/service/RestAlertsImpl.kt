@@ -51,7 +51,7 @@ class RestAlertsImpl @Inject constructor(
         manager?.createNotificationChannel(silentChannel)
     }
 
-    override fun fire(workoutId: Long, chimeEnabled: Boolean) {
+    override fun fire(workoutId: String, chimeEnabled: Boolean) {
         vibrate()
         if (chimeEnabled) playChime()
         notifyDone(workoutId, chimeEnabled)
@@ -75,7 +75,7 @@ class RestAlertsImpl @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    private fun notifyDone(workoutId: Long, chimeEnabled: Boolean) {
+    private fun notifyDone(workoutId: String, chimeEnabled: Boolean) {
         val channelId = if (chimeEnabled) CHANNEL_ID else CHANNEL_ID_SILENT
         val contentIntent = PendingIntent.getActivity(
             context,

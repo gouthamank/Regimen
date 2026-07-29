@@ -459,6 +459,12 @@ implemented.
 ```
 Exercise(id, name, type, muscleGroup, equipment, isCustom)
     type = strength | cardio
+    id (and every other entity's id below) is a client-generated UUID string, not an
+    autoincrement Long - generated at creation time, a Phase 0 prerequisite for eventual
+    multi-device sync (see docs/todo-remote-sync.md). Built-in (seeded) Exercise rows and the
+    built-in MeasurementType row are the one exception: their id is a deterministic,
+    name-derived UUID (BuiltInData.stableId) instead of a random one, so every fresh install
+    seeds the identical id for the same built-in row.
 
 Routine(id, name, position)
 RoutineExercise(id, routineId, exerciseId, position, targetSets, targetReps, targetRestSec,
@@ -492,7 +498,7 @@ boundary, so `:core:domain` has zero dependency on Room.
   stored.
 - `supersetGroupId` on `RoutineExercise`/`WorkoutExercise` is reserved for future superset
   grouping; currently always null.
-- Database version 5.
+- Database version 9.
 
 ---
 

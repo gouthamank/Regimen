@@ -91,7 +91,7 @@ class MeasurementsViewModel @Inject constructor(
     }
 
     /** Log an entry for [typeId]; [displayValue] is in the user's units and converted for storage. */
-    fun addEntry(typeId: Long, date: Long, displayValue: Double) {
+    fun addEntry(typeId: String, date: Long, displayValue: Double) {
         val type = uiState.value.rows.firstOrNull { it.type.id == typeId }?.type ?: return
         val stored = MeasurementFormat.toStored(type, displayValue, uiState.value.weightUnit)
         viewModelScope.launch { addMeasurementUseCase(typeId, date, stored) }

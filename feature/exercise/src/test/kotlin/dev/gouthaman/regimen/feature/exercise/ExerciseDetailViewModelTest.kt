@@ -37,16 +37,16 @@ class ExerciseDetailViewModelTest {
     val fakeBundleRule = FakeBundleRule()
 
     private val benchPress =
-        Exercise(1, "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
+        Exercise("1", "Bench Press", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BARBELL)
     private val pushUp =
-        Exercise(2, "Push Up", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BODYWEIGHT)
+        Exercise("2", "Push Up", ExerciseType.STRENGTH, MuscleGroup.CHEST, Equipment.BODYWEIGHT)
 
     private val exerciseRepo = FakeExerciseRepository()
     private val workoutRepo = FakeWorkoutRepository()
     private val preferencesRepo = FakePreferencesRepository()
     private val routineRepo = FakeRoutineRepository()
 
-    private fun newViewModel(exerciseId: Long) = ExerciseDetailViewModel(
+    private fun newViewModel(exerciseId: String) = ExerciseDetailViewModel(
         savedStateHandle = SavedStateHandle(mapOf("exerciseId" to exerciseId)),
         observeExercise = ObserveExerciseUseCase(exerciseRepo),
         getPersonalRecords = GetPersonalRecordsUseCase(workoutRepo, exerciseRepo),

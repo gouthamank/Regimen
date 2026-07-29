@@ -20,7 +20,7 @@ class FakeRoutineRepository : RoutineRepository {
     private var nextRoutineId = 1L
     private var nextRoutineExerciseId = 1L
 
-    var exerciseLookup: (Long) -> Exercise = { id ->
+    var exerciseLookup: (String) -> Exercise = { id ->
         Exercise(
             id = id,
             name = "Exercise $id",
@@ -32,23 +32,23 @@ class FakeRoutineRepository : RoutineRepository {
 
     override fun observeAll(): Flow<List<RoutineWithExercises>> = routines
 
-    override fun observeRoutine(id: Long): Flow<RoutineWithExercises?> =
+    override fun observeRoutine(id: String): Flow<RoutineWithExercises?> =
         routines.map { list -> list.find { it.routine.id == id } }
 
     override fun observeCount(): Flow<Int> = routines.map { it.size }
 
-    override suspend fun getRoutine(id: Long): RoutineWithExercises? =
+    override suspend fun getRoutine(id: String): RoutineWithExercises? =
         routines.value.find { it.routine.id == id }
 
-    override suspend fun isExerciseUsed(exerciseId: Long): Boolean =
+    override suspend fun isExerciseUsed(exerciseId: String): Boolean =
         routines.value.any { r -> r.exercises.any { it.exercise.id == exerciseId } }
 
     override suspend fun saveRoutine(
-        routineId: Long?,
+        routineId: String?,
         name: String,
         specs: List<ExerciseSpec>
-    ): Long {
-        val id = routineId ?: (nextRoutineId++)
+    ): String {
+        val id = routineId ?: (nextRoutineId++).toString()
         val position = routineId
             ?.let { existingId -> routines.value.find { it.routine.id == existingId }?.routine?.position }
             ?: routines.value.size
@@ -56,7 +56,7 @@ class FakeRoutineRepository : RoutineRepository {
         val exercises = specs.mapIndexed { index, spec ->
             RoutineExerciseWithExercise(
                 routineExercise = RoutineExercise(
-                    id = nextRoutineExerciseId++,
+                    id = (nextRoutineExerciseId++).toString(),
                     routineId = id,
                     exerciseId = spec.exerciseId,
                     position = index,
@@ -87,7 +87,7 @@ class FakeRoutineRepository : RoutineRepository {
         routines.value = routines.value.filterNot { it.routine.id == routine.id }
     }
 
-    override suspend fun reorder(orderedIds: List<Long>) {
+    override suspend fun reorder(orderedIds: List<String>) {
         val positionById = orderedIds.withIndex().associate { (index, id) -> id to index }
         routines.value = routines.value.map { r ->
             positionById[r.routine.id]?.let { position -> r.copy(routine = r.routine.copy(position = position)) }
@@ -97,8 +97,8 @@ class FakeRoutineRepository : RoutineRepository {
 
     fun seed(vararg seeded: RoutineWithExercises) {
         routines.value = seeded.toList()
-        nextRoutineId = (seeded.maxOfOrNull { it.routine.id } ?: 0) + 1
-        nextRoutineExerciseId =
-            (seeded.flatMap { it.exercises }.maxOfOrNull { it.routineExercise.id } ?: 0) + 1
+        nextRoutineId = (seeded.mapNotNull { it.routine.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
+        nextRoutineExerciseId = (seeded.flatMap { it.exercises }
+            .mapNotNull { it.routineExercise.id.toLongOrNull() }.maxOrNull() ?: 0) + 1
     }
 }

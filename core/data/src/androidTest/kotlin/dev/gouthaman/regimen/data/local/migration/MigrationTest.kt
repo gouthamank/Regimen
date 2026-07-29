@@ -6,7 +6,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.gouthaman.regimen.data.local.RegimenDatabase
+import dev.gouthaman.regimen.data.local.seed.BuiltInData
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,7 +61,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
+        ).addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -95,7 +97,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_6_7, MIGRATION_7_8).build()
+        ).addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -123,7 +125,150 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_7_8).build()
+        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
+
+    /**
+     * Exercises every FK remap path in one pass: a built-in exercise (must land on
+     * [BuiltInData.stableId], not a random UUID), a custom exercise, a built-in + custom
+     * measurement type, a routine + routine_exercise, a workout (with a routineId FK and a
+     * `restWorkoutExerciseId` forward-reference to one of its own workout_exercises rows) plus
+     * its workout_exercise/set_entry/cardio_entry, and a body_metric.
+     */
+    @Test
+    fun migrate8To9_remapsEveryIdToAUuidStringPreservingRelationships() {
+        helper.createDatabase(TEST_DB, 8).apply {
+            execSQL(
+                "INSERT INTO exercises (id, name, type, muscleGroup, equipment, isCustom) " +
+                        "VALUES (1, 'Bench Press', 'STRENGTH', 'CHEST', 'BARBELL', 0)",
+            )
+            execSQL(
+                "INSERT INTO exercises (id, name, type, muscleGroup, equipment, isCustom) " +
+                        "VALUES (2, 'My Custom Move', 'STRENGTH', 'CHEST', 'BARBELL', 1)",
+            )
+            execSQL(
+                "INSERT INTO measurement_types (id, name, unit, isBuiltIn) " +
+                        "VALUES (1, 'Bodyweight', 'kg', 1)",
+            )
+            execSQL(
+                "INSERT INTO measurement_types (id, name, unit, isBuiltIn) " +
+                        "VALUES (2, 'Waist', 'cm', 0)",
+            )
+            execSQL(
+                "INSERT INTO body_metrics (id, measurementTypeId, date, value) " +
+                        "VALUES (1, 2, 1000, 80.0)",
+            )
+            execSQL("INSERT INTO routines (id, name, position) VALUES (1, 'Push Day', 0)")
+            execSQL(
+                "INSERT INTO routine_exercises (id, routineId, exerciseId, position, targetSets, targetReps, targetRestSec, supersetGroupId) " +
+                        "VALUES (1, 1, 1, 0, 3, 8, 90, NULL)",
+            )
+            execSQL(
+                "INSERT INTO workouts (id, startTime, endTime, note, routineId, workoutStatus, endReason, pausedAt, accumulatedPausedMs, restTimeEndAt, restTotalSec, restWorkoutExerciseId) " +
+                        "VALUES (1, 1000, NULL, NULL, 1, 'IN_REST_TIME', NULL, NULL, 0, 5000, 90, 1)",
+            )
+            execSQL(
+                "INSERT INTO workout_exercises (id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId) " +
+                        "VALUES (1, 1, 1, 0, 0, 0, NULL)",
+            )
+            execSQL(
+                "INSERT INTO set_entries (id, workoutExerciseId, setNumber, weightKg, reps, isComplete) " +
+                        "VALUES (1, 1, 1, 100.0, 5, 1)",
+            )
+            execSQL(
+                "INSERT INTO cardio_entries (id, workoutExerciseId, durationSec, distanceMeters) " +
+                        "VALUES (1, 1, 600, 2000.0)",
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 9, true, MIGRATION_8_9)
+
+        val benchPressId = BuiltInData.stableId("exercise:Bench Press")
+        val bodyweightId = BuiltInData.stableId("measurementType:Bodyweight")
+
+        migrated.query("SELECT id FROM exercises WHERE name = 'Bench Press'").use {
+            it.moveToFirst()
+            assertEquals(benchPressId, it.getString(0))
+        }
+        val customExerciseId =
+            migrated.query("SELECT id FROM exercises WHERE name = 'My Custom Move'")
+                .use { it.moveToFirst(); it.getString(0) }
+        assertTrue(customExerciseId.isNotEmpty() && customExerciseId != benchPressId)
+
+        migrated.query("SELECT id FROM measurement_types WHERE name = 'Bodyweight'").use {
+            it.moveToFirst()
+            assertEquals(bodyweightId, it.getString(0))
+        }
+
+        val routineId = migrated.query("SELECT id FROM routines WHERE name = 'Push Day'")
+            .use { it.moveToFirst(); it.getString(0) }
+
+        migrated.query(
+            "SELECT routineId, exerciseId FROM routine_exercises",
+        ).use {
+            it.moveToFirst()
+            assertEquals(routineId, it.getString(0))
+            assertEquals(benchPressId, it.getString(1))
+        }
+
+        val workoutId = migrated.query("SELECT id FROM workouts").use {
+            it.moveToFirst(); it.getString(0)
+        }
+        val workoutExerciseId = migrated.query("SELECT id FROM workout_exercises").use {
+            it.moveToFirst(); it.getString(0)
+        }
+
+        migrated.query(
+            "SELECT routineId, restWorkoutExerciseId FROM workouts WHERE id = ?",
+            arrayOf(workoutId),
+        ).use {
+            it.moveToFirst()
+            assertEquals(routineId, it.getString(0))
+            // The forward-reference (old value 1) resolves to this same workout's own
+            // workout_exercises row once the patch pass runs.
+            assertEquals(workoutExerciseId, it.getString(1))
+        }
+
+        migrated.query(
+            "SELECT workoutId, exerciseId FROM workout_exercises WHERE id = ?",
+            arrayOf(workoutExerciseId),
+        ).use {
+            it.moveToFirst()
+            assertEquals(workoutId, it.getString(0))
+            assertEquals(benchPressId, it.getString(1))
+        }
+
+        migrated.query(
+            "SELECT workoutExerciseId, weightKg FROM set_entries",
+        ).use {
+            it.moveToFirst()
+            assertEquals(workoutExerciseId, it.getString(0))
+            assertEquals(100.0, it.getDouble(1), 0.0)
+        }
+
+        migrated.query(
+            "SELECT workoutExerciseId, distanceMeters FROM cardio_entries",
+        ).use {
+            it.moveToFirst()
+            assertEquals(workoutExerciseId, it.getString(0))
+            assertEquals(2000.0, it.getDouble(1), 0.0)
+        }
+
+        migrated.query("SELECT measurementTypeId, value FROM body_metrics").use {
+            it.moveToFirst()
+            assertTrue(it.getString(0).isNotEmpty() && it.getString(0) != bodyweightId)
+            assertEquals(80.0, it.getDouble(1), 0.0)
+        }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }

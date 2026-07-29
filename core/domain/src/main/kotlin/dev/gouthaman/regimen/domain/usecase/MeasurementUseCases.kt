@@ -15,20 +15,20 @@ class ObserveMeasurementTypesUseCase @Inject constructor(
 class ObserveMeasurementsUseCase @Inject constructor(
     private val repo: MeasurementRepository,
 ) {
-    operator fun invoke(typeId: Long): Flow<List<BodyMetric>> = repo.observeMetrics(typeId)
+    operator fun invoke(typeId: String): Flow<List<BodyMetric>> = repo.observeMetrics(typeId)
 }
 
 class AddMeasurementUseCase @Inject constructor(
     private val repo: MeasurementRepository,
 ) {
-    suspend operator fun invoke(typeId: Long, date: Long, value: Double): Long =
+    suspend operator fun invoke(typeId: String, date: Long, value: Double): String =
         repo.addMetric(typeId, date, value)
 }
 
 class AddMeasurementTypeUseCase @Inject constructor(
     private val repo: MeasurementRepository,
 ) {
-    suspend operator fun invoke(name: String, unit: String): Long = repo.addType(name, unit)
+    suspend operator fun invoke(name: String, unit: String): String = repo.addType(name, unit)
 }
 
 class DeleteMeasurementTypeUseCase @Inject constructor(

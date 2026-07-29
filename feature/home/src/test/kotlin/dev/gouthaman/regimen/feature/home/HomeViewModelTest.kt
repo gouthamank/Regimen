@@ -53,10 +53,10 @@ class HomeViewModelTest {
         getInProgressWorkoutId = GetInProgressWorkoutIdUseCase(workoutRepo),
     )
 
-    private fun routine(id: Long, position: Int) =
+    private fun routine(id: String, position: Int) =
         RoutineWithExercises(Routine(id, "Routine $id", position), emptyList())
 
-    private suspend fun completedWorkoutFor(routineId: Long, startTime: Long): Long {
+    private suspend fun completedWorkoutFor(routineId: String, startTime: Long): String {
         val id = workoutRepo.createWorkout(startTime = startTime, routineId = routineId)
         workoutRepo.updateWorkout(
             workoutRepo.getWorkout(id)!!.workout.copy(
@@ -77,8 +77,8 @@ class HomeViewModelTest {
             assertFalse(state.hasRoutines)
             assertFalse(state.isEstablished)
 
-            routineRepo.seed(routine(1, 0))
-            completedWorkoutFor(routineId = 1, startTime = System.currentTimeMillis())
+            routineRepo.seed(routine("1", 0))
+            completedWorkoutFor(routineId = "1", startTime = System.currentTimeMillis())
 
             state = awaitItem()
             while (!state.hasRoutines || !state.isEstablished) state = awaitItem()
@@ -108,11 +108,11 @@ class HomeViewModelTest {
 
     @Test
     fun `weekly volume is converted to display units`() = runTest {
-        val workoutId = completedWorkoutFor(routineId = 1, startTime = System.currentTimeMillis())
+        val workoutId = completedWorkoutFor(routineId = "1", startTime = System.currentTimeMillis())
         val weId = workoutRepo.addExercise(
             WorkoutExercise(
                 workoutId = workoutId,
-                exerciseId = 1,
+                exerciseId = "1",
                 position = 0
             )
         )
@@ -143,20 +143,20 @@ class HomeViewModelTest {
         val viewModel = newViewModel()
 
         viewModel.startedWorkout.test {
-            viewModel.startWorkout(routineId = 42L)
+            viewModel.startWorkout(routineId = "42")
             assertEquals(existingId, awaitItem())
         }
     }
 
     @Test
     fun `startWorkout starts a new workout when none is in progress`() = runTest {
-        routineRepo.seed(routine(7, position = 0))
+        routineRepo.seed(routine("7", position = 0))
         val viewModel = newViewModel()
 
         viewModel.startedWorkout.test {
-            viewModel.startWorkout(routineId = 7L)
+            viewModel.startWorkout(routineId = "7")
             val newId = awaitItem()
-            assertEquals(7L, workoutRepo.getWorkout(newId)!!.workout.routineId)
+            assertEquals("7", workoutRepo.getWorkout(newId)!!.workout.routineId)
         }
     }
 }

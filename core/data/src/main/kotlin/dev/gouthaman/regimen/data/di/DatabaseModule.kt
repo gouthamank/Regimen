@@ -16,6 +16,7 @@ import dev.gouthaman.regimen.data.local.migration.MIGRATION_4_5
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_5_6
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_6_7
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_7_8
+import dev.gouthaman.regimen.data.local.migration.MIGRATION_8_9
 import javax.inject.Singleton
 
 @Module
@@ -26,7 +27,13 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): RegimenDatabase =
         Room.databaseBuilder(context, RegimenDatabase::class.java, RegimenDatabase.NAME)
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+                MIGRATION_8_9
+            )
             .build()
 
     @Provides

@@ -26,7 +26,7 @@ import javax.inject.Inject
 /** One exercise line being edited within a routine. muscleGroup/equipment kept raw (not a
  * pre-formatted subtitle) so the Composable can localize the label at render time. */
 data class EditorExercise(
-    val exerciseId: Long,
+    val exerciseId: String,
     val name: String,
     val muscleGroup: MuscleGroup,
     val equipment: Equipment,
@@ -36,7 +36,7 @@ data class EditorExercise(
 )
 
 data class RoutineEditorUiState(
-    val routineId: Long = 0L,
+    val routineId: String = "",
     val isEditing: Boolean = false,
     val name: String = "",
     val exercises: List<EditorExercise> = emptyList(),
@@ -46,7 +46,7 @@ data class RoutineEditorUiState(
     val canSave: Boolean get() = name.isNotBlank() && exercises.isNotEmpty()
 
     /** Exercise ids already in the routine - what the picker should show pre-checked. */
-    val usedIds: Set<Long> get() = exercises.map { it.exerciseId }.toSet()
+    val usedIds: Set<String> get() = exercises.map { it.exerciseId }.toSet()
 }
 
 private const val SETS_MIN = 1
@@ -69,7 +69,12 @@ class RoutineEditorViewModel @Inject constructor(
     private val routineId = savedStateHandle.toRoute<RoutineEditorRoute>().routineId
 
     private val _uiState =
-        MutableStateFlow(RoutineEditorUiState(routineId = routineId, isEditing = routineId != 0L))
+        MutableStateFlow(
+            RoutineEditorUiState(
+                routineId = routineId,
+                isEditing = routineId.isNotEmpty()
+            )
+        )
     val uiState: StateFlow<RoutineEditorUiState> = _uiState.asStateFlow()
 
     /** Default rest (seconds) for newly added exercises, seeded from user preferences. */
@@ -84,7 +89,7 @@ class RoutineEditorViewModel @Inject constructor(
                 _uiState.update { it.copy(availableStrength = list) }
             }
         }
-        if (routineId != 0L) {
+        if (routineId.isNotEmpty()) {
             viewModelScope.launch {
                 observeRoutine(routineId).first()?.let { routine ->
                     _uiState.update {
@@ -114,7 +119,7 @@ class RoutineEditorViewModel @Inject constructor(
 
     /** Reconciles the picker's checked ids against the current routine: keeps customized entries
      * for ids still checked, drops unchecked ones, and appends newly checked ids. */
-    fun setExercises(ids: List<Long>) = _uiState.update { state ->
+    fun setExercises(ids: List<String>) = _uiState.update { state ->
         val idSet = ids.toSet()
         val kept = state.exercises.filter { it.exerciseId in idSet }
         val keptIds = kept.map { it.exerciseId }.toSet()
@@ -145,7 +150,7 @@ class RoutineEditorViewModel @Inject constructor(
      * this StateFlow per-swap, which lagged a frame behind the LazyColumn's layout and made the
      * drag look like it stalled as soon as an item swapped.
      */
-    fun reorder(orderedExerciseIds: List<Long>) = _uiState.update { state ->
+    fun reorder(orderedExerciseIds: List<String>) = _uiState.update { state ->
         val byId = state.exercises.associateBy { it.exerciseId }
         state.copy(exercises = orderedExerciseIds.mapNotNull { byId[it] })
     }
@@ -176,7 +181,7 @@ class RoutineEditorViewModel @Inject constructor(
             val specs = state.exercises.map {
                 ExerciseSpec(it.exerciseId, it.targetSets, it.targetReps, it.targetRestSec)
             }
-            saveRoutine(routineId.takeIf { it != 0L }, state.name, specs)
+            saveRoutine(routineId.takeIf { it.isNotEmpty() }, state.name, specs)
             _uiState.update { it.copy(saved = true) }
         }
     }

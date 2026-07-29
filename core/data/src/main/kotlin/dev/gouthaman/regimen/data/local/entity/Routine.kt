@@ -14,7 +14,7 @@ import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 /** A saved workout template. Holds strength exercises only (see [RoutineExerciseEntity]). */
 @Entity(tableName = "routines")
 data class RoutineEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val position: Int,
 )
@@ -42,15 +42,15 @@ fun Routine.toEntity(): RoutineEntity = RoutineEntity(id = id, name = name, posi
     indices = [Index("routineId"), Index("exerciseId")],
 )
 data class RoutineExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val routineId: Long,
-    val exerciseId: Long,
+    @PrimaryKey val id: String,
+    val routineId: String,
+    val exerciseId: String,
     val position: Int,
     val targetSets: Int,
     val targetReps: Int,
     val targetRestSec: Int,
     // Reserved for future superset grouping (v2); nullable now to avoid a migration later.
-    val supersetGroupId: Long? = null,
+    val supersetGroupId: String? = null,
 )
 
 fun RoutineExerciseEntity.toDomain(): RoutineExercise = RoutineExercise(

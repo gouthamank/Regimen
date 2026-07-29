@@ -44,11 +44,12 @@ class EditExerciseViewModel @Inject constructor(
 
     private val exerciseId = savedStateHandle.toRoute<EditExerciseRoute>().exerciseId
 
-    private val _uiState = MutableStateFlow(EditExerciseUiState(isEditing = exerciseId != 0L))
+    private val _uiState =
+        MutableStateFlow(EditExerciseUiState(isEditing = exerciseId.isNotEmpty()))
     val uiState: StateFlow<EditExerciseUiState> = _uiState.asStateFlow()
 
     init {
-        if (exerciseId != 0L) {
+        if (exerciseId.isNotEmpty()) {
             viewModelScope.launch {
                 observeExercise(exerciseId).first()?.let { existing ->
                     _uiState.update {
@@ -71,7 +72,7 @@ class EditExerciseViewModel @Inject constructor(
         val state = _uiState.value
         if (!state.canSave) return
         viewModelScope.launch {
-            if (exerciseId == 0L) {
+            if (exerciseId.isEmpty()) {
                 addCustomExercise(state.name, state.muscleGroup, state.equipment)
             } else {
                 // Custom exercises are strength-only in v1, so type/isCustom are fixed.

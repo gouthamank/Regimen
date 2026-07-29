@@ -10,7 +10,7 @@ import dev.gouthaman.regimen.domain.model.MuscleGroup
 /** A movement definition. Built-in exercises ship with the app; users can add custom strength ones. */
 @Entity(tableName = "exercises")
 data class ExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val type: ExerciseType,
     val muscleGroup: MuscleGroup,
