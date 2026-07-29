@@ -102,9 +102,8 @@ val MIGRATION_7_8 = Migration(7, 8) { db ->
 
 /**
  * v8 -> v9: swaps every entity's autoincrement `Long` primary key (and every FK column pointing at
- * one) for a client-generated UUID `String` - a prerequisite for any real multi-device sync
- * (see docs/todo-remote-sync.md). Two offline devices can independently generate the same next
- * autoincrement id; they can't independently generate the same UUID.
+ * one) for a client-generated UUID `String`. Two offline devices can independently generate the
+ * same next autoincrement id; they can't independently generate the same UUID.
  *
  * Rebuilds every table (new UUID-keyed shape, not a plain `ALTER TABLE`) and walks existing rows
  * in FK dependency order - parents first (`exercises`/`routines`/`measurement_types`), then their
@@ -120,8 +119,7 @@ val MIGRATION_7_8 = Migration(7, 8) { db ->
  * with `isCustom = 0` and the `measurement_types` row with `isBuiltIn = 1` are remapped to
  * [BuiltInData.stableId]'s deterministic, name-derived id instead of a random one, so an
  * upgrading install's "Bench Press" (etc.) ends up with the exact same id a fresh install's seed
- * would assign it - required because future sync would still FK-reference built-ins by id even
- * though the built-in rows themselves would never be synced.
+ * would assign it.
  */
 val MIGRATION_8_9 = Migration(8, 9) { db ->
     val exerciseIdMap = migrateExercises8To9(db)

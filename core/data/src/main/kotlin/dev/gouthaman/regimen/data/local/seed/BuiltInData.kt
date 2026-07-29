@@ -27,10 +27,9 @@ import java.util.UUID
 object BuiltInData {
 
     /** Deterministic (name-derived) UUID so a built-in row gets the identical id on every fresh
-     * install - required since future sync would FK-reference built-ins by id even though the
-     * built-in rows themselves wouldn't be synced (see docs/todo-remote-sync.md). Internal (not
-     * private) so [dev.gouthaman.regimen.data.local.migration.MIGRATION_8_9] can remap an existing
-     * install's built-in rows to this exact same id, rather than a fresh random one. */
+     * install. Internal (not private) so
+     * [dev.gouthaman.regimen.data.local.migration.MIGRATION_8_9] can remap an existing install's
+     * built-in rows to this exact same id, rather than a fresh random one. */
     internal fun stableId(seed: String): String =
         UUID.nameUUIDFromBytes(seed.toByteArray()).toString()
 

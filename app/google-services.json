@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "943058021837",
+    "project_id": "regimen-98dc6",
+    "storage_bucket": "regimen-98dc6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:943058021837:android:ce52341ee84f5264aca884",
+        "android_client_info": {
+          "package_name": "dev.gouthaman.regimen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "943058021837-jqlhm44dhvbrajie5093dvbeikmeg17j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.gouthaman.regimen",
+            "certificate_hash": "d48cded56246266a57a7e1e0f30e06827444ca1d"
+          }
+        },
+        {
+          "client_id": "943058021837-uo5kjjf6rnashivs578gaeufcs48jdf9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.gouthaman.regimen",
+            "certificate_hash": "8086d83731a1d0a47282d1e3b821937e7da266e3"
+          }
+        },
+        {
+          "client_id": "943058021837-d6ulj5cdq2o9nnjn7ukpvb8336kkp5n9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkvyKqdeGIjmcGL4qnFnvxX86pgxjXu0I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "943058021837-d6ulj5cdq2o9nnjn7ukpvb8336kkp5n9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

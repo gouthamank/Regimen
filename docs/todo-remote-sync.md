@@ -81,7 +81,7 @@ property. This phase only ever *writes* to Firestore - no download, no merge, no
 propagation - so a bug here can't lose or overwrite local data; worst case is an incomplete or
 stale cloud backup, not data loss on-device.
 
-- [ ] One-time Firebase console setup (manual, done once before any code lands):
+- [~] One-time Firebase console setup (manual, done once before any code lands):
     1. Create/link a Firebase project at the Firebase console.
     2. Register the Android app with `applicationId` `dev.gouthaman.regimen` plus **both** the
        release-signing SHA-1/SHA-256 fingerprint (from `release.jks`, wired via `signingConfigs`
@@ -114,7 +114,7 @@ stale cloud backup, not data loss on-device.
   in the consent screen config before Google allows publishing to Production. Scope the policy to
   what's actually collected: Google account email (auth only), workout/routine/measurement data
   synced to Firestore, no third-party sharing, no ads/analytics.
-- [ ] New Gradle dependencies (none present today): Firebase Auth + Firestore (via the Firebase
+- [~] New Gradle dependencies (none present today): Firebase Auth + Firestore (via the Firebase
   BoM), the `google-services` Gradle plugin, and WorkManager (for the periodic sync job) - plus
   the `google-services.json` from the Firebase console. For "Sign in with Google" specifically,
   use **Credential Manager** (`androidx.credentials:credentials` +
@@ -127,11 +127,11 @@ stale cloud backup, not data loss on-device.
   be present/up to date. Since sign-in must stay "optional, skippable, fully usable local-only"
   (decided below), absence of Play Services needs to show as a normal disabled/hidden sign-in
   option, not an unhandled exception.
-- [ ] Add the `INTERNET` permission to `AndroidManifest.xml` - the app currently declares none
+- [~] Add the `INTERNET` permission to `AndroidManifest.xml` - the app currently declares none
   (`VIBRATE`, `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` only),
   since it has no network access today. This is the point where "local-only" stops being
   literally true even for users who never sign in.
-- [ ] New **`:core:sync`** module for auth/sync, not folded into `:core:data` - the surface area
+- [~] New **`:core:sync`** module for auth/sync, not folded into `:core:data` - the surface area
   (Firebase Auth + Firestore clients, the WorkManager sync job, account-switch safety, tombstone
   tracking, LWW conflict resolution) is substantial and shared across `:feature:account`,
   `:feature:settings`, and the sync worker alike, mirroring `:core:data`'s role for the
