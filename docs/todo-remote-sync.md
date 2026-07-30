@@ -231,8 +231,15 @@ action; until then, this phase doesn't apply to it at all.
       hardcoded. The "last synced at" instant must be exposed as a raw timestamp in UI state and
       formatted by the Composable at render time (matching the `SessionFormat`/`MeasurementFormat`
       pattern) - the ViewModel must not pre-format it into a display string itself.
-- [ ] Map Room entities to Firestore collections, scoped per-user, using **subcollections nested
-  to match the Room FK chain exactly** (not embedded arrays, and not flattened siblings):
+- [x] Map Room entities to Firestore collections, scoped per-user, using **subcollections nested
+  to match the Room FK chain exactly** (not embedded arrays, and not flattened siblings). Built as
+  a pure mapping layer in `:core:sync`'s `firestore/` package (`ExerciseMapping.kt`/
+  `RoutineMapping.kt`/`WorkoutMapping.kt`/`MeasurementMapping.kt`/`PreferencesMapping.kt`, one
+  `<Entity>Dto` + `toDto()` extension per entity, mirroring the entity exactly minus `id`
+  (implied by the document's own path) and `isDirty` (local-only) - covered by
+  `FirestoreMappingTest`. `:core:sync` gained a new dependency on `:core:data` for this, since
+  `isDirty`/`lastModifiedAt` live only on Room entities, not domain models. This is the mapping
+  layer only - nothing calls it yet, that's the separate, still-unbuilt push job below:
   ```
   users/{uid}/
     exercises/{exerciseId}                              (isCustom == true only)
