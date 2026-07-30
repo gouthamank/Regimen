@@ -1,6 +1,7 @@
 package dev.gouthaman.regimen.data.local
 
 import androidx.room.TypeConverter
+import dev.gouthaman.regimen.data.local.entity.SyncEntityType
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
@@ -39,4 +40,10 @@ class Converters {
     @TypeConverter
     fun stringToWorkoutEndReason(v: String?): WorkoutEndReason? =
         v?.let { WorkoutEndReason.valueOf(it) }
+
+    @TypeConverter
+    fun syncEntityTypeToString(v: SyncEntityType): String = v.name
+
+    @TypeConverter
+    fun stringToSyncEntityType(v: String): SyncEntityType = SyncEntityType.valueOf(v)
 }

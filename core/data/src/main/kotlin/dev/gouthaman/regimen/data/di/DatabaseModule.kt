@@ -11,7 +11,9 @@ import dev.gouthaman.regimen.data.local.RegimenDatabase
 import dev.gouthaman.regimen.data.local.dao.ExerciseDao
 import dev.gouthaman.regimen.data.local.dao.MeasurementDao
 import dev.gouthaman.regimen.data.local.dao.RoutineDao
+import dev.gouthaman.regimen.data.local.dao.SyncTombstoneDao
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
+import dev.gouthaman.regimen.data.local.migration.MIGRATION_10_11
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_4_5
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_5_6
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_6_7
@@ -35,6 +37,7 @@ object DatabaseModule {
                 MIGRATION_7_8,
                 MIGRATION_8_9,
                 MIGRATION_9_10,
+                MIGRATION_10_11,
             )
             .build()
 
@@ -49,4 +52,7 @@ object DatabaseModule {
 
     @Provides
     fun provideMeasurementDao(db: RegimenDatabase): MeasurementDao = db.measurementDao()
+
+    @Provides
+    fun provideSyncTombstoneDao(db: RegimenDatabase): SyncTombstoneDao = db.syncTombstoneDao()
 }

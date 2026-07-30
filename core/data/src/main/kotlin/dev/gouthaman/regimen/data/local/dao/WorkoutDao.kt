@@ -181,4 +181,20 @@ interface WorkoutDao {
 
     @Delete
     suspend fun deleteCardio(cardio: CardioEntryEntity)
+
+    /** Cascade/ancestor-id lookups for the sync tombstone write, which lives in
+     * `WorkoutRepositoryImpl` (see [dev.gouthaman.regimen.data.repository.WorkoutRepositoryImpl]) -
+     * these DAO methods only expose the raw queries, since only a DAO can run a typed Room query;
+     * deciding what to tombstone is the repository's job. */
+    @Query("SELECT id FROM workout_exercises WHERE workoutId = :workoutId")
+    suspend fun workoutExerciseIdsFor(workoutId: String): List<String>
+
+    @Query("SELECT id FROM set_entries WHERE workoutExerciseId = :workoutExerciseId")
+    suspend fun setEntryIdsFor(workoutExerciseId: String): List<String>
+
+    @Query("SELECT id FROM cardio_entries WHERE workoutExerciseId = :workoutExerciseId")
+    suspend fun cardioEntryIdFor(workoutExerciseId: String): String?
+
+    @Query("SELECT workoutId FROM workout_exercises WHERE id = :workoutExerciseId")
+    suspend fun workoutIdOf(workoutExerciseId: String): String?
 }

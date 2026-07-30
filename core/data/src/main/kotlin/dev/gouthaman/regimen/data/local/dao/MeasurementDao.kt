@@ -38,4 +38,11 @@ interface MeasurementDao {
 
     @Delete
     suspend fun deleteMetric(metric: BodyMetricEntity)
+
+    /** Cascade-victim enumeration for the sync tombstone write, which lives in
+     * `MeasurementRepositoryImpl` (see
+     * [dev.gouthaman.regimen.data.repository.MeasurementRepositoryImpl]) - this DAO only exposes
+     * the raw child-id lookup, since only a DAO can run a typed Room query. */
+    @Query("SELECT id FROM body_metrics WHERE measurementTypeId = :typeId")
+    suspend fun bodyMetricIdsFor(typeId: String): List<String>
 }

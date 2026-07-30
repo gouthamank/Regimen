@@ -1,9 +1,14 @@
 package dev.gouthaman.regimen.data.repository
 
+import androidx.room.withTransaction
+import dev.gouthaman.regimen.data.local.RegimenDatabase
 import dev.gouthaman.regimen.data.local.dao.NewWorkoutExerciseRow
+import dev.gouthaman.regimen.data.local.dao.SyncTombstoneDao
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
 import dev.gouthaman.regimen.data.local.entity.CardioEntryEntity
 import dev.gouthaman.regimen.data.local.entity.SetEntryEntity
+import dev.gouthaman.regimen.data.local.entity.SyncEntityType
+import dev.gouthaman.regimen.data.local.entity.SyncTombstoneEntity
 import dev.gouthaman.regimen.data.local.entity.WorkoutEntity
 import dev.gouthaman.regimen.data.local.entity.WorkoutExerciseEntity
 import dev.gouthaman.regimen.data.local.entity.toDomain
@@ -27,6 +32,8 @@ import javax.inject.Singleton
 @Singleton
 class WorkoutRepositoryImpl @Inject constructor(
     private val dao: WorkoutDao,
+    private val tombstoneDao: SyncTombstoneDao,
+    private val db: RegimenDatabase,
 ) : WorkoutRepository {
     override fun observeCompleted(): Flow<List<WorkoutWithDetails>> =
         dao.observeCompletedWithDetails().map { list -> list.map { it.toDomain() } }
@@ -119,7 +126,40 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateWorkout(workout: Workout) = dao.updateWorkout(workout.toEntity())
-    override suspend fun deleteWorkout(workout: Workout) = dao.deleteWorkout(workout.toEntity())
+
+    /** Deleting a workout cascades two levels deep at the SQLite level (`WorkoutExercise`, then
+     * `SetEntry`/`CardioEntry` under each) - all of it invisible to this call, so every cascade
+     * victim is enumerated and tombstoned before the actual delete, not just the workout itself. */
+    override suspend fun deleteWorkout(workout: Workout) = db.withTransaction {
+        val tombstones = mutableListOf(
+            SyncTombstoneEntity(entityType = SyncEntityType.WORKOUT, entityId = workout.id)
+        )
+        for (weId in dao.workoutExerciseIdsFor(workout.id)) {
+            tombstones += SyncTombstoneEntity(
+                entityType = SyncEntityType.WORKOUT_EXERCISE,
+                entityId = weId,
+                parentId = workout.id,
+            )
+            tombstones += dao.setEntryIdsFor(weId).map {
+                SyncTombstoneEntity(
+                    entityType = SyncEntityType.SET_ENTRY,
+                    entityId = it,
+                    parentId = weId,
+                    grandparentId = workout.id,
+                )
+            }
+            dao.cardioEntryIdFor(weId)?.let {
+                tombstones += SyncTombstoneEntity(
+                    entityType = SyncEntityType.CARDIO_ENTRY,
+                    entityId = it,
+                    parentId = weId,
+                    grandparentId = workout.id,
+                )
+            }
+        }
+        tombstoneDao.insertAll(tombstones)
+        dao.deleteWorkout(workout.toEntity())
+    }
 
     override suspend fun addExercise(item: WorkoutExercise): String {
         val id = UUID.randomUUID().toString()
@@ -130,8 +170,35 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun updateExercise(item: WorkoutExercise) =
         dao.updateWorkoutExercise(item.toEntity())
 
-    override suspend fun removeExercise(item: WorkoutExercise) =
+    /** Deleting a workout exercise cascades to its `SetEntry`/`CardioEntry` rows - tombstoned
+     * here too, same reasoning as [deleteWorkout]. */
+    override suspend fun removeExercise(item: WorkoutExercise) = db.withTransaction {
+        val tombstones = mutableListOf(
+            SyncTombstoneEntity(
+                entityType = SyncEntityType.WORKOUT_EXERCISE,
+                entityId = item.id,
+                parentId = item.workoutId,
+            )
+        )
+        tombstones += dao.setEntryIdsFor(item.id).map {
+            SyncTombstoneEntity(
+                entityType = SyncEntityType.SET_ENTRY,
+                entityId = it,
+                parentId = item.id,
+                grandparentId = item.workoutId,
+            )
+        }
+        dao.cardioEntryIdFor(item.id)?.let {
+            tombstones += SyncTombstoneEntity(
+                entityType = SyncEntityType.CARDIO_ENTRY,
+                entityId = it,
+                parentId = item.id,
+                grandparentId = item.workoutId,
+            )
+        }
+        tombstoneDao.insertAll(tombstones)
         dao.deleteWorkoutExercise(item.toEntity())
+    }
 
     override suspend fun upsertSet(set: SetEntry): String {
         val id = if (set.id.isNotEmpty()) set.id else UUID.randomUUID().toString()
@@ -139,7 +206,20 @@ class WorkoutRepositoryImpl @Inject constructor(
         return id
     }
 
-    override suspend fun deleteSet(set: SetEntry) = dao.deleteSet(set.toEntity())
+    /** A leaf delete with no cascade of its own - still needs its workout's id looked up, since
+     * [SetEntry] only stores its direct parent (`workoutExerciseId`), not the workout id its
+     * Firestore document path also needs. */
+    override suspend fun deleteSet(set: SetEntry) = db.withTransaction {
+        tombstoneDao.insert(
+            SyncTombstoneEntity(
+                entityType = SyncEntityType.SET_ENTRY,
+                entityId = set.id,
+                parentId = set.workoutExerciseId,
+                grandparentId = dao.workoutIdOf(set.workoutExerciseId),
+            )
+        )
+        dao.deleteSet(set.toEntity())
+    }
 
     override suspend fun upsertCardio(cardio: CardioEntry): String {
         val id = if (cardio.id.isNotEmpty()) cardio.id else UUID.randomUUID().toString()
@@ -147,5 +227,16 @@ class WorkoutRepositoryImpl @Inject constructor(
         return id
     }
 
-    override suspend fun deleteCardio(cardio: CardioEntry) = dao.deleteCardio(cardio.toEntity())
+    /** See [deleteSet] - same shape, for the cardio side. */
+    override suspend fun deleteCardio(cardio: CardioEntry) = db.withTransaction {
+        tombstoneDao.insert(
+            SyncTombstoneEntity(
+                entityType = SyncEntityType.CARDIO_ENTRY,
+                entityId = cardio.id,
+                parentId = cardio.workoutExerciseId,
+                grandparentId = dao.workoutIdOf(cardio.workoutExerciseId),
+            )
+        )
+        dao.deleteCardio(cardio.toEntity())
+    }
 }

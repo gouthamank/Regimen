@@ -1,7 +1,12 @@
 package dev.gouthaman.regimen.data.repository
 
+import androidx.room.withTransaction
+import dev.gouthaman.regimen.data.local.RegimenDatabase
 import dev.gouthaman.regimen.data.local.dao.ExerciseDao
+import dev.gouthaman.regimen.data.local.dao.SyncTombstoneDao
 import dev.gouthaman.regimen.data.local.entity.ExerciseEntity
+import dev.gouthaman.regimen.data.local.entity.SyncEntityType
+import dev.gouthaman.regimen.data.local.entity.SyncTombstoneEntity
 import dev.gouthaman.regimen.data.local.entity.toDomain
 import dev.gouthaman.regimen.data.local.entity.toEntity
 import dev.gouthaman.regimen.domain.model.Equipment
@@ -18,6 +23,8 @@ import javax.inject.Singleton
 @Singleton
 class ExerciseRepositoryImpl @Inject constructor(
     private val dao: ExerciseDao,
+    private val tombstoneDao: SyncTombstoneDao,
+    private val db: RegimenDatabase,
 ) : ExerciseRepository {
     override fun observeAll(): Flow<List<Exercise>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
@@ -51,5 +58,16 @@ class ExerciseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun update(exercise: Exercise) = dao.update(exercise.toEntity())
-    override suspend fun delete(exercise: Exercise) = dao.delete(exercise.toEntity())
+
+    /** An exercise can only ever be deleted once nothing references it (blocked upstream in
+     * `DeleteExerciseUseCase`), so there's never a cascade victim to tombstone here. */
+    override suspend fun delete(exercise: Exercise) = db.withTransaction {
+        tombstoneDao.insert(
+            SyncTombstoneEntity(
+                entityType = SyncEntityType.EXERCISE,
+                entityId = exercise.id
+            )
+        )
+        dao.delete(exercise.toEntity())
+    }
 }

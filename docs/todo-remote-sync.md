@@ -150,10 +150,10 @@ action; until then, this phase doesn't apply to it at all.
   `:feature:account`, `:feature:settings`, and the sync worker alike, mirroring `:core:data`'s role
   for the Room-backed repositories rather than mixing local-persistence DI with cloud-sync DI in
   one module. Follows the existing `di/<Name>Module.kt` convention for its Hilt bindings.
-- [x] Sign-in entry points: a new onboarding page mentioning that signing in enables sync
-  (optional, skippable - the app is fully usable local-only without it), plus a two-tier
-  auth/sync UI rather than a single Settings section. All three pieces (Settings' summary row, the
-  dedicated `:feature:account` screen, and the onboarding sign-in page) are built:
+- [x] Sign-in entry points: a two-tier auth/sync UI rather than a single Settings section. Both
+  pieces (Settings' summary row and the dedicated `:feature:account` screen) are built. Onboarding's
+  3rd page is purely informational - it names cloud sign-in/backup as a Settings feature to check
+  out later, with no sign-in action of its own (see below):
     - **Settings' "Account" summary row** (built): the signed-in account's email, or "Signed out",
       navigating to the dedicated Account screen via a container-transform shared-element
       transition (`accountFromSettingsTransitionKey` in `:core:common-ui`'s
@@ -173,20 +173,22 @@ action; until then, this phase doesn't apply to it at all.
       Firestore backup:
         - **Sign out** - stops syncing, keeps local data, keeps the cloud backup as-is.
       - **Delete cloud data** - deletes the signed-in user's known Firestore subcollections
-        (`workouts`, `routines`, `exercises`, `measurementTypes`, `bodyMetrics`) and
+        (`workouts`, `routines`, `exercises`, `measurementTypes`, `bodyMetrics`, `syncConfig`) and
         `preferences` document under `users/{uid}`, then the user document itself and the
-        now-pointless Firebase Auth user record. Deleting that Firebase Auth record ends the
-        local Firebase session as a side effect (`FirebaseAuth`'s `currentUser` goes null,
-        `AuthRepositoryImpl`'s auth-state listener picks it up, the Account screen reflects
-        signed-out immediately) - so this action does sign the user out of **Regimen**, even
-        though it does **not** touch the Google OAuth grant itself, which the user can only
+        now-pointless Firebase Auth user record. The subcollection list is hardcoded rather than
+        derived from the entity-mapping/sync-device code, since the Firestore client SDK can't
+        enumerate a document's subcollections at runtime, and Firestore doesn't cascade-delete
+        subcollections when a parent document is deleted - so every subcollection any part of the
+        sync feature writes to (including `syncConfig`, written by the primary-device claim, not
+        by a sync job) must be listed here explicitly or it's orphaned. Deleting that Firebase Auth
+        record ends the local Firebase session as a side effect (`FirebaseAuth`'s `currentUser`
+        goes null, `AuthRepositoryImpl`'s auth-state listener picks it up, the Account screen
+        reflects signed-out immediately) - so this action does sign the user out of **Regimen**,
+        even though it does **not** touch the Google OAuth grant itself, which the user can only
         revoke via their own Google Account settings. The row description and confirmation
         dialog's copy both say so explicitly, in plain terms (e.g. "cloud backup," never
         "Firestore," which isn't a concept a user should need to know) - both are user-facing
-        copy per the string convention below. Since no sync job writes to Firestore yet, this
-        currently only ever deletes an empty backup; the collection names are hardcoded ahead
-        of the entity-mapping item below rather than derived from it, since the Firestore
-        client SDK can't enumerate a document's subcollections at runtime.
+        copy per the string convention below.
         Each button (Sign in / Sign out / Delete cloud data) shows an inline spinner in place of its
         own label while its specific action is in flight (`AccountViewModel`'s `busyAction:
       AccountAction?`, one of `SIGN_IN`/`SIGN_OUT`/`DELETE_CLOUD_DATA`) and all three buttons
@@ -200,8 +202,8 @@ action; until then, this phase doesn't apply to it at all.
         "No credentials available" verbatim. A shared `@Composable AuthErrorReason.text()`
         (`:core:common-ui`'s `AuthErrorText.kt`, backed by its own `strings.xml` entries) resolves
         the reason to copy at render time, matching the `UnitLabelText.text()` pattern - both
-        `AccountScreen` and the onboarding sign-in page below call the same formatter rather than
-        each defining their own copy of the same four error strings.
+        `AccountScreen` calls this formatter; onboarding's informational page below has no
+        sign-in action and so no error states of its own.
         `AccountViewModelTest` (`:feature:account`, using a `FakeAuthRepository` from
         `:core:testing`) covers sign-in success/failure (both typed and untyped exceptions) and
         sign-out/delete-cloud-data dispatch, per the ViewModel testing tier in `docs/testing.md`.
@@ -210,21 +212,14 @@ action; until then, this phase doesn't apply to it at all.
       (parsed from `AuthAccount.displayName`) when signed in, falling back to the existing unnamed
       greeting otherwise - see `docs/architecture.md`'s Home entry. Proof that account data is
       already usable by non-sync features once Phase 1's sign-in plumbing exists.
-    - **Onboarding sign-in page** (built, `:feature:onboarding`): a 3rd pager page (`PAGE_COUNT`
-      bumped from 2 to 3) offering the same Google sign-in as the Account screen, minus its
-      destructive actions - just a "Sign in with Google" button (busy-spinner-in-place-of-label
-      and disabled-with-caption-when-unavailable, same pattern as `AccountScreen`) that swaps to a
-      "Signed in as {name}" message once signed in. Always skippable, like every onboarding page.
-      `OnboardingViewModel` gained `ObserveAccountStatusUseCase`/`SignInUseCase` alongside its
-      existing preferences use cases, plus a narrower `OnboardingSignInState` (sign-in only, no
-      sign-out/delete-cloud-data - those stay exclusive to the dedicated Account screen). Both
-      `LinearOnboardingLayout` and `TabletopOnboardingLayout` needed no changes - they already
-      threaded a generic `pagerContent`/`onFinish`/`onNextOrFinish` down from the top-level
-      `OnboardingScreen`, so the 3rd page only touched `PAGE_COUNT` and the `pagerContent`
-      `when`-dispatch. `OnboardingViewModelTest` (new file, mirroring `AccountViewModelTest`'s
-      `FakeAuthRepository`-backed pattern) covers sign-in success/failure and `finish()` - this
-      moves `:feature:onboarding` out of `docs/testing.md`'s "skipped entirely" list, since it now
-      has real branching logic rather than being pure preference pass-through.
+  - **Onboarding's 3rd page** (built, `:feature:onboarding`, `PAGE_COUNT` bumped from 2 to 3): a
+    title + subtitle only, no sign-in button, no account status, no error states - it exists
+    purely to tell the user that cloud backup/sync is available later from Settings. Always
+    skippable, like every onboarding page. `OnboardingViewModel` carries no auth dependencies at
+    all - just its existing preferences use cases plus `finish()`; sign-in and the primary-device
+    claim it triggers live exclusively in `:feature:account`'s `AccountViewModel`.
+    `:feature:onboarding` has no ViewModel test file (per `docs/testing.md`'s "skipped entirely"
+    list) since there's no branching logic left to cover, only preference pass-through.
     - Per `CLAUDE.md`'s string/formatting conventions: all new user-facing copy (Settings Account
       summary, the dedicated Account screen, confirmation modal copy, sign-in error states) goes in
       `strings.xml` via `stringResource()`, not
@@ -343,21 +338,47 @@ action; until then, this phase doesn't apply to it at all.
   disclaimer/Pull flow (Phase 2) even though the device ID still says primary, until the user
   explicitly pulls, which also resets the local watermark to match. One scalar, one comparison, no
   merge or per-row reconciliation - not a reintroduction of the complexity that got cut earlier.
-- [ ] Delete propagation: every core DAO (`ExerciseDao`/`RoutineDao`/`MeasurementDao`/
-  `WorkoutDao`) does a hard `@Delete` today - once a row is gone from Room there's no trace it
-  ever existed, so the push job can't tell "this was deleted locally, delete the Firestore copy
-  too." Needed even for a single primary device with no second device involved at all - an
-  ongoing incremental sync has to reflect local deletes, not just edits. Needs a tombstone (a
-  pending-deletion record, e.g. entity type + old ID, kept until the next sync confirms the remote
-  doc is removed, then cleared) rather than relying on the row's absence. Watch out for
-  `onDelete = CASCADE` (used by `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→
-  (`SetEntry`/`CardioEntry`), etc.) - SQLite removes cascaded child rows at the engine level,
-  invisible to whatever DAO call triggered the parent delete, so a tombstone recorded only for the
-  explicitly-deleted parent row would leave every cascade-deleted descendant's Firestore document
-  orphaned. Cascade victims need to be enumerated (query children before issuing the parent
-  delete) and tombstoned too, not just the one row the DAO call touched. Full current cascade set:
-  `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→(`SetEntry`, `CardioEntry`),
-  `RoutineExercise`→`Exercise`, `WorkoutExercise`→`Exercise`, `MeasurementType`→`BodyMetric`.
+- [~] Delete propagation: the write side is done and verified - the push job itself (reading
+  tombstones and clearing them once Firestore confirms the delete) is the still-unbuilt remainder
+  of this bullet.
+    - **`sync_tombstones`** (`MIGRATION_10_11`, `SyncTombstoneEntity`): entity type + old id, plus
+      `parentId`/`grandparentId` for entity types that nest under a parent collection in Firestore
+      (`RoutineExercise` needs its routine id; `WorkoutExercise` needs its workout id;
+      `SetEntry`/`CardioEntry` need both their workout exercise id and its workout id) - null for
+      types that sit flat at Firestore's top level (`Exercise`, `MeasurementType`, `BodyMetric`,
+      `Routine`, `Workout`). `SyncTombstoneDao` owns all reads/writes to this table.
+    - **Cascade-victim enumeration and the tombstone write live in the repository layer, not the
+      entity DAOs** - each entity DAO (`ExerciseDao`/`RoutineDao`/`WorkoutDao`/`MeasurementDao`)
+      only exposes plain child-id `@Query` methods (e.g. `WorkoutDao.workoutExerciseIdsFor`); the
+      corresponding repository (`ExerciseRepositoryImpl`/`RoutineRepositoryImpl`/
+      `WorkoutRepositoryImpl`/`MeasurementRepositoryImpl`) composes those queries with
+      `SyncTombstoneDao`'s writes and the actual delete inside one `RoomDatabase.withTransaction`
+      block, injecting `RegimenDatabase` alongside its own DAO for that. Deciding what counts as a
+      cascade for a given entity is business logic, not raw persistence, so it belongs one layer up
+      from the DAO - the DAO-level `@Transaction` default-method version this started as (composing
+      calls on a single DAO interface, the same pattern `applyOrder`/`replaceRoutineExercises`
+      already used) worked, but left every entity DAO also carrying sync-domain knowledge
+      (`SyncEntityType`, tombstone-list construction) duplicated across four DAOs.
+    - **Every cascade-deleted descendant gets tombstoned too, not just the row the repository call
+      touched** - `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→(`SetEntry`,
+      `CardioEntry`), `MeasurementType`→`BodyMetric` (`RoutineRepositoryImpl.delete`,
+      `WorkoutRepositoryImpl.deleteWorkout`, `MeasurementRepositoryImpl.deleteType`). `Exercise`'s
+      cascades (`RoutineExercise`/`WorkoutExercise`) never actually fire in practice -
+      `DeleteExerciseUseCase` blocks deleting an exercise that's still referenced anywhere - so
+      `ExerciseRepositoryImpl.delete` tombstones only the exercise itself, no enumeration needed.
+    - **`RoutineRepositoryImpl.saveRoutine`** (the routine editor's save flow) also deletes
+      `RoutineExercise` rows outside `.delete()`'s cascade - `RoutineDao.replaceRoutineExercises`
+      clears and re-inserts the whole exercise list on every edit, not a diff, so `saveRoutine`
+      has to tombstone whatever's genuinely absent from the new list itself, before calling it. A
+      routine can never contain the same exercise twice (enforced in the editor's UI state - see
+      `RoutineEditorViewModel`), so `saveRoutine` matches old rows to new specs by `exerciseId` and
+      preserves the surviving row's id, minting a fresh one only for a genuinely new exerciseId -
+      an exercise that's kept (even if its target sets/reps/rest changed) keeps its row and its
+      eventual Firestore document, rather than every save tombstoning and recreating the routine's
+      entire exercise list regardless of what actually changed.
+    - Covered by `ExerciseRepositoryImplTest`/`RoutineRepositoryImplTest`/
+      `WorkoutRepositoryImplTest`/`MeasurementRepositoryImplTest` (`:core:data`'s repository
+      `androidTest` tier, per `docs/testing.md`) and `MigrationTest`'s `migrate10To11` case.
 - [ ] Sync trigger: periodic, not write-through-per-mutation - a background job (e.g.
   WorkManager) batches unsynced local changes on a schedule / app-foreground event rather than
   pushing to Firestore on every Room write, since batching is cheaper on the daily quota.
@@ -422,23 +443,34 @@ background, no button-tapping, no confirmation dialogs. This phase's UI (the dis
 two actions below) only ever appears once there's an *actual* competing primary device to
 reconcile against - never for the common, single-device case.
 
-- [ ] **`users/{uid}/syncConfig`** - a single document holding `primaryDeviceId` (and optionally a
-  display label, e.g. derived from `Build.MODEL`, purely cosmetic) for the account. This is the
-  **live, authoritative** record of which device is primary - every device reads it directly
-  rather than comparing against any local bookkeeping of its own, which is what keeps this design
-  immune to the local-state staleness problems (Auto Backup restoring stale values, Firebase
-  `uid` churn on account deletion, etc.) an earlier, considerably more complex draft of this doc
-  ran into. Device identity is a random UUID generated once per install, stored locally - low
-  stakes if it doesn't survive a backup/restore, since the worst case is just a redundant re-claim
-  prompt, not a correctness issue.
-- [ ] **Silent auto-claim when no primary exists yet.** On sign-in, if `syncConfig.primaryDeviceId`
-  is unset, this device claims it immediately and automatically - **no confirmation dialog, no
-  disclaimer, no user action at all.** There is genuinely nothing to protect against in this case
-  (an empty destination, no other device that could possibly be affected), so gating it behind the
-  same confirm-and-claim ceremony the *actual* multi-device case needs would only add friction to
-  the single most common path (a single-device user signing in for the first time) for no safety
-  benefit. This is the only way most users will ever interact with Phase 2 at all: implicitly,
-  once, at sign-in, then never again.
+- [x] **`users/{uid}/syncConfig`** - a single document holding `primaryDeviceId` for the account
+  (built as `SyncConfigDto`, `:core:sync`'s `device/SyncDeviceRepositoryImpl.kt`; no display label
+  yet, that's still just a possible cosmetic addition). This is the **live, authoritative** record
+  of which device is primary - every device reads it directly rather than comparing against any
+  local bookkeeping of its own, which is what keeps this design immune to the local-state
+  staleness problems (Auto Backup restoring stale values, Firebase `uid` churn on account
+  deletion, etc.) an earlier, considerably more complex draft of this doc ran into. Device identity
+  is a random UUID generated once per install (`:core:sync`'s `device/DeviceIdentityStore.kt`,
+  its own dedicated DataStore), stored locally - low stakes if it doesn't survive a backup/restore,
+  since the worst case is just a redundant re-claim prompt, not a correctness issue. Included in
+  `deleteCloudData()`'s subcollection list (`AuthRepositoryImpl.kt`) alongside the entity
+  subcollections, since Firestore doesn't cascade-delete subcollections when their parent document
+  is deleted - leaving it out orphaned the claim document on every delete-cloud-data run.
+- [x] **Silent auto-claim when no primary exists yet.** On sign-in, if `syncConfig.primaryDeviceId`
+  is unset, this device claims it immediately and automatically via a Firestore transaction
+  (`ensurePrimaryClaimed()`) - **no confirmation dialog, no disclaimer, no user action at all.**
+  There is genuinely nothing to protect against in this case (an empty destination, no other device
+  that could possibly be affected), so gating it behind the same confirm-and-claim ceremony the
+  *actual* multi-device case needs would only add friction to the single most common path (a
+  single-device user signing in for the first time) for no safety benefit. This is the only way
+  most users will ever interact with Phase 2 at all: implicitly, once, at sign-in, then never
+  again. Wired into `:feature:account`'s `AccountViewModel.signIn()` only - not onboarding, which
+  has no sign-in action of its own (see Phase 1's sign-in entry points above). Best-effort: a
+  failed claim (e.g. another device already primary) doesn't surface any error, since whether this
+  device becomes primary is orthogonal to whether sign-in itself succeeded.
+  `EnsurePrimaryClaimedUseCase`/`SyncDeviceRepository` live in `:core:domain`; a
+  `FakeSyncDeviceRepository`
+  in `:core:testing` backs `AccountViewModelTest`'s claim-triggered/not-triggered cases.
 - [ ] **Secondary-device UI**: once a primary *is* already claimed (by this same device
   previously, or by a different one), any device that isn't the current primary shows a
   persistent disclaimer (Account screen) explaining it can't push automatically, plus exactly two

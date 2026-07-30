@@ -61,6 +61,13 @@ interface RoutineDao {
     @Delete
     suspend fun deleteRoutine(routine: RoutineEntity)
 
+    /** Cascade-victim enumeration (and, for `replaceRoutineExercises`'s caller, exerciseId-based
+     * id-stability matching) for the sync tombstone write, which lives in `RoutineRepositoryImpl`
+     * (see [dev.gouthaman.regimen.data.repository.RoutineRepositoryImpl]) - this DAO only exposes
+     * the raw row lookup, since only a DAO can run a typed Room query. */
+    @Query("SELECT * FROM routine_exercises WHERE routineId = :routineId")
+    suspend fun routineExercisesFor(routineId: String): List<RoutineExerciseEntity>
+
     @Query("DELETE FROM routine_exercises WHERE routineId = :routineId")
     suspend fun clearRoutineExercises(routineId: String)
 

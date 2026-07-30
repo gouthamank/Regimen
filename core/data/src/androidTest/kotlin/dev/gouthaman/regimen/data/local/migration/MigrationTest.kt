@@ -62,7 +62,8 @@ class MigrationTest {
             RegimenDatabase::class.java,
             TEST_DB,
         ).addMigrations(
-            MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+            MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+            MIGRATION_10_11,
         ).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
@@ -99,7 +100,9 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
+        ).addMigrations(
+            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+        ).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -127,7 +130,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
+        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -270,7 +273,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_9_10).build()
+        ).addMigrations(MIGRATION_9_10, MIGRATION_10_11).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -302,6 +305,33 @@ class MigrationTest {
             val lastModifiedAt = it.getLong(1)
             assertTrue(lastModifiedAt in beforeMigration..afterMigration)
         }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).addMigrations(MIGRATION_10_11).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
+
+    @Test
+    fun migrate10To11_createsSyncTombstonesTable() {
+        helper.createDatabase(TEST_DB, 10).close()
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 11, true, MIGRATION_10_11)
+        migrated.execSQL(
+            "INSERT INTO sync_tombstones (entityType, entityId, parentId, grandparentId, deletedAt) " +
+                    "VALUES ('SET_ENTRY', 's1', 'we1', 'w1', 1000)"
+        )
+        migrated.query("SELECT entityType, parentId, grandparentId FROM sync_tombstones WHERE entityId = 's1'")
+            .use {
+                it.moveToFirst()
+                assertEquals("SET_ENTRY", it.getString(0))
+                assertEquals("we1", it.getString(1))
+                assertEquals("w1", it.getString(2))
+            }
 
         migrated.close()
         val db = Room.databaseBuilder(

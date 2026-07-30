@@ -153,3 +153,24 @@ val MIGRATION_9_10 = Migration(9, 10) { db ->
         db.execSQL("ALTER TABLE `$table` ADD COLUMN `lastModifiedAt` INTEGER NOT NULL DEFAULT $now")
     }
 }
+
+/**
+ * v10 -> v11: adds `sync_tombstones`, a pending-deletion record (entity type + id, plus the
+ * ancestor ids some entity types need to rebuild their Firestore document path) for the sync push
+ * job to read - Room's cascade deletes leave no other trace a row ever existed, so without this
+ * the push job would have no way to know a locally-deleted row's Firestore copy needs deleting too.
+ */
+val MIGRATION_10_11 = Migration(10, 11) { db ->
+    db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS `sync_tombstones` (
+            `entityType` TEXT NOT NULL,
+            `entityId` TEXT NOT NULL,
+            `parentId` TEXT,
+            `grandparentId` TEXT,
+            `deletedAt` INTEGER NOT NULL,
+            PRIMARY KEY(`entityType`, `entityId`)
+        )
+        """.trimIndent()
+    )
+}

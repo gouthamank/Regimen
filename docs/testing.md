@@ -92,12 +92,28 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
 - `RoutineDaoTest` - relation queries (`observeRoutinesWithExercises`, `observeRoutine`,
   `getRoutineWithExercises`) and hand-rolled `@Transaction` methods (`applyOrder`,
   `replaceRoutineExercises`).
-- `MigrationTest` - covers `MIGRATION_5_6` and `MIGRATION_6_7` via `MigrationTestHelper` against
-  the real committed schema JSONs. `MIGRATION_4_5` is not covered: schema `4.json` was never
-  committed to `core/data/schemas/` (only `5.json`/`6.json`/`7.json` exist), so there's no "from"
-  schema to construct that migration's starting DB.
-- Skipped: `ExerciseDao`, `MeasurementDao` - pure single-table CRUD, no `@Relation`/`@Transaction`/
-  hand-written joins.
+- `MigrationTest` - covers every migration from `MIGRATION_5_6` through `MIGRATION_10_11` via
+  `MigrationTestHelper` against the real committed schema JSONs. `MIGRATION_4_5` is not covered:
+  schema `4.json` was never committed to `core/data/schemas/` (only `5.json` onward exist), so
+  there's no "from" schema to construct that migration's starting DB.
+- Skipped: `ExerciseDao`, `MeasurementDao` - pure single-table CRUD, no `@Relation`/hand-written
+  joins. The sync tombstone cascade-enumeration queries each DAO exposes (e.g. `WorkoutDao`'s
+  `workoutExerciseIdsFor`/`setEntryIdsFor`) are plain lookups with no branching of their own - the
+  branching lives one layer up, in the repositories that call them (see below).
+
+## `:core:data` - `androidTest` (repository - sync tombstones)
+
+- `ExerciseRepositoryImplTest`/`RoutineRepositoryImplTest`/`WorkoutRepositoryImplTest`/
+  `MeasurementRepositoryImplTest` - the sync tombstone cascade-enumeration logic on each
+  repository's delete paths (`RoomDatabase.withTransaction` composing a DAO's raw child-id queries
+  with `SyncTombstoneDao`'s writes): `RoutineRepositoryImpl.delete`'s and `.saveRoutine`'s
+  `RoutineExercise` cascade/diff, `WorkoutRepositoryImpl.deleteWorkout`'s two-level cascade and
+  `.deleteSet`'s grandparent-id lookup, `MeasurementRepositoryImpl.deleteType`'s `BodyMetric`
+  cascade, `ExerciseRepositoryImpl.delete` (no cascade, since `DeleteExerciseUseCase` blocks
+  deleting an exercise still referenced anywhere). This is real branching logic that lives in the
+  repository layer, not the DAO layer, since only a repository composes multiple DAOs (the entity
+  DAO's raw queries plus `SyncTombstoneDao`'s writes) in one atomic transaction - each entity DAO
+  itself is back to plain persistence with nothing to test beyond what's already covered above.
 
 ## `:core:designsystem` - `androidTest` (Compose UI)
 
@@ -144,14 +160,14 @@ and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope
 `WorkoutSummaryViewModel` (volume summation + PR comparison), `SessionDetailViewModel`
 (save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation),
 `AccountViewModel` (sign-in success/failure, sign-out and delete-cloud-data dispatch, using a
-`FakeAuthRepository`), `OnboardingViewModel` (its onboarding-page sign-in success/failure and
-`finish()` marking onboarding complete - the same `FakeAuthRepository`-backed pattern as
-`AccountViewModel`, since its own sign-in page has the same real branching; the preference-setter
-functions it also exposes stay untested, matching `:feature:settings` below).
+`FakeAuthRepository`).
 
 Skipped entirely: `:feature:settings` (pure preference/account-status
 pass-through - `SettingsViewModel` just exposes two independent `StateFlow`s side by side, no
-branching of its own), `EditExerciseViewModel` (simple edit-vs-new branching), `HistoryViewModel`
+branching of its own), `OnboardingViewModel` (its sign-in page is purely informational now, no
+sign-in action or branching of its own; only `finish()` is tested, matching the
+`:feature:settings` pattern), `EditExerciseViewModel` (simple edit-vs-new branching),
+`HistoryViewModel`
 (grouping/sorting only), `MeasurementDetailViewModel` (flow mapping + unit conversion only),
 `EditWorkoutViewModel` (same set/cardio/note pass-through calls `ActiveWorkoutViewModel` already
 covers, minus the rest-timer branching that's actually tested).

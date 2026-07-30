@@ -221,9 +221,9 @@ Per-exercise progress (history and PRs) lives on Exercise Detail, not on a separ
   confirm dialog. Editing never changes the session's original timestamps and doesn't touch
   `WorkoutStatus` in a way that could conflict with a genuinely in-progress workout running
   elsewhere.
-- **Onboarding** (first-run only) - units and theme selection, plus a third page offering Google
-  sign-in (same purpose as the Account screen's, in miniature - no destructive actions here). Every
-  page, including sign-in, is always skippable.
+- **Onboarding** (first-run only) - units and theme selection, plus a third page that's purely
+  informational, noting that cloud sign-in and backup are available later from Settings. No sign-in
+  action lives in onboarding itself. Every page is always skippable.
 
 ---
 
@@ -317,7 +317,8 @@ The core loop; users spend the majority of session time here.
 
 ### Onboarding and empty states
 
-- Onboarding is minimal - units, theme, and an optional sign-in page, always skippable. Right after
+- Onboarding is minimal - units, theme, and a purely informational page pointing at Settings for
+  cloud sign-in (no sign-in action here), always skippable. Right after
   it (as soon as
   `RegimenApp` first composes, before any workout can be started), the app requests
   `POST_NOTIFICATIONS` (Android 13+) if not already resolved - this is deliberately not requested
