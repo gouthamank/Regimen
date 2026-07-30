@@ -17,6 +17,8 @@ data class RoutineEntity(
     @PrimaryKey val id: String,
     val name: String,
     val position: Int,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun RoutineEntity.toDomain(): Routine = Routine(id = id, name = name, position = position)
@@ -51,6 +53,8 @@ data class RoutineExerciseEntity(
     val targetRestSec: Int,
     // Reserved for future superset grouping (v2); nullable now to avoid a migration later.
     val supersetGroupId: String? = null,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun RoutineExerciseEntity.toDomain(): RoutineExercise = RoutineExercise(

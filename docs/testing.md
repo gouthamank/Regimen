@@ -144,9 +144,12 @@ and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope
 `WorkoutSummaryViewModel` (volume summation + PR comparison), `SessionDetailViewModel`
 (save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation),
 `AccountViewModel` (sign-in success/failure, sign-out and delete-cloud-data dispatch, using a
-`FakeAuthRepository`).
+`FakeAuthRepository`), `OnboardingViewModel` (its onboarding-page sign-in success/failure and
+`finish()` marking onboarding complete - the same `FakeAuthRepository`-backed pattern as
+`AccountViewModel`, since its own sign-in page has the same real branching; the preference-setter
+functions it also exposes stay untested, matching `:feature:settings` below).
 
-Skipped entirely: `:feature:onboarding`, `:feature:settings` (pure preference/account-status
+Skipped entirely: `:feature:settings` (pure preference/account-status
 pass-through - `SettingsViewModel` just exposes two independent `StateFlow`s side by side, no
 branching of its own), `EditExerciseViewModel` (simple edit-vs-new branching), `HistoryViewModel`
 (grouping/sorting only), `MeasurementDetailViewModel` (flow mapping + unit conversion only),

@@ -16,6 +16,8 @@ data class MeasurementTypeEntity(
     val name: String,
     val unit: String,
     val isBuiltIn: Boolean = false,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun MeasurementTypeEntity.toDomain(): MeasurementType =
@@ -41,6 +43,8 @@ data class BodyMetricEntity(
     val measurementTypeId: String,
     val date: Long,
     val value: Double,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun BodyMetricEntity.toDomain(): BodyMetric =

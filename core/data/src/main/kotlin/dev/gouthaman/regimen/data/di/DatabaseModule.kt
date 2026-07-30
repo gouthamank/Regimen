@@ -17,6 +17,7 @@ import dev.gouthaman.regimen.data.local.migration.MIGRATION_5_6
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_6_7
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_7_8
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_8_9
+import dev.gouthaman.regimen.data.local.migration.MIGRATION_9_10
 import javax.inject.Singleton
 
 @Module
@@ -32,7 +33,8 @@ object DatabaseModule {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
-                MIGRATION_8_9
+                MIGRATION_8_9,
+                MIGRATION_9_10,
             )
             .build()
 

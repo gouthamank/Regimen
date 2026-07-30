@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -36,6 +37,12 @@ class PreferencesRepositoryImpl @Inject constructor(
         val REST_CHIME = booleanPreferencesKey("rest_chime_enabled")
         val MAX_WORKOUT_DURATION = stringPreferencesKey("max_workout_duration")
         val ONBOARDED = booleanPreferencesKey("onboarded")
+
+        // Local-only sync bookkeeping, same shape as the isDirty/lastModifiedAt columns on every
+        // Room entity - not part of UserPreferences, never read by anything other than a future
+        // sync push.
+        val IS_DIRTY = booleanPreferencesKey("is_dirty")
+        val LAST_MODIFIED_AT = longPreferencesKey("last_modified_at")
     }
 
     override val preferences: Flow<UserPreferences> = context.dataStore.data.map { p ->
@@ -82,6 +89,10 @@ class PreferencesRepositoryImpl @Inject constructor(
         edit { it[Keys.ONBOARDED] = value }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
-        context.dataStore.edit(block)
+        context.dataStore.edit {
+            block(it)
+            it[Keys.IS_DIRTY] = true
+            it[Keys.LAST_MODIFIED_AT] = System.currentTimeMillis()
+        }
     }
 }

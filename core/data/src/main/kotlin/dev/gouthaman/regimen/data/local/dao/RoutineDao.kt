@@ -39,13 +39,17 @@ interface RoutineDao {
     @Query("SELECT EXISTS(SELECT 1 FROM routine_exercises WHERE exerciseId = :exerciseId)")
     suspend fun isExerciseUsedInAnyRoutine(exerciseId: String): Boolean
 
-    @Query("UPDATE routines SET position = :position WHERE id = :id")
-    suspend fun updatePosition(id: String, position: Int)
+    @Query(
+        "UPDATE routines SET position = :position, isDirty = 1, lastModifiedAt = :lastModifiedAt " +
+                "WHERE id = :id"
+    )
+    suspend fun updatePosition(id: String, position: Int, lastModifiedAt: Long)
 
     /** Rewrites every routine's position to match the given id order (index = new position). */
     @Transaction
     suspend fun applyOrder(orderedIds: List<String>) {
-        orderedIds.forEachIndexed { index, id -> updatePosition(id, index) }
+        val now = System.currentTimeMillis()
+        orderedIds.forEachIndexed { index, id -> updatePosition(id, index, now) }
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

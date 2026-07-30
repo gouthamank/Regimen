@@ -61,7 +61,9 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
+        ).addMigrations(
+            MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+        ).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -97,7 +99,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
+        ).addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -125,7 +127,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9).build()
+        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -261,6 +263,44 @@ class MigrationTest {
             it.moveToFirst()
             assertTrue(it.getString(0).isNotEmpty() && it.getString(0) != bodyweightId)
             assertEquals(80.0, it.getDouble(1), 0.0)
+        }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).addMigrations(MIGRATION_9_10).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
+
+    @Test
+    fun migrate9To10_addsIsDirtyAndLastModifiedAtDefaultingToTrueAndNow() {
+        helper.createDatabase(TEST_DB, 9).apply {
+            execSQL(
+                "INSERT INTO exercises (id, name, type, muscleGroup, equipment, isCustom) " +
+                        "VALUES ('e1', 'Bench Press', 'STRENGTH', 'CHEST', 'BARBELL', 0)",
+            )
+            execSQL("INSERT INTO routines (id, name, position) VALUES ('r1', 'Push Day', 0)")
+            close()
+        }
+
+        val beforeMigration = System.currentTimeMillis()
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 10, true, MIGRATION_9_10)
+        val afterMigration = System.currentTimeMillis()
+
+        migrated.query("SELECT isDirty, lastModifiedAt FROM exercises WHERE id = 'e1'").use {
+            it.moveToFirst()
+            assertEquals(1, it.getInt(0))
+            val lastModifiedAt = it.getLong(1)
+            assertTrue(lastModifiedAt in beforeMigration..afterMigration)
+        }
+        migrated.query("SELECT isDirty, lastModifiedAt FROM routines WHERE id = 'r1'").use {
+            it.moveToFirst()
+            assertEquals(1, it.getInt(0))
+            val lastModifiedAt = it.getLong(1)
+            assertTrue(lastModifiedAt in beforeMigration..afterMigration)
         }
 
         migrated.close()

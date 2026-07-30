@@ -47,6 +47,8 @@ data class WorkoutEntity(
     val restTimeEndAt: Long? = null,
     val restTotalSec: Int? = null,
     val restWorkoutExerciseId: String? = null,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun WorkoutEntity.toDomain(): Workout = Workout(
@@ -105,6 +107,8 @@ data class WorkoutExerciseEntity(
     val isSkipped: Boolean = false,
     val isDone: Boolean = false,
     val supersetGroupId: String? = null,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun WorkoutExerciseEntity.toDomain(): WorkoutExercise = WorkoutExercise(
@@ -147,6 +151,8 @@ data class SetEntryEntity(
     val weightKg: Double? = null,
     val reps: Int? = null,
     val isComplete: Boolean = false,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun SetEntryEntity.toDomain(): SetEntry = SetEntry(
@@ -185,6 +191,8 @@ data class CardioEntryEntity(
     val workoutExerciseId: String,
     val durationSec: Long,
     val distanceMeters: Double? = null,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun CardioEntryEntity.toDomain(): CardioEntry = CardioEntry(

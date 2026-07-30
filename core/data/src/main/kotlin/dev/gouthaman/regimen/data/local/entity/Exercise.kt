@@ -16,6 +16,8 @@ data class ExerciseEntity(
     val muscleGroup: MuscleGroup,
     val equipment: Equipment,
     val isCustom: Boolean = false,
+    val isDirty: Boolean = true,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
 
 fun ExerciseEntity.toDomain(): Exercise =

@@ -133,3 +133,23 @@ val MIGRATION_8_9 = Migration(8, 9) { db ->
     migrateSetEntries8To9(db, workoutExerciseIdMap)
     migrateCardioEntries8To9(db, workoutExerciseIdMap)
 }
+
+/**
+ * v9 -> v10: adds `isDirty`/`lastModifiedAt` to every entity that's part of remote sync -
+ * `isDirty` is local-only bookkeeping a sync push filters on, `lastModifiedAt` is a plain
+ * informational "last edited" timestamp. Plain `ADD COLUMN` on every table, same reasoning as
+ * MIGRATION_6_7/7_8 - nothing renamed or dropped. Existing rows backfill `isDirty = 1` (so a
+ * user's entire pre-existing history is eligible to back up on first sync, not just rows touched
+ * after this migration) and `lastModifiedAt` to this migration's run time, uniformly - not each
+ * row's own natural timestamp, an accepted tradeoff at this app's scale.
+ */
+val MIGRATION_9_10 = Migration(9, 10) { db ->
+    val now = System.currentTimeMillis()
+    for (table in listOf(
+        "exercises", "routines", "routine_exercises", "workouts", "workout_exercises",
+        "set_entries", "cardio_entries", "measurement_types", "body_metrics",
+    )) {
+        db.execSQL("ALTER TABLE `$table` ADD COLUMN `isDirty` INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE `$table` ADD COLUMN `lastModifiedAt` INTEGER NOT NULL DEFAULT $now")
+    }
+}

@@ -29,7 +29,7 @@ import dev.gouthaman.regimen.data.local.entity.WorkoutExerciseEntity
         MeasurementTypeEntity::class,
         BodyMetricEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

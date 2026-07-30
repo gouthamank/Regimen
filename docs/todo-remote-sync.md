@@ -4,18 +4,29 @@ Regimen is local-only today (see `docs/architecture.md`); this doc tracks ground
 eventual multi-device sync, kept separate until picked up. Not scheduled - revisit before
 starting.
 
-**Staged so no single step can destroy data.** The phases below are ordered specifically so
-each one is safe to ship and bake in on its own before the next begins - each phase ships and
-runs in production for a while before the next starts, rather than landing all at once:
+**Single-writer model: exactly one device per account is ever allowed to push automatically.**
+There is no merge, no per-document conflict resolution, and no automatic pull, anywhere in this
+design - every operation that moves data is either the one designated **primary** device's
+ongoing incremental push, or an explicit, user-confirmed, one-directional full replace (pull the
+cloud down, destroying local state; or claim primary, destroying the cloud's state). This is a
+deliberate simplification over an earlier, considerably more complex draft that tried to support
+automatic multi-device merging (per-row change-tracking across every device, last-write-wins
+conflict resolution, an always-on account-mismatch guard) - that version kept surfacing genuine
+correctness gaps precisely because "silently reconcile two devices' data automatically" is a hard
+problem. Restricting to one automatic writer at a time, with every other device requiring an
+explicit destructive confirmation to participate at all, sidesteps that whole problem class by
+construction rather than solving it.
 
 - **Phase 0** is a one-shot, irreversible local schema migration - isolating it means if
   something's wrong, it surfaces from real usage before any sync code ever touches that data.
-- **Phase 1** is push-only (local → Firestore, no download, no delete propagation) - a pure
-  backup. Nothing incoming can ever touch local data, so no bug in this phase can lose or
-  overwrite anything on-device.
-- **Phase 2** (pull, merge, delete propagation) only starts once Phase 1 has run clean for a
-  while and there's real Firestore data to test merge logic against, instead of only synthetic
-  scenarios.
+- **Phase 1** is the primary device's ongoing incremental sync (push, plus the delete-propagation
+  needed to keep it correct) - fully useful and safe on its own for single-device use, no other
+  device involved at all.
+- **Phase 2** adds multi-device support: the explicit "Pull cloud data" / "Claim primary" actions
+  a secondary device uses to participate. Purely additive scope, not a risk-mitigation stage -
+  Phase 1 alone is already a complete, correct single-device backup. Becoming primary in the first
+  place is silent and automatic at sign-in when no one else has claimed it yet - this phase's
+  actual UI only ever appears once a *second* device is genuinely in the picture.
 
 ## Status legend
 
@@ -72,16 +83,16 @@ low design risk - the only genuinely delicate part is the migration's FK remappi
 
 ---
 
-## Phase 1: Firestore push-only sync (local → cloud backup)
+## Phase 1: primary device sync (push + delete propagation)
 
-The "no backend to build or run" path to true multi-device sync, evaluated as a much
-lower-effort alternative to a custom server + hand-rolled delta-sync protocol. Assumes Phase 0
-(UUID keys) is done first, since Firestore document IDs need the same global-uniqueness
-property. This phase only ever *writes* to Firestore - no download, no merge, no delete
-propagation - so a bug here can't lose or overwrite local data; worst case is an incomplete or
-stale cloud backup, not data loss on-device.
+The "no backend to build or run" path to cloud backup, evaluated as a much lower-effort
+alternative to a custom server + hand-rolled sync protocol. Assumes Phase 0 (UUID keys) is done
+first, since Firestore document IDs need the same global-uniqueness property. Describes the one
+device designated **primary** for a given account - the only device that ever writes to
+Firestore automatically. A device only becomes primary via Phase 2's explicit "Claim primary"
+action; until then, this phase doesn't apply to it at all.
 
-- [~] One-time Firebase console setup (manual, done once before any code lands):
+- [x] One-time Firebase console setup (manual, done once before any code lands):
     1. Create/link a Firebase project at the Firebase console.
     2. Register the Android app with `applicationId` `dev.gouthaman.regimen` plus **both** the
        release-signing SHA-1/SHA-256 fingerprint (from `release.jks`, wired via `signingConfigs`
@@ -129,34 +140,37 @@ stale cloud backup, not data loss on-device.
   be present/up to date. Since sign-in must stay "optional, skippable, fully usable local-only"
   (decided below), absence of Play Services needs to show as a normal disabled/hidden sign-in
   option, not an unhandled exception.
-- [~] Add the `INTERNET` permission to `AndroidManifest.xml` - the app currently declares none
-  (`VIBRATE`, `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` only),
-  since it has no network access today. This is the point where "local-only" stops being
-  literally true even for users who never sign in.
+- [x] Add the `INTERNET` permission to `AndroidManifest.xml` - the app previously declared none
+  (`VIBRATE`, `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` only).
+  This is the point where "local-only" stopped being literally true even for users who never
+  sign in.
 - [~] New **`:core:sync`** module for auth/sync, not folded into `:core:data` - the surface area
-  (Firebase Auth + Firestore clients, the WorkManager sync job, account-switch safety, tombstone
-  tracking, LWW conflict resolution) is substantial and shared across `:feature:account`,
-  `:feature:settings`, and the sync worker alike, mirroring `:core:data`'s role for the
-  Room-backed repositories rather than mixing local-persistence DI with cloud-sync DI in one
-  module. Follows the existing `di/<Name>Module.kt` convention for its Hilt bindings.
-- [~] Sign-in entry points: a new onboarding page mentioning that signing in enables sync
+  (Firebase Auth + Firestore clients, the primary device's WorkManager push job, tombstone
+  tracking, the `syncConfig` primary/secondary claim logic) is substantial and shared across
+  `:feature:account`, `:feature:settings`, and the sync worker alike, mirroring `:core:data`'s role
+  for the Room-backed repositories rather than mixing local-persistence DI with cloud-sync DI in
+  one module. Follows the existing `di/<Name>Module.kt` convention for its Hilt bindings.
+- [x] Sign-in entry points: a new onboarding page mentioning that signing in enables sync
   (optional, skippable - the app is fully usable local-only without it), plus a two-tier
-  auth/sync UI rather than a single Settings section. Settings' summary row and the dedicated
-  `:feature:account` screen are built; the onboarding page is not:
+  auth/sync UI rather than a single Settings section. All three pieces (Settings' summary row, the
+  dedicated `:feature:account` screen, and the onboarding sign-in page) are built:
     - **Settings' "Account" summary row** (built): the signed-in account's email, or "Signed out",
-      navigating to the dedicated Account screen. `SettingsViewModel` combines its existing
-      preferences `StateFlow` with a second one from `ObserveAccountStatusUseCase` - the same
-      `:core:domain` use case the Account screen's own ViewModel reads, rather than sharing a
-      ViewModel instance across module boundaries. A last-successful-sync timestamp and "Sync now"
-      action are not shown yet - there's no sync job to report on until the sync-trigger item
-      below lands.
+      navigating to the dedicated Account screen via a container-transform shared-element
+      transition (`accountFromSettingsTransitionKey` in `:core:common-ui`'s
+      `SharedTransitionKeys.kt`), mirroring the existing Settings → Exercise Library row
+      exactly. `SettingsViewModel` combines its existing preferences `StateFlow` with a second one
+      from `ObserveAccountStatusUseCase` - the same `:core:domain` use case the Account screen's
+      own ViewModel reads, rather than sharing a ViewModel instance across module boundaries. A
+      last-successful-sync timestamp and "Sync now" action are not shown yet - there's no sync job
+      to report on until the sync-trigger item below lands.
     - **Dedicated Account screen** (built, `:feature:account`, its own Gradle module per the
-      one-module-per-screen convention): sign-in with Google (disabled with an explanatory caption
-      when Google Play Services isn't available), or - once signed in - the account's name/email
-      plus exactly two destructive actions, each behind the shared `ConfirmDialog`
-      (`:core:designsystem`'s `dialog/ConfirmDialog.kt`, `destructive = true`) - **not** a "delete
-      account" concept, since there's no separate Regimen account to delete, only a signed-in
-      Google identity and a Firestore backup:
+      one-module-per-screen convention, also sharing that same transition key on its root
+      container): sign-in with Google (disabled with an explanatory caption when Google Play
+      Services isn't available), or - once signed in - the account's name/email plus exactly two
+      destructive actions, each behind the shared `ConfirmDialog` (`:core:designsystem`'s
+      `dialog/ConfirmDialog.kt`, `destructive = true`) - **not** a "delete account" concept, since
+      there's no separate Regimen account to delete, only a signed-in Google identity and a
+      Firestore backup:
         - **Sign out** - stops syncing, keeps local data, keeps the cloud backup as-is.
       - **Delete cloud data** - deletes the signed-in user's known Firestore subcollections
         (`workouts`, `routines`, `exercises`, `measurementTypes`, `bodyMetrics`) and
@@ -166,34 +180,81 @@ stale cloud backup, not data loss on-device.
         `AuthRepositoryImpl`'s auth-state listener picks it up, the Account screen reflects
         signed-out immediately) - so this action does sign the user out of **Regimen**, even
         though it does **not** touch the Google OAuth grant itself, which the user can only
-        revoke via their own Google Account settings. The confirmation dialog's copy says so
-        explicitly. Since no sync job writes to Firestore yet, this currently only ever deletes
-        an empty backup; the collection names are hardcoded ahead of the entity-mapping item
-        below rather than derived from it, since the Firestore client SDK can't enumerate a
-        document's subcollections at runtime.
+        revoke via their own Google Account settings. The row description and confirmation
+        dialog's copy both say so explicitly, in plain terms (e.g. "cloud backup," never
+        "Firestore," which isn't a concept a user should need to know) - both are user-facing
+        copy per the string convention below. Since no sync job writes to Firestore yet, this
+        currently only ever deletes an empty backup; the collection names are hardcoded ahead
+        of the entity-mapping item below rather than derived from it, since the Firestore
+        client SDK can't enumerate a document's subcollections at runtime.
+        Each button (Sign in / Sign out / Delete cloud data) shows an inline spinner in place of its
+        own label while its specific action is in flight (`AccountViewModel`'s `busyAction:
+      AccountAction?`, one of `SIGN_IN`/`SIGN_OUT`/`DELETE_CLOUD_DATA`) and all three buttons
+        disable while any one of them is busy - there's no separate standalone loading indicator.
+        Failures are classified into a small `AuthErrorReason` enum (`NO_CREDENTIALS`/`CANCELLED`/
+        `NETWORK`/`UNKNOWN`) via a domain-level `AuthException` wrapper (`:core:domain`'s
+        `model/AuthError.kt`) rather than displaying a raw platform exception message - e.g.
+        Credential Manager's `NoCredentialException` (thrown when no Google account exists on the
+        device/emulator) maps to a specific, actionable string ("No Google account found on this
+        device. Add one in your device's account settings, then try again.") instead of leaking
+        "No credentials available" verbatim. A shared `@Composable AuthErrorReason.text()`
+        (`:core:common-ui`'s `AuthErrorText.kt`, backed by its own `strings.xml` entries) resolves
+        the reason to copy at render time, matching the `UnitLabelText.text()` pattern - both
+        `AccountScreen` and the onboarding sign-in page below call the same formatter rather than
+        each defining their own copy of the same four error strings.
         `AccountViewModelTest` (`:feature:account`, using a `FakeAuthRepository` from
-        `:core:testing`) covers sign-in success/failure and sign-out/delete-cloud-data dispatch, per
-        the ViewModel testing tier in `docs/testing.md`.
-    - Onboarding (`:feature:onboarding`) is still a hardcoded 2-page pager (Units, Appearance) with
-      separate adaptive layout composables per window posture (Compact/BookOrExpanded vs.
-      Tabletop) - a sign-in page is not yet added; doing so means updating the page count and both
-      layout variants, not just adding a composable.
+        `:core:testing`) covers sign-in success/failure (both typed and untyped exceptions) and
+        sign-out/delete-cloud-data dispatch, per the ViewModel testing tier in `docs/testing.md`.
+    - `HomeViewModel` already consumes `ObserveAccountStatusUseCase` too, independent of this
+      sync work: the Home tab's greeting is personalized with the signed-in account's first name
+      (parsed from `AuthAccount.displayName`) when signed in, falling back to the existing unnamed
+      greeting otherwise - see `docs/architecture.md`'s Home entry. Proof that account data is
+      already usable by non-sync features once Phase 1's sign-in plumbing exists.
+    - **Onboarding sign-in page** (built, `:feature:onboarding`): a 3rd pager page (`PAGE_COUNT`
+      bumped from 2 to 3) offering the same Google sign-in as the Account screen, minus its
+      destructive actions - just a "Sign in with Google" button (busy-spinner-in-place-of-label
+      and disabled-with-caption-when-unavailable, same pattern as `AccountScreen`) that swaps to a
+      "Signed in as {name}" message once signed in. Always skippable, like every onboarding page.
+      `OnboardingViewModel` gained `ObserveAccountStatusUseCase`/`SignInUseCase` alongside its
+      existing preferences use cases, plus a narrower `OnboardingSignInState` (sign-in only, no
+      sign-out/delete-cloud-data - those stay exclusive to the dedicated Account screen). Both
+      `LinearOnboardingLayout` and `TabletopOnboardingLayout` needed no changes - they already
+      threaded a generic `pagerContent`/`onFinish`/`onNextOrFinish` down from the top-level
+      `OnboardingScreen`, so the 3rd page only touched `PAGE_COUNT` and the `pagerContent`
+      `when`-dispatch. `OnboardingViewModelTest` (new file, mirroring `AccountViewModelTest`'s
+      `FakeAuthRepository`-backed pattern) covers sign-in success/failure and `finish()` - this
+      moves `:feature:onboarding` out of `docs/testing.md`'s "skipped entirely" list, since it now
+      has real branching logic rather than being pure preference pass-through.
     - Per `CLAUDE.md`'s string/formatting conventions: all new user-facing copy (Settings Account
       summary, the dedicated Account screen, confirmation modal copy, sign-in error states) goes in
       `strings.xml` via `stringResource()`, not
       hardcoded. The "last synced at" instant must be exposed as a raw timestamp in UI state and
       formatted by the Composable at render time (matching the `SessionFormat`/`MeasurementFormat`
       pattern) - the ViewModel must not pre-format it into a display string itself.
-- [ ] Map Room entities to Firestore collections, scoped per-user (e.g.
-  `users/{uid}/workouts/{workoutId}`), using **subcollections** (not embedded arrays) for
-  FK-child entities - `WorkoutExercise`/`SetEntry`/`CardioEntry` as child documents under
-  `Workout`, `RoutineExercise` under `Routine`. Chosen over embedding because it sidesteps
-  Firestore's 1 MiB document-size limit entirely (no realistic ceiling on workout size) and,
-  more importantly, gives Phase 2's per-document last-write-wins conflict resolution finer
-  granularity - a conflict discards only the losing device's edits to the one set/exercise that
-  conflicted, not an entire workout's worth of edits. Costs more reads/writes per sync than one
-  document per workout, but quota isn't the binding constraint at this app's data volume (numeric/
-  short-string fields only, no attachments).
+- [ ] Map Room entities to Firestore collections, scoped per-user, using **subcollections nested
+  to match the Room FK chain exactly** (not embedded arrays, and not flattened siblings):
+  ```
+  users/{uid}/
+    exercises/{exerciseId}                              (isCustom == true only)
+    measurementTypes/{typeId}                            (isBuiltIn == false only)
+    bodyMetrics/{metricId}
+    routines/{routineId}
+      routineExercises/{id}
+    workouts/{workoutId}                                  (workoutStatus == COMPLETE only)
+      workoutExercises/{weId}
+        setEntries/{id}          -or-  cardioEntries/{id}
+    preferences                                           (single document, not a collection)
+  ```
+  `SetEntry`/`CardioEntry` nest under `WorkoutExercise` (not directly under `Workout`), since
+  that's the actual Room FK chain (`Workout` → `WorkoutExercise` → `SetEntry`/`CardioEntry`) -
+  subcollection depth mirrors relational depth exactly, so no extra field is needed to
+  reconstruct the parent link. Chosen over embedding because it sidesteps Firestore's 1 MiB
+  document-size limit entirely (no realistic ceiling on workout size) and lets the incremental
+  push touch only the specific rows that are actually dirty (a single edited set doesn't require
+  re-serializing and rewriting its entire parent workout as one blob). Costs more reads/writes per
+  sync than one document per workout, but quota isn't the binding constraint at this app's data
+  volume (numeric/short-string fields only, no attachments). `Exercise`/`MeasurementType`/
+  `BodyMetric` sit flat at the top level (no natural parent to nest under, in sync scope).
 - [ ] Sync scope: user-authored Room data - `Exercise` rows where `isCustom = true` (built-ins
   ship with the APK and shouldn't be uploaded at all), custom `MeasurementType`s,
   `Routine`/`Workout`/etc. - **plus app preferences** (units, theme, rest-timer defaults):
@@ -202,32 +263,94 @@ stale cloud backup, not data loss on-device.
       references, no UUID needed) - they need their own sync path rather than riding the
       Room-entity mechanism: a single `users/{uid}/preferences` document rather than a
       collection, since there's exactly one preferences set per user, not many rows.
-    - Same conflict-resolution shape as everything else (Phase 2's last-write-wins), but
-      DataStore has no existing per-write timestamp - needs the same kind of `lastModifiedAt`
-      tracking added as the Room-entity change-tracking item below, just for the preferences
-      document instead of a table.
+  - Needs the same `isDirty`/`lastModifiedAt` tracking as every Room entity (change-tracking
+    item below), just for the single preferences document instead of a table - DataStore has no
+    existing per-write timestamp or dirty flag today.
 - [ ] Only push completed workouts: `Workout.workoutStatus` (`IN_PROGRESS`/`IN_REST_TIME`/
   `PAUSED`/`EDITING`/`COMPLETE`) means a session can be mid-flight, backed by the Active Workout
   foreground service and its live pause/resume state - exclude anything short of `COMPLETE` from
   the sync job, since even in a push-only phase there's no reason to expose a live in-progress
   session's internal state remotely.
-- [ ] Change-tracking mechanism (currently missing entirely): no entity has an `updatedAt` or
-  dirty-flag column today (confirmed - none of the Room entities track modification time), so
-  the periodic sync job has no way to know which local rows changed since the last push. Needs
-  either a `lastModifiedAt` column added to every synced entity, or a separate dirty-row-tracking
-  table populated on write - this is new schema work, likely bundled with (or immediately
-  following) Phase 0's migration since it touches the same tables. (This column is also what
-  Phase 2's conflict resolution will key off - see below.)
-- [ ] Account-switch safety: even push-only sync writes into whichever account is currently
-  authenticated - signing into account B on a device that last synced as account A, without
-  clearing local data, would push A's local log into B's Firestore space. The gate belongs on
-  the **push, not the sign-in** - switching Google accounts via the account picker is normal,
-  expected sign-in behavior and can't sensibly be blocked or require "sign out first" as a
-  precondition (choosing a different account *is* the sign-in action). So: sign-in always
-  succeeds for any account; a stored last-synced-account-uid is compared on the next sync
-  attempt, and if it doesn't match the newly-signed-in account, show a one-time warning
-  ("this device last synced as A, you're signed in as B - continuing syncs local data under B
-  instead") before the first push under the new account is allowed to proceed.
+- [~] Change-tracking mechanism: the schema half is done and verified - **`isDirty: Boolean`**
+  and **`lastModifiedAt: Long`** columns exist on every synced Room entity (`Routine`,
+  `RoutineExercise`, `Workout`, `WorkoutExercise`, `SetEntry`, `CardioEntry`, `Exercise`,
+  `MeasurementType`, `BodyMetric` - `MIGRATION_9_10`, a plain `ADD COLUMN` migration) plus the
+  `preferences` DataStore document (`is_dirty`/`last_modified_at` keys, stamped by the single
+  shared `edit()` helper every setter already funnels through). Verified via a real in-place
+  upgrade with pre-existing data (not just `MigrationTest`'s synthetic inserts), per the same
+  workflow that caught a genuine bug in `MIGRATION_8_9` before. Every existing DAO write path gets
+  fresh values "for free" via entity constructor defaults (`isDirty: Boolean = true,
+  lastModifiedAt: Long = System.currentTimeMillis()`), since every `@Insert`/`@Update` takes a
+  full entity object - `RoutineDao.updatePosition` (the drag-reorder path, a raw `UPDATE` bypassing
+  the entity object) was the one write site needing an explicit code change, confirmed via a
+  codebase-wide audit for other bypasses (none found).
+    - **Still not built**: the actual sync push job that reads `isDirty` to decide what to push -
+      everything below in this bullet is design for that job, not yet implemented.
+    - **`isDirty`** clears to `false` only once *that specific row's* Firestore write is
+      confirmed - chosen over a single global "last successful push" timestamp watermark
+      specifically because it survives a partial-batch failure precisely: if a batch of N dirty
+      rows only gets M < N written before a network drop, the M already-confirmed rows have
+      `isDirty` cleared individually and won't be redundantly re-pushed next run, while the
+      remaining N-M stay dirty and get retried - a timestamp watermark would either have to
+      redundantly re-push the whole batch (if the watermark only advances after 100% success) or
+      risk silently skipping unconfirmed rows (if advanced optimistically mid-batch).
+    - **`lastModifiedAt`** is not load-bearing for sync itself in this single-writer design
+      (there's no merge or cross-device conflict comparison anywhere in this doc anymore) - kept
+      purely as a plain, informational "when was this last edited" field, in case something else
+      wants it later.
+    - **Batch cap per sync-job run**: an established user's first-ever backfill (`isDirty = true`
+      on everything) could plausibly be tens of thousands of Firestore writes in one shot, given
+      the nested-subcollection structure above (a single workout can be 10-20+ documents) -
+      risking the Spark tier's 20K writes/day free cap in a single run. The push job caps how many
+      dirty rows it pushes per invocation, letting a large backfill spread across several
+      15-minute periodic runs instead of one. The same cap-and-continue mechanism also handles the
+      full-resync a device does the moment it claims primary (Phase 2) - no special-casing needed,
+      it's the same "push whatever's dirty, up to the cap" loop either way.
+    - **Sync status is four states, not a binary success/fail**, since a run can complete
+      successfully while still leaving a capped backlog for next time - that's normal
+      progress, not a failure. Exposed as `SyncStatus(lastSyncedAt: Long?, isFullyUpToDate:
+      Boolean, lastError: AuthErrorReason?)`, rendered in priority order: `lastError != null` →
+      "Sync failed"; `isFullyUpToDate` → "Synced"; `lastSyncedAt != null && !isFullyUpToDate` →
+      "Backing up..." (capped batch still working through a backlog); `lastSyncedAt == null` →
+      "Not yet synced." This is the concrete shape of the "last sync error tracked separately from
+      last synced at" requirement in the Sync trigger item below.
+- [ ] Primary-status check: the push job's first step, every run, is confirming this device is
+  still the account's designated primary (`users/{uid}/syncConfig`'s `primaryDeviceId` field, see
+  Phase 2 - a device only ever becomes primary via the explicit "Claim primary" action there). If
+  another device has since claimed primary status instead, this device no-ops the run and cancels
+  its own periodic `WorkRequest` entirely, rather than continuing to fire and no-op forever.
+- [ ] **Freshness watermark, to catch a stale Auto-Backup restore before it can regress the
+  cloud.** Device-ID matching `primaryDeviceId` isn't sufficient on its own to prove this device's
+  local state is safe to push from - Auto Backup runs on its own opportunistic (~daily) schedule,
+  so a restored device's snapshot can be older than the last successful push. Concretely: the same
+  physical device edits an entity, pushes it, then edits it *again* before any Auto Backup
+  snapshot captures that second edit, then gets reformatted - the restored local state only has
+  the first edit, `isDirty` still `false` for it (since it *was* successfully pushed once), so a
+  naive resume-as-primary would never re-push it at all... but a related risk is worse: if the
+  restore instead lands with that row `isDirty = true` for a *stale* reason and gets pushed, it
+  would silently overwrite the cloud's already-newer second edit with the older restored one. Add
+  a single scalar `syncConfig.lastPushedAt`, updated after every successful push, and store the
+  same value locally (in the same sync-state store already covered by Auto Backup). Compare on
+  every launch: match → resume automatic push normally (the common case, stays frictionless);
+  mismatch (cloud's is newer) → don't resume automatic push - fall back to the same secondary-device
+  disclaimer/Pull flow (Phase 2) even though the device ID still says primary, until the user
+  explicitly pulls, which also resets the local watermark to match. One scalar, one comparison, no
+  merge or per-row reconciliation - not a reintroduction of the complexity that got cut earlier.
+- [ ] Delete propagation: every core DAO (`ExerciseDao`/`RoutineDao`/`MeasurementDao`/
+  `WorkoutDao`) does a hard `@Delete` today - once a row is gone from Room there's no trace it
+  ever existed, so the push job can't tell "this was deleted locally, delete the Firestore copy
+  too." Needed even for a single primary device with no second device involved at all - an
+  ongoing incremental sync has to reflect local deletes, not just edits. Needs a tombstone (a
+  pending-deletion record, e.g. entity type + old ID, kept until the next sync confirms the remote
+  doc is removed, then cleared) rather than relying on the row's absence. Watch out for
+  `onDelete = CASCADE` (used by `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→
+  (`SetEntry`/`CardioEntry`), etc.) - SQLite removes cascaded child rows at the engine level,
+  invisible to whatever DAO call triggered the parent delete, so a tombstone recorded only for the
+  explicitly-deleted parent row would leave every cascade-deleted descendant's Firestore document
+  orphaned. Cascade victims need to be enumerated (query children before issuing the parent
+  delete) and tombstoned too, not just the one row the DAO call touched. Full current cascade set:
+  `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→(`SetEntry`, `CardioEntry`),
+  `RoutineExercise`→`Exercise`, `WorkoutExercise`→`Exercise`, `MeasurementType`→`BodyMetric`.
 - [ ] Sync trigger: periodic, not write-through-per-mutation - a background job (e.g.
   WorkManager) batches unsynced local changes on a schedule / app-foreground event rather than
   pushing to Firestore on every Room write, since batching is cheaper on the daily quota.
@@ -235,101 +358,143 @@ stale cloud backup, not data loss on-device.
   "periodic" can actually be. Constrained with `NetworkType.CONNECTED` (don't even attempt a run
   offline) and `BackoffPolicy.EXPONENTIAL` on failure (WorkManager's built-in retry, not custom
   retry logic).
+    - **Manual "Sync now" on the primary device's Account screen** - the periodic job alone means
+      no way to force an immediate sync rather than waiting for the next tick, a loose end from
+      when the Account screen was first built (its "last synced at"/"Sync now" note predates this
+      whole design). Just triggers an out-of-band run of the same incremental push logic - unlike
+      Pull/Claim, this isn't destructive or a full replace, so it doesn't need their count-based
+      confirmation, just the same busy-spinner/disabled-while-in-flight treatment
+      `AccountViewModel` already uses elsewhere.
     - Failure visibility needs a dedicated state, not just a timestamp that silently goes stale -
       see the Settings/Account UI split above: a "last sync error" (auth expired / offline / quota
       exceeded) is tracked separately from "last synced at," so the UI can always distinguish
       "never synced" from "last attempt failed" rather than leaving the user unable to tell.
       Auth-expiry specifically should prompt re-sign-in as the fix, not fail silently.
-  - **Revoked Google grant detection**: today, revoking Regimen's access from Google Account
-    settings isn't detected until something actually hits Firebase with the stale session -
-    there's no proactive polling, and `addAuthStateListener` only fires on genuine local
-    auth-state changes, not on a token-refresh failure happening in the background. The sync
-    job is the natural place to catch this, since it's the first thing that will call Firebase
-    on a real cadence: any push/pull failing with `FirebaseAuthInvalidUserException` /
-    `FirebaseAuthInvalidCredentialsException` (or a Firestore call failing with an
-    auth-attributable permission/unauthenticated error) should call `firebaseAuth.signOut()`
-    locally and report a new `AuthErrorReason.SESSION_REVOKED` ("You've been signed out - please
-    sign in again") rather than falling through to `UNKNOWN` -
-    `AuthRepositoryImpl.deleteCloudData()`
-    is the only place today that could hit this (no sync job exists yet), and doesn't
-    distinguish it either; fold both into the same fix when this item is built.
+    - **A claim from another device can race an in-flight push.** Phase 2's "Claim primary" is a
+      foreground, user-triggered wipe-and-replace of the Firestore destination, entirely
+      independent of this job's own schedule - if the periodic job is mid-batch on the currently
+      primary device at the exact moment a *different* device claims primary (wiping the
+      destination and writing its own data over it), the two could interleave into a corrupted mix
+      of both devices' data. Mitigated by having the push job re-check `primaryDeviceId` between
+      batch chunks, not only once at the very start of a run, so it aborts mid-run if superseded
+      rather than continuing to write into a destination another device just claimed. Given
+      claiming primary is a rare, deliberate action and WorkManager's 15-minute floor keeps runs
+      infrequent, the actual likelihood is low, but the mitigation is cheap enough to just do.
+    - **Revoked Google grant detection**: today, revoking Regimen's access from Google Account
+      settings isn't detected until something actually hits Firebase with the stale session -
+      there's no proactive polling, and `addAuthStateListener` only fires on genuine local
+      auth-state changes, not on a token-refresh failure happening in the background. The sync
+      job is the natural place to catch this, since it's the first thing that will call Firebase
+      on a real cadence: any push/pull failing with `FirebaseAuthInvalidUserException` /
+      `FirebaseAuthInvalidCredentialsException` (or a Firestore call failing with an
+      auth-attributable permission/unauthenticated error) should call `firebaseAuth.signOut()`
+      locally and report a new `AuthErrorReason.SESSION_REVOKED` ("You've been signed out - please
+      sign in again") rather than falling through to `UNKNOWN` -
+      `AuthRepositoryImpl.deleteCloudData()` is the only place today that could hit this (no sync
+      job exists yet), and doesn't distinguish it either; fold both into the same fix when this
+      item is built.
 - [ ] Test strategy splits by what's actually being tested, rather than standing up a Firebase
   Local Emulator Suite (no CI pipeline exists here to make that pay for itself):
-    - **Business logic** (the LWW comparator, cascade-tombstone enumeration, retry/backoff
-      decision, account-mismatch check) is pure and Firestore-agnostic - covered by plain unit
-      tests with fakes, no network or emulator involved, per `docs/testing.md`'s existing bar
-      that real branching logic gets real coverage.
-    - **Actual Firestore round-trips** (a push really lands, a real conflict resolves as
-      expected) are verified manually against the real project on the Android (AVD) emulator
+    - **Business logic** (cascade-tombstone enumeration, retry/backoff decision, the
+      primary-status check, the pull-blocks-during-active-workout rule) is pure and
+      Firestore-agnostic - covered by plain unit tests with fakes, no network or emulator
+      involved, per `docs/testing.md`'s existing bar that real branching logic gets real coverage.
+    - **Actual Firestore round-trips** (a push really lands, a claim really wipes-and-replaces the
+      destination) are verified manually against the real project on the Android (AVD) emulator
       with a real Google account, via a written action script - matching the existing
       verification workflow for this project rather than adding automated integration tests
       against a fake backend.
 
 ---
 
-## Phase 2: pull, merge, and delete propagation (full two-way sync)
+## Phase 2: multi-device support (Pull cloud data / Claim primary)
 
-Only start once Phase 1 has been running clean in production for a while - this phase is where
-incoming data can actually touch local state, so it's the phase that needs the most confidence
-going in.
+Purely additive over Phase 1 - the overwhelming majority of users, expected to only ever have one
+device, should never see any of this at all: sign in, and syncing just starts happening in the
+background, no button-tapping, no confirmation dialogs. This phase's UI (the disclaimer and the
+two actions below) only ever appears once there's an *actual* competing primary device to
+reconcile against - never for the common, single-device case.
 
-- [ ] Migration path for sign-in: not a binary "download if returning, nothing if local-only" -
-  Android's Auto Backup (already enabled, see below) restores the local Room DB automatically on
-  a new device/reinstall *before* the user ever reaches the sign-in screen, so local Room can
-  never be assumed empty at sign-in time. Every sign-in is a merge of two potentially non-empty,
-  potentially divergent datasets (Auto-Backup-restored local state vs. this account's Firestore
-  state, which may be older or newer depending on when the last periodic sync vs. the last Auto
-  Backup snapshot ran) - handle it via the same per-document last-write-wins conflict resolution
-  used elsewhere, not a separate first-sign-in-only code path.
-- [ ] Conflict resolution: last-write-wins per-document, no custom merge logic - acceptable
-  because conflicts should only arise from switching primary device with unsynced local edits
-  still pending, not simultaneous concurrent use. Compares by each entity's own `lastModifiedAt`
-  (the Phase 1 change-tracking column), stored as document data - **not** Firestore's server
-  write-timestamp metadata, since periodic batched sync decouples when an edit happened from
-  when it synced (a genuinely older edit made while offline could sync later than a genuinely
-  newer one, and write-time LWW would pick the wrong winner). Document-level granularity (one
-  workout, one routine, etc.) means a conflict discards only the losing device's edits to that
-  specific record, not unrelated data, but it does so silently with no conflict UI or prompt.
-- [ ] Delete propagation (currently missing entirely): every core DAO
-  (`ExerciseDao`/`RoutineDao`/`MeasurementDao`/`WorkoutDao`) does a hard `@Delete` today - once a
-  row is gone from Room there's no trace it ever existed, so the sync job can't tell "this was
-  deleted locally, delete the Firestore copy too." Needs a tombstone (a pending-deletion record,
-  e.g. entity type + old ID, kept until the next sync confirms the remote doc is removed, then
-  cleared) rather than relying on the row's absence. Watch out for `onDelete = CASCADE`
-  (used by `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→`SetEntry`/`CardioEntry`,
-  etc.) - SQLite removes cascaded child rows at the engine level, invisible to whatever DAO call
-  triggered the parent delete, so a tombstone recorded only for the explicitly-deleted parent
-  row would leave every cascade-deleted descendant's Firestore document orphaned. Cascade
-  victims need to be enumerated (query children before issuing the parent delete) and
-  tombstoned too, not just the one row the DAO call touched. Full current cascade set:
-  `Routine`→`RoutineExercise`, `Workout`→`WorkoutExercise`→(`SetEntry`, `CardioEntry`),
-  `RoutineExercise`→`Exercise`, `WorkoutExercise`→`Exercise`, `MeasurementType`→`BodyMetric`.
-- [ ] Room stays the local source of truth; the periodic sync layer bridges to Firestore rather
-  than using Firestore's live-listener model, since no real-time/multi-device convergence is
-  needed.
-- [ ] Pull trigger: same shape as Phase 1's push trigger (periodic WorkManager job, `NetworkType.
-  CONNECTED`, exponential backoff) - **plus an app-foreground-triggered pull**, not periodic
-  only. Given ongoing casual dual-device rotation is a real use case (see the cross-cutting note
-  below), opening the app on device B should immediately attempt a pull of whatever device A
-  pushed, rather than waiting up to the 15-minute periodic floor - this is what keeps switching
-  devices feeling responsive without needing Firestore's live-listener model.
+- [ ] **`users/{uid}/syncConfig`** - a single document holding `primaryDeviceId` (and optionally a
+  display label, e.g. derived from `Build.MODEL`, purely cosmetic) for the account. This is the
+  **live, authoritative** record of which device is primary - every device reads it directly
+  rather than comparing against any local bookkeeping of its own, which is what keeps this design
+  immune to the local-state staleness problems (Auto Backup restoring stale values, Firebase
+  `uid` churn on account deletion, etc.) an earlier, considerably more complex draft of this doc
+  ran into. Device identity is a random UUID generated once per install, stored locally - low
+  stakes if it doesn't survive a backup/restore, since the worst case is just a redundant re-claim
+  prompt, not a correctness issue.
+- [ ] **Silent auto-claim when no primary exists yet.** On sign-in, if `syncConfig.primaryDeviceId`
+  is unset, this device claims it immediately and automatically - **no confirmation dialog, no
+  disclaimer, no user action at all.** There is genuinely nothing to protect against in this case
+  (an empty destination, no other device that could possibly be affected), so gating it behind the
+  same confirm-and-claim ceremony the *actual* multi-device case needs would only add friction to
+  the single most common path (a single-device user signing in for the first time) for no safety
+  benefit. This is the only way most users will ever interact with Phase 2 at all: implicitly,
+  once, at sign-in, then never again.
+- [ ] **Secondary-device UI**: once a primary *is* already claimed (by this same device
+  previously, or by a different one), any device that isn't the current primary shows a
+  persistent disclaimer (Account screen) explaining it can't push automatically, plus exactly two
+  actions - both full, one-directional, unconditional replaces, never a merge or a
+  destination-state-dependent choice:
+    - **Pull cloud data** - wipes this device's local sync-scoped state (the same entities/scope
+      as Phase 1's sync scope) and replaces it with whatever's currently in Firestore. **Refuses
+      to run while a workout is in progress** (`IN_PROGRESS`/`IN_REST_TIME`/`PAUSED`/`EDITING`) -
+      that row lives in the same `Workout` table but was never part of sync scope to begin with,
+      and a naive full-table wipe would destroy a live, foreground-service-backed session that
+      has nothing to do with sync. Blocking outright (rather than trying to carve out a
+      partial-table wipe) matches how the rest of the app already treats an active workout as an
+      exclusive state. Also resets the local freshness watermark (Phase 1) to match `syncConfig`'s
+      current `lastPushedAt` - this is what lets a device that failed the watermark check resume
+      normal automatic sync afterward, if it's already primary.
+    - **Claim primary** - wipes the account's Firestore data and replaces it with whatever's
+      currently local on this device, then writes this device's ID into `syncConfig`'s
+      `primaryDeviceId`, becoming the new primary. Reuses Phase 1's "mark `isDirty = true` across
+      every synced table, then run the normal batch-capped push loop" mechanism to force a
+      complete upload - not just whatever happens to already be flagged dirty from this device's
+      past history, which matters if this device was primary before and has mostly-clean
+      `isDirty` state left over from prior incremental syncs. The previously-primary device (if
+      any) discovers it's been superseded passively, via its own periodic job's primary-status
+      check (Phase 1) - no push notification or cross-device messaging needed.
+    - Both actions use `ConfirmDialog`'s existing `confirmEnableDelayMillis = 3000L` (the same
+      mechanism and value `ActiveWorkoutSheet` already uses for ending a workout with incomplete
+      exercises still pending) - the confirm button stays disabled for 3 seconds so a reflexive
+      tap can't trigger what's an irreversible full replace in either direction.
+    - **Both confirmations must state a concrete count of what's about to be overwritten**, e.g.
+      "Claim primary" says "This will overwrite your cloud backup with the *N* workouts currently
+      on this device," and "Pull cloud data" says "This will replace your local data with the *N*
+      workouts in your cloud backup." Always shown, not conditional on anything - this is what
+      protects against the realistic case of reformatting/reinstalling on a device that doesn't
+      recover its old identity via Auto Backup: it shows up as a fresh, non-primary device with
+      empty local data, and the *natural but catastrophically wrong* move is tapping "Claim
+      primary" ("this is obviously my device") - which would silently wipe out the entire real
+      cloud history and replace it with nothing. The correct sequence there is "Pull cloud data"
+      first (safe - local is empty, nothing to lose), then claim primary only afterward once local
+      actually reflects the restored history. Nothing else in this design stops someone from doing
+      it in the wrong order; a visible "0 workouts" in the Claim confirmation is what makes that
+      mistake obvious before it happens, without reintroducing conditional destination-state logic.
+      The Firestore-side count must use a server-side `count()` aggregation query, not a fetch of
+      every document just to count them - the latter would burn real read quota proportional to
+      history size purely to populate a confirmation dialog.
 - [ ] Firestore document schema evolution (unlike Room, there's no formal `Migration` mechanism
   for a schemaless store): additive changes are the default and need no migration step - new
   fields are read with a default/fallback when absent, handled defensively in the Firestore
   document ↔ domain model mapper layer, since an old document simply won't have the field yet.
   Renames/breaking shape changes are the risky case (an old app version could still push the old
-  shape while a new version writes the new one) but low-probability given single-device use, not
-  concurrent app versions - the mapper should still fail closed on an unrecognized shape
-  (ignore/default the field) rather than crash. No dedicated schema-version field or migration
-  step planned; this is a mapper-layer convention, not new infrastructure.
+  shape while a new version writes the new one) but low-probability given single-primary-writer
+  design, not concurrent app versions writing simultaneously - the mapper should still fail closed
+  on an unrecognized shape (ignore/default the field) rather than crash. No dedicated
+  schema-version field or migration step planned; this is a mapper-layer convention, not new
+  infrastructure.
 - [ ] Manual account/data deletion is two distinct, clearly-separated actions on the dedicated
   Account screen (Phase 1) - not one ambiguous "delete account," since there's no separate
   Regimen account to delete: **sign-out** keeps local data and the cloud backup, just stops
-  syncing; **delete cloud data** wipes every Firestore document under `users/{uid}/**` plus the
-  Firebase Auth user record, but does not revoke the Google OAuth grant (the user does that
-  themselves via Google Account settings) and does not touch local data. Each confirmation
-  modal's copy must state plainly what that specific action does and does not do, so the two are
-  never confused with each other.
+  syncing; **delete cloud data** wipes every Firestore document under `users/{uid}/**` (which
+  naturally includes the `syncConfig` document too, so a subsequent sign-in correctly finds no
+  primary claimed at all - no special-casing needed) plus the Firebase Auth user record, but does
+  not revoke the Google OAuth grant (the user does that themselves via Google Account settings)
+  and does not touch local data. Each confirmation modal's copy must state plainly what that
+  specific action does and does not do, so the two are never confused with each other.
 
 ---
 
@@ -343,10 +508,11 @@ lose/reset my phone") is already covered today, with zero Firestore work. But th
 goal - sync for **signed-in users** - is a different problem Auto Backup structurally cannot
 solve:
 
-- Auto Backup only **restores at app install / device setup time** - it cannot pull-merge into
+- Auto Backup only **restores at app install / device setup time** - it cannot pull anything into
   an already-running app on a second device. It can't do "install Regimen on a phone and a
-  tablet, sign into the same account, keep both current" - only Phase 2's periodic pull/merge
-  can (eventually-consistent, not real-time - see the multi-device note below).
+  tablet, sign into the same account, keep both current" at all - only Phase 2's explicit "Pull
+  cloud data"/"Claim primary" actions let a second device participate (deliberately, manually -
+  see the multi-device note below).
 - It runs on Android's own opportunistic schedule (idle + charging + Wi-Fi, roughly once a day)
   with no on-demand trigger and no app-visible status - not a deliberate, user-controlled sync.
 - It's tied to the *device's* system backup account (an OS-level setting), not a deliberate
@@ -364,21 +530,25 @@ pay-as-you-go Blaze plan.
 
 **Fully replaces the "build a custom backend" idea:** Firestore + Firebase Auth is the entire
 backend for this app's defined scope - every piece of logic that would traditionally live
-server-side (conflict resolution, delete/tombstone handling, document mapping) is planned as
-client-side logic elsewhere in this doc, and there's no requirement here (server-side
+server-side (delete/tombstone handling, document mapping, primary/secondary determination) is
+planned as client-side logic elsewhere in this doc, and there's no requirement here (server-side
 aggregation, multi-user sharing, webhooks) that would need a separate custom backend. A custom
 backend would only re-enter the picture if the app's scope itself changed (multi-user/social
 features, server-computed analytics) - a new decision outside this doc, not a gap in it.
 
-**Multi-device use:** ongoing casual rotation between two devices (e.g. phone + tablet) **is**
-a real use case, not just one-shot reinstall/new-device recovery - a user should be able to log
-a workout on one device, pick up the other later the same day, and see it reflected without
-manually forcing anything. What's still explicitly out of scope is *simultaneous* concurrent
-use of two devices at once (live listeners, real-time conflict resolution for edits happening
-on both devices in the same moment) - periodic, eventually-consistent sync is the right shape
-for "used one at a time, switched between," just not for "both active right now." See Phase 2's
-foreground-triggered pull item above for how this stays reasonably responsive without needing
-real-time infrastructure.
+**Multi-device use is deliberate and manual, not automatic.** Rotating between two devices (e.g.
+phone + tablet) is supported, but only through an explicit choice on the non-primary device each
+time you want it caught up: **Pull cloud data** to catch this device up with whatever the primary
+has pushed, or **Claim primary** to make this device the new authoritative one going forward.
+There is no automatic "both devices always reflect the latest" behavior, and no merge of
+independent edits from two devices - whichever direction you explicitly choose fully replaces the
+losing side. This is a deliberate simplification: an earlier draft of this doc pursued automatic,
+eventually-consistent multi-device convergence (periodic pull, per-document last-write-wins
+conflict resolution) and kept surfacing genuine correctness gaps, because reconciling two devices'
+data automatically is a hard problem. Restricting to one live writer at a time, with every
+other device requiring an explicit destructive confirmation to participate, sidesteps that
+problem class by construction rather than solving it - at the cost of "automatic" multi-device
+convergence, which this app doesn't actually need for its personal-use scope.
 
 **Quota scope:** Spark tier's free limits (1 GiB storage, 50K reads / 20K writes / 20K
 deletes per day, 10 GiB egress/month) are pooled per Firebase *project*, not per user -
