@@ -98,4 +98,18 @@ class AccountViewModelTest {
 
         assert(repo.deleteCloudDataCalled)
     }
+
+    @Test
+    fun `delete cloud data failure with a stale session surfaces REAUTH_REQUIRED`() = runTest {
+        val repo = FakeAuthRepository(
+            deleteCloudDataResult = Result.failure(AuthException(AuthErrorReason.REAUTH_REQUIRED))
+        )
+        val viewModel = viewModel(repo)
+
+        viewModel.deleteCloudData()
+
+        viewModel.uiState.test {
+            assertEquals(AuthErrorReason.REAUTH_REQUIRED, awaitItem().errorReason)
+        }
+    }
 }

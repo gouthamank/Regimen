@@ -17,8 +17,4 @@
     <string name="account_delete_cloud_data_dialog_text">This permanently deletes your backup from the cloud and signs you out of Regimen. It does not
   sign you out of Google or affect any data on this device.</string>
     <string name="account_cancel_button">Cancel</string>
-    <string name="account_error_no_credentials">No Google account found on this device. Add one in your device\'s account settings, then try again.</string>
-    <string name="account_error_cancelled">Sign-in was cancelled.</string>
-    <string name="account_error_network">Couldn\'t reach the server. Check your connection and try again.</string>
-    <string name="account_error_unknown">Something went wrong. Please try again.</string>
 </resources>

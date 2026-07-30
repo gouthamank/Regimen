@@ -14,6 +14,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
@@ -119,6 +120,8 @@ class AuthRepositoryImpl @Inject constructor(
             firebaseAuth.currentUser?.delete()?.await()
 
             Result.success(Unit)
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            Result.failure(AuthException(AuthErrorReason.REAUTH_REQUIRED, e))
         } catch (e: FirebaseNetworkException) {
             Result.failure(AuthException(AuthErrorReason.NETWORK, e))
         } catch (e: Exception) {

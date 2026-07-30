@@ -11,4 +11,9 @@
     <string name="onboarding_appearance_subtitle">Choose a theme. You can change any of this later in Settings.</string>
     <string name="onboarding_dynamic_color_label">Dynamic color</string>
     <string name="onboarding_dynamic_color_description">Use colors from your wallpaper</string>
+    <string name="onboarding_signin_title">Back up your workouts</string>
+    <string name="onboarding_signin_subtitle">Sign in with Google to keep a cloud backup and sync across devices. You can always do this later in Settings.</string>
+    <string name="onboarding_signin_button">Sign in with Google</string>
+    <string name="onboarding_signin_signed_in_message">Signed in as %1$s</string>
+    <string name="onboarding_signin_play_services_required">Requires Google Play Services, which isn\'t available on this device.</string>
 </resources>

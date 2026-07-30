@@ -50,4 +50,10 @@
     <string name="unit_label_lb">lb</string>
     <string name="unit_label_km">km</string>
     <string name="unit_label_mi">mi</string>
+
+    <string name="auth_error_no_credentials">No Google account found on this device. Add one in your device\'s account settings, then try again.</string>
+    <string name="auth_error_cancelled">Sign-in was cancelled.</string>
+    <string name="auth_error_network">Couldn\'t reach the server. Check your connection and try again.</string>
+    <string name="auth_error_reauth_required">For your security, this action needs a fresh sign-in. Sign out and sign back in, then try again.</string>
+    <string name="auth_error_unknown">Something went wrong. Please try again.</string>
 </resources>

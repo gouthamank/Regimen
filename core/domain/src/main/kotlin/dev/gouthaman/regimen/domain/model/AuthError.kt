@@ -13,6 +13,11 @@ enum class AuthErrorReason {
     /** A network-shaped failure (offline, timeout) talking to Firebase Auth/Firestore. */
     NETWORK,
 
+    /** A security-sensitive operation (e.g. deleting the account) requires a session newer than
+     * this one - Firebase enforces "recent login" for these regardless of whether the session
+     * itself is still otherwise valid. Fixed by signing out and back in, not by retrying. */
+    REAUTH_REQUIRED,
+
     /** Anything else - deliberately vague rather than surfacing a raw exception message. */
     UNKNOWN,
 }
