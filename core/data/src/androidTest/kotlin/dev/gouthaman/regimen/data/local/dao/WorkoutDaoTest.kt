@@ -511,4 +511,62 @@ class WorkoutDaoTest {
 
         assertNull(workoutDao.getInProgressWorkout())
     }
+
+    @Test
+    fun getDirtySetEntries_onlyIncludesRowsUnderACompleteWorkout() = runTest {
+        val exerciseId = insertExercise()
+        val completeWorkout = insertWorkout(startTime = 1_000, endTime = 1_500)
+        val completeWe = insertWorkoutExercise(completeWorkout, exerciseId)
+        val dirtySetId = insertSet(completeWe, 1, weightKg = 80.0)
+        val inProgressWorkout = insertWorkout(startTime = 2_000, endTime = null)
+        val inProgressWe = insertWorkoutExercise(inProgressWorkout, exerciseId)
+        insertSet(inProgressWe, 1, weightKg = 60.0)
+
+        val dirty = workoutDao.getDirtySetEntries(limit = 100)
+
+        assertEquals(listOf(dirtySetId), dirty.map { it.id })
+    }
+
+    @Test
+    fun getDirtySetEntries_respectsTheLimitOldestFirst() = runTest {
+        val exerciseId = insertExercise()
+        val workoutId = insertWorkout(startTime = 1_000, endTime = 1_500)
+        val weId = insertWorkoutExercise(workoutId, exerciseId)
+        val first = insertSet(weId, 1, weightKg = 60.0)
+        insertSet(weId, 2, weightKg = 70.0)
+
+        val dirty = workoutDao.getDirtySetEntries(limit = 1)
+
+        assertEquals(listOf(first), dirty.map { it.id })
+    }
+
+    @Test
+    fun getDirtyWorkoutExercises_excludesRowsUnderAnEditingWorkout() = runTest {
+        val exerciseId = insertExercise()
+        val editingWorkout = insertWorkout(
+            startTime = 1_000,
+            endTime = 1_500,
+            workoutStatus = WorkoutStatus.EDITING,
+        )
+        insertWorkoutExercise(editingWorkout, exerciseId)
+
+        assertEquals(
+            emptyList<String>(),
+            workoutDao.getDirtyWorkoutExercises(limit = 100).map { it.id })
+    }
+
+    @Test
+    fun getDirtyCardioEntries_onlyIncludesRowsUnderACompleteWorkout() = runTest {
+        val exerciseId = insertExercise("Running", ExerciseType.CARDIO)
+        val workoutId = insertWorkout(startTime = 1_000, endTime = 1_500)
+        val weId = insertWorkoutExercise(workoutId, exerciseId)
+        val cardioId = UUID.randomUUID().toString()
+        workoutDao.upsertCardio(
+            CardioEntryEntity(id = cardioId, workoutExerciseId = weId, durationSec = 600),
+        )
+
+        val dirty = workoutDao.getDirtyCardioEntries(limit = 100)
+
+        assertEquals(listOf(cardioId), dirty.map { it.id })
+    }
 }

@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,16 +40,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.common.accountFromSettingsTransitionKey
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
+import dev.gouthaman.regimen.domain.model.SyncStatus
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -60,6 +67,21 @@ fun AccountScreen(
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // isSecondaryDevice/nextScheduledSyncAt only refresh on demand (a one-shot Firestore/
+    // WorkManager read, not a live listener) - re-check on every resume, not just when this
+    // ViewModel is first created, so a demotion or reschedule that happened while this screen
+    // was merely backgrounded (not navigated away from) still shows up without a full app
+    // restart.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshOnResume()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     AccountScreen(
         uiState = uiState,
         sharedTransitionScope = sharedTransitionScope,
@@ -68,6 +90,13 @@ fun AccountScreen(
         onSignIn = viewModel::signIn,
         onSignOut = viewModel::signOut,
         onDeleteCloudData = viewModel::deleteCloudData,
+        onSyncNow = viewModel::syncNow,
+        onRequestPullCloudData = viewModel::requestPullCloudData,
+        onDismissPullConfirmation = viewModel::dismissPullConfirmation,
+        onConfirmPullCloudData = viewModel::confirmPullCloudData,
+        onRequestClaimPrimary = viewModel::requestClaimPrimary,
+        onDismissClaimConfirmation = viewModel::dismissClaimConfirmation,
+        onConfirmClaimPrimary = viewModel::confirmClaimPrimary,
         modifier = modifier,
     )
 }
@@ -82,6 +111,13 @@ private fun AccountScreen(
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     onDeleteCloudData: () -> Unit,
+    onSyncNow: () -> Unit,
+    onRequestPullCloudData: () -> Unit,
+    onDismissPullConfirmation: () -> Unit,
+    onConfirmPullCloudData: () -> Unit,
+    onRequestClaimPrimary: () -> Unit,
+    onDismissClaimConfirmation: () -> Unit,
+    onConfirmClaimPrimary: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showSignOutDialog by remember { mutableStateOf(false) }
@@ -163,6 +199,124 @@ private fun AccountScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     account.email?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val syncStatus = uiState.syncStatus
+                            ?: SyncStatus(
+                                lastSyncedAt = null,
+                                isFullyUpToDate = false,
+                                lastError = null
+                            )
+                        Text(
+                            syncStatus.text(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        // Hidden, not just disabled, for a secondary device - it can't push at
+                        // all right now, so there's nothing for this button to meaningfully do.
+                        if (!uiState.isSecondaryDevice) {
+                            TextButton(
+                                onClick = onSyncNow,
+                                enabled = uiState.busyAction == null,
+                            ) {
+                                if (uiState.busyAction == AccountAction.SYNC_NOW) {
+                                    ButtonProgressIndicator()
+                                } else {
+                                    Text(stringResource(R.string.account_sync_now_button))
+                                }
+                            }
+                        }
+                    }
+                    if (!uiState.isSecondaryDevice) {
+                        uiState.nextScheduledSyncAt?.let {
+                            Text(
+                                stringResource(
+                                    R.string.account_next_scheduled_sync,
+                                    SessionFormat.timeWithDateIfNotToday(it),
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    if (uiState.isSecondaryDevice) {
+                        Spacer(Modifier.height(24.dp))
+                        HorizontalDivider()
+                        Spacer(Modifier.height(24.dp))
+
+                        Text(
+                            stringResource(R.string.account_secondary_device_title),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            stringResource(R.string.account_secondary_device_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.account_pull_cloud_data_headline))
+                                Text(
+                                    stringResource(R.string.account_pull_cloud_data_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            TextButton(
+                                onClick = onRequestPullCloudData,
+                                enabled = uiState.busyAction == null,
+                            ) {
+                                if (uiState.busyAction == AccountAction.PULL_CLOUD_DATA) {
+                                    ButtonProgressIndicator()
+                                } else {
+                                    Text(stringResource(R.string.account_pull_cloud_data_button))
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.account_claim_primary_headline))
+                                Text(
+                                    stringResource(R.string.account_claim_primary_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            TextButton(
+                                onClick = onRequestClaimPrimary,
+                                enabled = uiState.busyAction == null,
+                            ) {
+                                if (uiState.busyAction == AccountAction.CLAIM_PRIMARY) {
+                                    ButtonProgressIndicator()
+                                } else {
+                                    Text(stringResource(R.string.account_claim_primary_button))
+                                }
+                            }
+                        }
+
+                        uiState.replaceErrorReason?.let {
+                            Spacer(Modifier.height(8.dp))
+                            Text(it.text(), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
 
                     Spacer(Modifier.height(24.dp))
                     HorizontalDivider()
@@ -253,6 +407,41 @@ private fun AccountScreen(
             dismissLabel = stringResource(R.string.account_cancel_button),
             onDismiss = { showDeleteDialog = false },
             destructive = true,
+        )
+    }
+    uiState.pullConfirmation?.let { confirmation ->
+        ConfirmDialog(
+            title = stringResource(R.string.account_pull_cloud_data_dialog_title),
+            text = pluralStringResource(
+                R.plurals.account_pull_cloud_data_dialog_text,
+                confirmation.cloudWorkoutCount,
+                confirmation.cloudWorkoutCount,
+            ),
+            confirmLabel = stringResource(R.string.account_pull_cloud_data_button),
+            onConfirm = onConfirmPullCloudData,
+            dismissLabel = stringResource(R.string.account_cancel_button),
+            onDismiss = onDismissPullConfirmation,
+            destructive = true,
+            // Both this and Claim's confirm button stay disabled for 3 seconds - same mechanism
+            // and value ActiveWorkoutSheet already uses for ending a workout with incomplete
+            // exercises pending - since both are irreversible full replaces in either direction.
+            confirmEnableDelayMillis = 3000L,
+        )
+    }
+    uiState.claimConfirmation?.let { confirmation ->
+        ConfirmDialog(
+            title = stringResource(R.string.account_claim_primary_dialog_title),
+            text = pluralStringResource(
+                R.plurals.account_claim_primary_dialog_text,
+                confirmation.localWorkoutCount,
+                confirmation.localWorkoutCount,
+            ),
+            confirmLabel = stringResource(R.string.account_claim_primary_button),
+            onConfirm = onConfirmClaimPrimary,
+            dismissLabel = stringResource(R.string.account_cancel_button),
+            onDismiss = onDismissClaimConfirmation,
+            destructive = true,
+            confirmEnableDelayMillis = 3000L,
         )
     }
 }

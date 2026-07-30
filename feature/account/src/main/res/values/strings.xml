@@ -3,6 +3,8 @@
     <string name="account_signed_out_message">Sign in to back up your data and sync across devices.</string>
     <string name="account_sign_in_button">Sign in with Google</string>
     <string name="account_play_services_required">Requires Google Play Services, which isn\'t available on this device.</string>
+    <string name="account_sync_now_button">Sync now</string>
+    <string name="account_next_scheduled_sync">Next sync scheduled at %1$s</string>
     <string name="account_danger_zone_title">Danger zone</string>
     <string name="account_sign_out_headline">Sign out</string>
     <string name="account_sign_out_description">Stops syncing. Local data and your cloud backup are kept.</string>
@@ -17,4 +19,25 @@
     <string name="account_delete_cloud_data_dialog_text">This permanently deletes your backup from the cloud and signs you out of Regimen. It does not
   sign you out of Google or affect any data on this device.</string>
     <string name="account_cancel_button">Cancel</string>
+
+    <string name="account_secondary_device_title">Another device is primary</string>
+    <string name="account_secondary_device_description">This device can\'t sync automatically while another device is set up as the primary sync device for this account.</string>
+
+    <string name="account_pull_cloud_data_headline">Pull cloud data</string>
+    <string name="account_pull_cloud_data_description">Replace this device\'s data with what\'s in your cloud backup.</string>
+    <string name="account_pull_cloud_data_button">Pull cloud data</string>
+    <string name="account_pull_cloud_data_dialog_title">Pull cloud data?</string>
+    <plurals name="account_pull_cloud_data_dialog_text">
+        <item quantity="one">This will replace your local data with the %1$d workout in your cloud backup.</item>
+        <item quantity="other">This will replace your local data with the %1$d workouts in your cloud backup.</item>
+    </plurals>
+
+    <string name="account_claim_primary_headline">Use this device instead</string>
+    <string name="account_claim_primary_description">Sync from this device from now on, replacing your cloud backup with what\'s on this device.</string>
+    <string name="account_claim_primary_button">Use this device instead</string>
+    <string name="account_claim_primary_dialog_title">Use this device instead?</string>
+    <plurals name="account_claim_primary_dialog_text">
+        <item quantity="one">Your cloud backup will be replaced with the %1$d workout currently on this device.</item>
+        <item quantity="other">Your cloud backup will be replaced with the %1$d workouts currently on this device.</item>
+    </plurals>
 </resources>

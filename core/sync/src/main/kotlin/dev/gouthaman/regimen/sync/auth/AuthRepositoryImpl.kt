@@ -24,6 +24,7 @@ import dev.gouthaman.regimen.domain.model.AuthErrorReason
 import dev.gouthaman.regimen.domain.model.AuthException
 import dev.gouthaman.regimen.domain.repository.AuthRepository
 import dev.gouthaman.regimen.sync.di.WebClientId
+import dev.gouthaman.regimen.sync.firestore.FirestoreSyncReader
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -97,10 +98,6 @@ class AuthRepositoryImpl @Inject constructor(
         return Result.success(Unit)
     }
 
-    private val syncedSubcollections = listOf(
-        "workouts", "routines", "exercises", "measurementTypes", "bodyMetrics", "syncConfig",
-    )
-
     override suspend fun deleteCloudData(): Result<Unit> {
         val uid = firebaseAuth.currentUser?.uid
             ?: return Result.failure(
@@ -110,12 +107,16 @@ class AuthRepositoryImpl @Inject constructor(
                 )
             )
         return try {
+            // Recursive, including every nested subcollection (workoutExercises/setEntries/
+            // cardioEntries under a workout, routineExercises under a routine) - Firestore has no
+            // cascade delete, so a plain per-top-level-collection loop (this method's previous
+            // implementation) would leave those orphaned rather than actually removed.
+            FirestoreSyncReader(firestore, uid).deleteAll()
+
             val userDoc = firestore.collection("users").document(uid)
-            for (name in syncedSubcollections) {
-                val docs = userDoc.collection(name).get().await()
-                for (doc in docs.documents) doc.reference.delete().await()
+            for (doc in userDoc.collection("syncConfig").get().await().documents) {
+                doc.reference.delete().await()
             }
-            userDoc.collection("preferences").document("current").delete().await()
             userDoc.delete().await()
             firebaseAuth.currentUser?.delete()?.await()
 
@@ -125,7 +126,15 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: FirebaseNetworkException) {
             Result.failure(AuthException(AuthErrorReason.NETWORK, e))
         } catch (e: Exception) {
-            Result.failure(AuthException(AuthErrorReason.UNKNOWN, e))
+            // Checked ahead of the generic fallback below - a revoked grant can surface as any
+            // number of underlying exception shapes depending on which call hit it first, so it
+            // takes priority over falling through to UNKNOWN.
+            if (e.isSessionRevoked()) {
+                firebaseAuth.signOut()
+                Result.failure(AuthException(AuthErrorReason.SESSION_REVOKED, e))
+            } else {
+                Result.failure(AuthException(AuthErrorReason.UNKNOWN, e))
+            }
         }
     }
 

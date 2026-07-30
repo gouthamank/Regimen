@@ -88,7 +88,9 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
   `observeBestReps`, `getMostRecentSetForExercise`, `observeExerciseHistory`,
   `getMostRecentCompletedForRoutine`) plus the other `@Transaction`/`@Relation` queries
   (`observeCompletedWithDetails`, `observeWorkout`, `getWorkoutWithDetails`,
-  `getInProgressWorkout`).
+  `getInProgressWorkout`) and the sync push job's dirty-row JOIN queries
+  (`getDirtySetEntries`/`getDirtyWorkoutExercises`/`getDirtyCardioEntries` - scoping through their
+  workout's `workoutStatus`, and the oldest-first `LIMIT` ordering).
 - `RoutineDaoTest` - relation queries (`observeRoutinesWithExercises`, `observeRoutine`,
   `getRoutineWithExercises`) and hand-rolled `@Transaction` methods (`applyOrder`,
   `replaceRoutineExercises`).
@@ -99,7 +101,15 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
 - Skipped: `ExerciseDao`, `MeasurementDao` - pure single-table CRUD, no `@Relation`/hand-written
   joins. The sync tombstone cascade-enumeration queries each DAO exposes (e.g. `WorkoutDao`'s
   `workoutExerciseIdsFor`/`setEntryIdsFor`) are plain lookups with no branching of their own - the
-  branching lives one layer up, in the repositories that call them (see below).
+  branching lives one layer up, in the repositories that call them (see below). Same reasoning
+  covers each DAO's single-table dirty-row queries for the sync push job (`getDirty`/
+  `getDirtyTypes`/`getDirtyMetrics`/`getDirtyRoutines`/`getDirtyRoutineExercises`/
+  `getDirtyWorkouts`) - plain `WHERE isDirty = 1 ORDER BY lastModifiedAt ASC LIMIT :limit`, no join.
+  `PreferencesRepositoryImpl.getDirtyPreferences`/`clearPreferencesDirty` are also untested for a
+  different reason: they're real Android-`Context`-backed DataStore, and this class has never had
+  a test file precisely because `Context.dataStore` is a process-wide singleton keyed by a fixed
+  name - an androidTest touching it risks colluding with the same store other tests or the app
+  itself use, not something worth introducing test-isolation risk for two one-line boolean checks.
 
 ## `:core:data` - `androidTest` (repository - sync tombstones)
 
@@ -114,6 +124,26 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
   repository layer, not the DAO layer, since only a repository composes multiple DAOs (the entity
   DAO's raw queries plus `SyncTombstoneDao`'s writes) in one atomic transaction - each entity DAO
   itself is back to plain persistence with nothing to test beyond what's already covered above.
+
+## `:core:sync` - JVM unit tests
+
+- `FirestoreMappingTest` - one case per entity group, round-tripping a hand-built entity/domain
+  object through its `toDto()` extension (`firestore/*Mapping.kt`) - pure data transforms, no
+  Firestore SDK involved.
+- `PushDirtyBatchTest` - `push/SyncPushRunner.kt`'s `pushDirtyBatch`, extracted as a top-level
+  `internal` function taking plain fake lambdas specifically so this logic (partial-batch failure
+  leaves only unconfirmed rows dirty, budget decrement, the "full page might mean more work"
+  signal, a zero budget skipping the read) is unit-testable without any real Firestore/Room
+  dependency at all.
+- Skipped: everything else in `:core:sync` that actually touches the Firestore/Firebase Auth/
+  WorkManager SDKs directly (`AuthRepositoryImpl`, `SyncDeviceRepositoryImpl`,
+  `DeviceIdentityStore`, `FirestoreSyncPaths`, `SyncPushRunner.push()`'s own orchestration around
+  `pushDirtyBatch` including its mid-run `ensureStillPrimary()` re-checks, `SyncPushWorker`,
+  `SyncSchedulerImpl`) - per the Test strategy in `docs/todo-remote-sync.md`, actual Firestore
+  round-trips are verified manually against the real project on the AVD via a written action
+  script, not stood up against a Firebase Local Emulator Suite, mocked SDK calls, or WorkManager's
+  `WorkManagerTestInitHelper`, since no CI pipeline exists here to make that investment pay for
+  itself.
 
 ## `:core:designsystem` - `androidTest` (Compose UI)
 
@@ -160,7 +190,10 @@ and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope
 `WorkoutSummaryViewModel` (volume summation + PR comparison), `SessionDetailViewModel`
 (save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation),
 `AccountViewModel` (sign-in success/failure, sign-out and delete-cloud-data dispatch, using a
-`FakeAuthRepository`).
+`FakeAuthRepository`; sign-in scheduling and sign-out cancelling the periodic sync job via
+`FakeSyncScheduleRepository`; `syncNow()` dispatching to and storing the result of
+`FakeSyncPushRepository`; the persisted `SyncStatus` being loaded into state on init, also via
+`FakeSyncPushRepository`).
 
 Skipped entirely: `:feature:settings` (pure preference/account-status
 pass-through - `SettingsViewModel` just exposes two independent `StateFlow`s side by side, no

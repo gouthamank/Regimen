@@ -80,4 +80,35 @@ interface RoutineDao {
         clearRoutineExercises(routineId)
         insertRoutineExercises(items)
     }
+
+    /** Sync push job's read/clear side. */
+    @Query("SELECT * FROM routines WHERE isDirty = 1 ORDER BY lastModifiedAt ASC LIMIT :limit")
+    suspend fun getDirtyRoutines(limit: Int): List<RoutineEntity>
+
+    @Query("UPDATE routines SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirtyRoutines(ids: List<String>)
+
+    @Query(
+        "SELECT * FROM routine_exercises WHERE isDirty = 1 ORDER BY lastModifiedAt ASC LIMIT :limit"
+    )
+    suspend fun getDirtyRoutineExercises(limit: Int): List<RoutineExerciseEntity>
+
+    @Query("UPDATE routine_exercises SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirtyRoutineExercises(ids: List<String>)
+
+    /** "Pull cloud data"'s wipe side - every routine is in sync scope (no built-in/custom split,
+     * unlike `Exercise`/`MeasurementType`), so this clears all of them; cascades
+     * `routine_exercises` via its `onDelete = CASCADE` foreign key. */
+    @Query("DELETE FROM routines")
+    suspend fun deleteAllRoutines()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllRoutines(routines: List<RoutineEntity>)
+
+    /** "Claim primary"'s force-full-upload side - see [dev.gouthaman.regimen.data.local.dao.ExerciseDao.markAllCustomDirty]. */
+    @Query("UPDATE routines SET isDirty = 1")
+    suspend fun markAllRoutinesDirty()
+
+    @Query("UPDATE routine_exercises SET isDirty = 1")
+    suspend fun markAllRoutineExercisesDirty()
 }

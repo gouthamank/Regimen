@@ -1,6 +1,8 @@
 package dev.gouthaman.regimen
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import dev.gouthaman.regimen.data.local.Seeder
 import dev.gouthaman.regimen.domain.di.ApplicationScope
@@ -10,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
-class RegimenApplication : Application() {
+class RegimenApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var seeder: Seeder
@@ -21,6 +23,12 @@ class RegimenApplication : Application() {
 
     @Inject
     lateinit var activeWorkoutServiceController: ActiveWorkoutServiceController
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
         super.onCreate()

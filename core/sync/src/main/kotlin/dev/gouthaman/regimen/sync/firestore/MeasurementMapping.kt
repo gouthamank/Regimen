@@ -19,6 +19,16 @@ fun MeasurementTypeEntity.toDto(): MeasurementTypeDto = MeasurementTypeDto(
     lastModifiedAt = lastModifiedAt,
 )
 
+/** "Pull cloud data"'s reverse of [toDto]. */
+fun MeasurementTypeDto.toEntity(id: String): MeasurementTypeEntity = MeasurementTypeEntity(
+    id = id,
+    name = name,
+    unit = unit,
+    isBuiltIn = isBuiltIn,
+    isDirty = false,
+    lastModifiedAt = lastModifiedAt,
+)
+
 /** Firestore shape for `users/{uid}/bodyMetrics/{metricId}`. */
 data class BodyMetricDto(
     val measurementTypeId: String = "",
@@ -31,5 +41,15 @@ fun BodyMetricEntity.toDto(): BodyMetricDto = BodyMetricDto(
     measurementTypeId = measurementTypeId,
     date = date,
     value = value,
+    lastModifiedAt = lastModifiedAt,
+)
+
+/** "Pull cloud data"'s reverse of [toDto]. */
+fun BodyMetricDto.toEntity(id: String): BodyMetricEntity = BodyMetricEntity(
+    id = id,
+    measurementTypeId = measurementTypeId,
+    date = date,
+    value = value,
+    isDirty = false,
     lastModifiedAt = lastModifiedAt,
 )

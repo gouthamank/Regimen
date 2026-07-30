@@ -12,7 +12,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.syncStateDataStore: DataStore<Preferences> by
+internal val Context.syncStateDataStore: DataStore<Preferences> by
 preferencesDataStore(name = "sync_state")
 
 /** This device's own random per-install identifier - low stakes if it doesn't survive a

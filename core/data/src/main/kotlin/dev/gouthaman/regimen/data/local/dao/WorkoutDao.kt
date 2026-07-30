@@ -197,4 +197,116 @@ interface WorkoutDao {
 
     @Query("SELECT workoutId FROM workout_exercises WHERE id = :workoutExerciseId")
     suspend fun workoutIdOf(workoutExerciseId: String): String?
+
+    /** Sync push job's read/clear side. Only `COMPLETE` workouts are in sync scope - a session
+     * that's still mid-flight (`IN_PROGRESS`/`IN_REST_TIME`/`PAUSED`) or reopened for editing
+     * (`EDITING`) has no business being pushed until it settles back to `COMPLETE`, so
+     * `WorkoutExercise`/`SetEntry`/`CardioEntry` rows are scoped through a join on their workout's
+     * status too, not just their own `isDirty` flag. */
+    @Query(
+        "SELECT * FROM workouts WHERE workoutStatus = 'COMPLETE' AND isDirty = 1 " +
+                "ORDER BY lastModifiedAt ASC LIMIT :limit"
+    )
+    suspend fun getDirtyWorkouts(limit: Int): List<WorkoutEntity>
+
+    @Query("UPDATE workouts SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirtyWorkouts(ids: List<String>)
+
+    @Query(
+        "SELECT we.* FROM workout_exercises we " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.workoutStatus = 'COMPLETE' AND we.isDirty = 1 " +
+                "ORDER BY we.lastModifiedAt ASC LIMIT :limit"
+    )
+    suspend fun getDirtyWorkoutExercises(limit: Int): List<WorkoutExerciseEntity>
+
+    @Query("UPDATE workout_exercises SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirtyWorkoutExercises(ids: List<String>)
+
+    @Query(
+        "SELECT se.* FROM set_entries se " +
+                "JOIN workout_exercises we ON se.workoutExerciseId = we.id " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.workoutStatus = 'COMPLETE' AND se.isDirty = 1 " +
+                "ORDER BY se.lastModifiedAt ASC LIMIT :limit"
+    )
+    suspend fun getDirtySetEntries(limit: Int): List<SetEntryEntity>
+
+    @Query("UPDATE set_entries SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirtySetEntries(ids: List<String>)
+
+    @Query(
+        "SELECT ce.* FROM cardio_entries ce " +
+                "JOIN workout_exercises we ON ce.workoutExerciseId = we.id " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.workoutStatus = 'COMPLETE' AND ce.isDirty = 1 " +
+                "ORDER BY ce.lastModifiedAt ASC LIMIT :limit"
+    )
+    suspend fun getDirtyCardioEntries(limit: Int): List<CardioEntryEntity>
+
+    @Query("UPDATE cardio_entries SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirtyCardioEntries(ids: List<String>)
+
+    /** "Pull cloud data"'s guard - refuses to wipe local sync-scoped state out from under a live,
+     * foreground-service-backed workout session. Checked both before starting the (potentially
+     * lengthy) cloud read and again inside the wipe's own transaction, since a workout can start
+     * in between. */
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM workouts WHERE workoutStatus IN " +
+                "('IN_PROGRESS', 'IN_REST_TIME', 'PAUSED', 'EDITING'))"
+    )
+    suspend fun hasAnyIncompleteWorkout(): Boolean
+
+    /** "Claim primary"'s confirmation copy ("N workouts currently on this device") - only
+     * `COMPLETE` workouts are ever in sync scope, so this counts what would actually be uploaded,
+     * not every local workout regardless of status. */
+    @Query("SELECT COUNT(*) FROM workouts WHERE workoutStatus = 'COMPLETE'")
+    suspend fun countCompleteWorkouts(): Int
+
+    /** "Pull cloud data"'s wipe/insert side. Only `COMPLETE` workouts are ever in sync scope -
+     * after [hasAnyIncompleteWorkout] has confirmed none exist, every local workout is
+     * necessarily `COMPLETE`, so this is equivalent to wiping all of them. Cascades
+     * `workout_exercises` (then `set_entries`/`cardio_entries`) via their `onDelete = CASCADE`
+     * foreign keys. */
+    @Query("DELETE FROM workouts WHERE workoutStatus = 'COMPLETE'")
+    suspend fun deleteAllCompleteWorkouts()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllWorkouts(workouts: List<WorkoutEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllWorkoutExercises(items: List<WorkoutExerciseEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllSetEntries(sets: List<SetEntryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllCardioEntries(cardio: List<CardioEntryEntity>)
+
+    /** "Claim primary"'s force-full-upload side - see [dev.gouthaman.regimen.data.local.dao.ExerciseDao.markAllCustomDirty].
+     * Scoped through a join on the workout's status, same reasoning as [getDirtyWorkoutExercises]
+     * et al. - a `workout_exercises`/`set_entries`/`cardio_entries` row under a non-`COMPLETE`
+     * workout was never in sync scope to begin with. */
+    @Query("UPDATE workouts SET isDirty = 1 WHERE workoutStatus = 'COMPLETE'")
+    suspend fun markAllCompleteWorkoutsDirty()
+
+    @Query(
+        "UPDATE workout_exercises SET isDirty = 1 WHERE workoutId IN " +
+                "(SELECT id FROM workouts WHERE workoutStatus = 'COMPLETE')"
+    )
+    suspend fun markAllWorkoutExercisesDirty()
+
+    @Query(
+        "UPDATE set_entries SET isDirty = 1 WHERE workoutExerciseId IN " +
+                "(SELECT we.id FROM workout_exercises we JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.workoutStatus = 'COMPLETE')"
+    )
+    suspend fun markAllSetEntriesDirty()
+
+    @Query(
+        "UPDATE cardio_entries SET isDirty = 1 WHERE workoutExerciseId IN " +
+                "(SELECT we.id FROM workout_exercises we JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE w.workoutStatus = 'COMPLETE')"
+    )
+    suspend fun markAllCardioEntriesDirty()
 }

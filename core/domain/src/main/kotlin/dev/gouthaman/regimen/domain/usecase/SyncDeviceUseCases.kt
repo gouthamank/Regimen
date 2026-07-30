@@ -8,3 +8,15 @@ class EnsurePrimaryClaimedUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(): Boolean = repo.ensurePrimaryClaimed()
 }
+
+class IsPrimaryUseCase @Inject constructor(
+    private val repo: SyncDeviceRepository,
+) {
+    suspend operator fun invoke(): Boolean = repo.isPrimary()
+}
+
+class HasCompetingPrimaryUseCase @Inject constructor(
+    private val repo: SyncDeviceRepository,
+) {
+    suspend operator fun invoke(): Boolean = repo.hasCompetingPrimary()
+}

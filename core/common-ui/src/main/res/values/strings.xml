@@ -55,5 +55,17 @@
     <string name="auth_error_cancelled">Sign-in was cancelled.</string>
     <string name="auth_error_network">Couldn\'t reach the server. Check your connection and try again.</string>
     <string name="auth_error_reauth_required">For your security, this action needs a fresh sign-in. Sign out and sign back in, then try again.</string>
+    <string name="auth_error_session_revoked">You\'ve been signed out. Please sign in again.</string>
     <string name="auth_error_unknown">Something went wrong. Please try again.</string>
+
+    <string name="sync_status_failed">Sync failed</string>
+    <string name="sync_status_synced">Synced</string>
+    <string name="sync_status_synced_at">Synced at %1$s</string>
+
+    <string name="sync_replace_error_workout_in_progress">Finish or end your current workout first.</string>
+    <string name="sync_replace_error_push_in_progress">A sync is already in progress on another device. Try again in a few minutes.</string>
+    <string name="sync_replace_error_network">Couldn\'t reach the server. Check your connection and try again.</string>
+    <string name="sync_replace_error_unknown">Something went wrong. Please try again.</string>
+    <string name="sync_status_backing_up">Backing up…</string>
+    <string name="sync_status_not_yet_synced">Not yet synced</string>
 </resources>

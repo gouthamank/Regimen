@@ -38,4 +38,26 @@ interface ExerciseDao {
 
     @Delete
     suspend fun delete(exercise: ExerciseEntity)
+
+    /** Sync push job's read/clear side. Built-ins (`isCustom = 0`) are never in sync scope - they
+     * ship with the APK, so there's nothing for a push to say about them. */
+    @Query(
+        "SELECT * FROM exercises WHERE isCustom = 1 AND isDirty = 1 " +
+                "ORDER BY lastModifiedAt ASC LIMIT :limit"
+    )
+    suspend fun getDirty(limit: Int): List<ExerciseEntity>
+
+    @Query("UPDATE exercises SET isDirty = 0 WHERE id IN (:ids)")
+    suspend fun clearDirty(ids: List<String>)
+
+    /** "Pull cloud data"'s wipe side - same `isCustom = 1` scope as [getDirty], since built-ins
+     * were never uploaded and have nothing in the cloud to be replaced by. */
+    @Query("DELETE FROM exercises WHERE isCustom = 1")
+    suspend fun deleteAllCustom()
+
+    /** "Claim primary"'s force-full-upload side - marks every row [getDirty] would ever push as
+     * dirty, regardless of whether it already was, so the very next push re-uploads everything
+     * rather than only whatever happened to be flagged dirty from this device's past history. */
+    @Query("UPDATE exercises SET isDirty = 1 WHERE isCustom = 1")
+    suspend fun markAllCustomDirty()
 }

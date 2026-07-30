@@ -16,11 +16,20 @@ import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
 import dev.gouthaman.regimen.domain.repository.PreferencesRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+/** Sync push job's read side for the single `preferences` document - `lastModifiedAt` is passed
+ * alongside [preferences] since it's DataStore-only bookkeeping, never part of [UserPreferences]
+ * itself (same reasoning as Room's `isDirty`/`lastModifiedAt` never reaching a domain model). */
+data class DirtyPreferences(
+    val preferences: UserPreferences,
+    val lastModifiedAt: Long,
+)
 
 @Singleton
 class PreferencesRepositoryImpl @Inject constructor(
@@ -45,23 +54,82 @@ class PreferencesRepositoryImpl @Inject constructor(
         val LAST_MODIFIED_AT = longPreferencesKey("last_modified_at")
     }
 
-    override val preferences: Flow<UserPreferences> = context.dataStore.data.map { p ->
-        val legacyUnit = p[Keys.UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
-        UserPreferences(
-            weightUnit = p[Keys.WEIGHT_UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
+    override val preferences: Flow<UserPreferences> =
+        context.dataStore.data.map { it.toUserPreferences() }
+
+    private fun Preferences.toUserPreferences(): UserPreferences {
+        val legacyUnit = this[Keys.UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
+        return UserPreferences(
+            weightUnit = this[Keys.WEIGHT_UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
                 ?: legacyUnit ?: UnitSystem.METRIC,
-            distanceUnit = p[Keys.DISTANCE_UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
+            distanceUnit = this[Keys.DISTANCE_UNIT]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() }
                 ?: legacyUnit ?: UnitSystem.METRIC,
-            themeMode = p[Keys.THEME]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+            themeMode = this[Keys.THEME]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                 ?: ThemeMode.SYSTEM,
-            dynamicColor = p[Keys.DYNAMIC] ?: true,
-            restDefaultSec = p[Keys.REST] ?: 90,
-            restChimeEnabled = p[Keys.REST_CHIME] ?: false,
-            maxWorkoutDuration = p[Keys.MAX_WORKOUT_DURATION]
+            dynamicColor = this[Keys.DYNAMIC] ?: true,
+            restDefaultSec = this[Keys.REST] ?: 90,
+            restChimeEnabled = this[Keys.REST_CHIME] ?: false,
+            maxWorkoutDuration = this[Keys.MAX_WORKOUT_DURATION]
                 ?.let { runCatching { MaxWorkoutDuration.valueOf(it) }.getOrNull() }
                 ?: MaxWorkoutDuration.FOUR_HOURS,
-            onboarded = p[Keys.ONBOARDED] ?: false,
+            onboarded = this[Keys.ONBOARDED] ?: false,
         )
+    }
+
+    /** `null` if preferences aren't dirty - nothing for the sync push job to do. A device that's
+     * never called any setter has no `IS_DIRTY` key at all (unlike Room's `isDirty`, DataStore has
+     * no migration-time backfill for pre-existing installs) - checking for `== false` rather than
+     * `!= true` deliberately treats that "never set" (`null`) case as dirty too, so an existing
+     * user's current preferences still get an initial push rather than staying permanently
+     * un-synced until they happen to change a setting. */
+    suspend fun getDirtyPreferences(): DirtyPreferences? {
+        val p = context.dataStore.data.first()
+        if (p[Keys.IS_DIRTY] == false) return null
+        return DirtyPreferences(
+            preferences = p.toUserPreferences(),
+            lastModifiedAt = p[Keys.LAST_MODIFIED_AT] ?: 0L,
+        )
+    }
+
+    suspend fun clearPreferencesDirty() {
+        context.dataStore.edit { it[Keys.IS_DIRTY] = false }
+    }
+
+    /** "Pull cloud data"'s write side - plain strings/primitives rather than a Dto type, since
+     * that type lives in `:core:sync` and this class can't depend on it (wrong direction; sync
+     * already depends on data). Callers already have the enum values serialized as `.name`
+     * strings (the same shape [setWeightUnit] etc. write), so no parsing round-trip is needed
+     * here. Deliberately doesn't touch `onboarded` - a per-device concept, never part of what's
+     * pulled. Marks clean (not dirty), since a freshly-pulled value already matches the cloud. */
+    suspend fun applyPulledPreferences(
+        weightUnit: String,
+        distanceUnit: String,
+        themeMode: String,
+        dynamicColor: Boolean,
+        restDefaultSec: Int,
+        restChimeEnabled: Boolean,
+        maxWorkoutDuration: String,
+        lastModifiedAt: Long,
+    ) {
+        context.dataStore.edit {
+            it[Keys.WEIGHT_UNIT] = weightUnit
+            it[Keys.DISTANCE_UNIT] = distanceUnit
+            it[Keys.THEME] = themeMode
+            it[Keys.DYNAMIC] = dynamicColor
+            it[Keys.REST] = restDefaultSec
+            it[Keys.REST_CHIME] = restChimeEnabled
+            it[Keys.MAX_WORKOUT_DURATION] = maxWorkoutDuration
+            it[Keys.IS_DIRTY] = false
+            it[Keys.LAST_MODIFIED_AT] = lastModifiedAt
+        }
+    }
+
+    /** "Claim primary"'s force-full-upload side - marks preferences dirty regardless of whether
+     * they already were, same reasoning as every entity DAO's `markAllDirty`-shaped methods.
+     * Leaves `LAST_MODIFIED_AT` untouched - only whether a push includes this document depends on
+     * `IS_DIRTY`, and forcing a fresh timestamp isn't needed to force the re-upload. */
+    suspend fun markPreferencesDirty() {
+        context.dataStore.edit { it[Keys.IS_DIRTY] = true }
     }
 
     override suspend fun setWeightUnit(value: UnitSystem) =

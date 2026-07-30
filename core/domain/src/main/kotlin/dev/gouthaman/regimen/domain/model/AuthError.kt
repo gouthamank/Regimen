@@ -18,6 +18,13 @@ enum class AuthErrorReason {
      * itself is still otherwise valid. Fixed by signing out and back in, not by retrying. */
     REAUTH_REQUIRED,
 
+    /** The local Firebase Auth session still looked signed-in, but the actual Google grant no
+     * longer exists (e.g. revoked from Google Account settings) - the first real network call
+     * (sync push, delete-cloud-data) is what actually discovers this, since there's no proactive
+     * polling for it. Fixed by signing back in, not by retrying - the local session is force
+     * signed-out the moment this is detected, so the UI falls back to the signed-out state. */
+    SESSION_REVOKED,
+
     /** Anything else - deliberately vague rather than surfacing a raw exception message. */
     UNKNOWN,
 }
