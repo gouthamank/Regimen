@@ -114,14 +114,16 @@ stale cloud backup, not data loss on-device.
   in the consent screen config before Google allows publishing to Production. Scope the policy to
   what's actually collected: Google account email (auth only), workout/routine/measurement data
   synced to Firestore, no third-party sharing, no ads/analytics.
-- [~] New Gradle dependencies (none present today): Firebase Auth + Firestore (via the Firebase
-  BoM), the `google-services` Gradle plugin, and WorkManager (for the periodic sync job) - plus
-  the `google-services.json` from the Firebase console. For "Sign in with Google" specifically,
-  use **Credential Manager** (`androidx.credentials:credentials` +
-  `androidx.credentials:credentials-play-services-auth` +
-  `com.google.android.libraries.identity.googleid:googleid`), not the legacy
-  `GoogleSignInClient`/Play Services Auth API, which Google has deprecated - verify current
-  artifact versions before pinning, per this doc's usual caveat.
+- [x] New Gradle dependencies: Firebase Auth + Firestore (via the Firebase BoM, applied as `api`
+  in `:core:sync` so its version constraints propagate to `:app`'s transitive resolution - the
+  BoM dropped the separate `-ktx` artifacts as of v34, so these are the plain `firebase-auth`/
+  `firebase-firestore` coordinates, not `-ktx`), the `google-services` Gradle plugin, and
+  WorkManager (for the periodic sync job) - plus the `google-services.json` from the Firebase
+  console. For "Sign in with Google" specifically, uses **Credential Manager**
+  (`androidx.credentials:credentials` + `androidx.credentials:credentials-play-services-auth` +
+  `com.google.android.libraries.identity.googleid:googleid`, plus `play-services-auth` for the
+  Play-Services-availability check and `kotlinx-coroutines-play-services` for `Task.await()`),
+  not the legacy `GoogleSignInClient`/Play Services Auth API, which Google has deprecated.
 - [ ] Graceful degradation without Google Play Services: this app has zero GMS dependency today
   (pure AndroidX, `minSdk 26`); Credential Manager's Google ID option requires Play Services to
   be present/up to date. Since sign-in must stay "optional, skippable, fully usable local-only"
@@ -137,50 +139,48 @@ stale cloud backup, not data loss on-device.
   `:feature:settings`, and the sync worker alike, mirroring `:core:data`'s role for the
   Room-backed repositories rather than mixing local-persistence DI with cloud-sync DI in one
   module. Follows the existing `di/<Name>Module.kt` convention for its Hilt bindings.
-- [ ] Sign-in entry points: a new onboarding page mentioning that signing in enables sync
+- [~] Sign-in entry points: a new onboarding page mentioning that signing in enables sync
   (optional, skippable - the app is fully usable local-only without it), plus a two-tier
-  auth/sync UI rather than a single Settings section:
-    - **Settings' "Account" summary row**: signed-in account (or "Signed out"), last successful
-      sync timestamp (or the "last attempt failed" state from the sync-trigger item above), and
-      a "Sync now" action - a compact glanceable summary, not the full detail surface.
-    - **Dedicated Account screen** (tapping the summary row navigates in - a new nav destination,
-      not a dialog): full sign-in details, plus exactly two destructive actions - **not** a
-      "delete account" concept, since there's no separate Regimen account to delete, only a
-      signed-in Google identity and a Firestore backup:
+  auth/sync UI rather than a single Settings section. Settings' summary row and the dedicated
+  `:feature:account` screen are built; the onboarding page is not:
+    - **Settings' "Account" summary row** (built): the signed-in account's email, or "Signed out",
+      navigating to the dedicated Account screen. `SettingsViewModel` combines its existing
+      preferences `StateFlow` with a second one from `ObserveAccountStatusUseCase` - the same
+      `:core:domain` use case the Account screen's own ViewModel reads, rather than sharing a
+      ViewModel instance across module boundaries. A last-successful-sync timestamp and "Sync now"
+      action are not shown yet - there's no sync job to report on until the sync-trigger item
+      below lands.
+    - **Dedicated Account screen** (built, `:feature:account`, its own Gradle module per the
+      one-module-per-screen convention): sign-in with Google (disabled with an explanatory caption
+      when Google Play Services isn't available), or - once signed in - the account's name/email
+      plus exactly two destructive actions, each behind the shared `ConfirmDialog`
+      (`:core:designsystem`'s `dialog/ConfirmDialog.kt`, `destructive = true`) - **not** a "delete
+      account" concept, since there's no separate Regimen account to delete, only a signed-in
+      Google identity and a Firestore backup:
         - **Sign out** - stops syncing, keeps local data, keeps the cloud backup as-is.
-        - **Delete cloud data** - wipes every Firestore document under `users/{uid}/**` (and,
-          as routine cleanup, the now-pointless Firebase Auth user record) - does **not** touch
-          the Google OAuth grant, which the user can only revoke themselves via their own Google
-          Account settings.
-          Each action sits behind its own confirmation modal (the existing shared `ConfirmDialog`
-          pattern - `:core:designsystem`'s `dialog/ConfirmDialog.kt`, used with
-          `destructive = true`,
-          see Routines' delete flow for a reference usage), and each modal's copy must make the
-          distinction explicit - "Delete cloud data" specifically should say it does not sign out
-          of Google or affect local data, so the two actions are never confused. This is also where
-          Phase 2's cloud-data-deletion behavior (see below) surfaces in the UI.
-    - Onboarding (`:feature:onboarding`) is currently a hardcoded 2-page pager (Units,
-      Appearance) with separate adaptive layout composables per window posture
-      (Compact/BookOrExpanded vs. Tabletop) - a third page means updating the page count and
-      both layout variants, not just adding a composable.
-    - Settings' (`:feature:settings`) `SettingsViewModel` is currently a pure
-      preference-pass-through wrapper with no other state; the Account summary row's state
-      (signed-in-as, loading, error, last-synced-at) doesn't fit that shape and needs its own
-      state class. Both the Settings summary row's `SettingsViewModel` and the dedicated Account
-      screen's own ViewModel (in `:feature:account`, see below) read this state via a shared
-      `:core:domain` use-case (e.g. `ObserveAccountStatusUseCase`), rather than sharing a
-      ViewModel instance across module boundaries.
-      `docs/testing.md` currently skips onboarding/settings ViewModel tests entirely as pure
-      pass-through - both the summary and the dedicated Account screen have actual branching
-      logic and should get real test coverage per the ViewModel testing tier.
-    - The dedicated Account screen gets its own `:feature:account` module, consistent with the
-      existing one-module-per-screen convention (each screen/tab is its own Gradle module per
-      `docs/architecture.md`'s module structure) - not a nav destination folded into
-      `:feature:settings`. Settings only holds the compact summary row and navigates out to
-      `:feature:account` for the full screen.
-    - Per `CLAUDE.md`'s string/formatting conventions: all new user-facing copy (onboarding
-      sign-in page text, Settings Account summary, the dedicated Account screen, confirmation
-      modal copy, sign-in error/loading states) goes in `strings.xml` via `stringResource()`, not
+      - **Delete cloud data** - deletes the signed-in user's known Firestore subcollections
+        (`workouts`, `routines`, `exercises`, `measurementTypes`, `bodyMetrics`) and
+        `preferences` document under `users/{uid}`, then the user document itself and the
+        now-pointless Firebase Auth user record. Deleting that Firebase Auth record ends the
+        local Firebase session as a side effect (`FirebaseAuth`'s `currentUser` goes null,
+        `AuthRepositoryImpl`'s auth-state listener picks it up, the Account screen reflects
+        signed-out immediately) - so this action does sign the user out of **Regimen**, even
+        though it does **not** touch the Google OAuth grant itself, which the user can only
+        revoke via their own Google Account settings. The confirmation dialog's copy says so
+        explicitly. Since no sync job writes to Firestore yet, this currently only ever deletes
+        an empty backup; the collection names are hardcoded ahead of the entity-mapping item
+        below rather than derived from it, since the Firestore client SDK can't enumerate a
+        document's subcollections at runtime.
+        `AccountViewModelTest` (`:feature:account`, using a `FakeAuthRepository` from
+        `:core:testing`) covers sign-in success/failure and sign-out/delete-cloud-data dispatch, per
+        the ViewModel testing tier in `docs/testing.md`.
+    - Onboarding (`:feature:onboarding`) is still a hardcoded 2-page pager (Units, Appearance) with
+      separate adaptive layout composables per window posture (Compact/BookOrExpanded vs.
+      Tabletop) - a sign-in page is not yet added; doing so means updating the page count and both
+      layout variants, not just adding a composable.
+    - Per `CLAUDE.md`'s string/formatting conventions: all new user-facing copy (Settings Account
+      summary, the dedicated Account screen, confirmation modal copy, sign-in error states) goes in
+      `strings.xml` via `stringResource()`, not
       hardcoded. The "last synced at" instant must be exposed as a raw timestamp in UI state and
       formatted by the Composable at render time (matching the `SessionFormat`/`MeasurementFormat`
       pattern) - the ViewModel must not pre-format it into a display string itself.
@@ -240,6 +240,19 @@ stale cloud backup, not data loss on-device.
       exceeded) is tracked separately from "last synced at," so the UI can always distinguish
       "never synced" from "last attempt failed" rather than leaving the user unable to tell.
       Auth-expiry specifically should prompt re-sign-in as the fix, not fail silently.
+  - **Revoked Google grant detection**: today, revoking Regimen's access from Google Account
+    settings isn't detected until something actually hits Firebase with the stale session -
+    there's no proactive polling, and `addAuthStateListener` only fires on genuine local
+    auth-state changes, not on a token-refresh failure happening in the background. The sync
+    job is the natural place to catch this, since it's the first thing that will call Firebase
+    on a real cadence: any push/pull failing with `FirebaseAuthInvalidUserException` /
+    `FirebaseAuthInvalidCredentialsException` (or a Firestore call failing with an
+    auth-attributable permission/unauthenticated error) should call `firebaseAuth.signOut()`
+    locally and report a new `AuthErrorReason.SESSION_REVOKED` ("You've been signed out - please
+    sign in again") rather than falling through to `UNKNOWN` -
+    `AuthRepositoryImpl.deleteCloudData()`
+    is the only place today that could hit this (no sync job exists yet), and doesn't
+    distinguish it either; fold both into the same fix when this item is built.
 - [ ] Test strategy splits by what's actually being tested, rather than standing up a Firebase
   Local Emulator Suite (no CI pipeline exists here to make that pay for itself):
     - **Business logic** (the LWW comparator, cascade-tombstone enumeration, retry/backoff

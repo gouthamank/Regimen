@@ -6,10 +6,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.common.MeasurementFormat
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
+import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
@@ -46,8 +48,20 @@ data class WeightValue(val displayValue: String, val unitLabel: UnitLabel)
 
 enum class GreetingPeriod { MORNING, AFTERNOON, EVENING }
 
+/** Groups the flows that don't fit in the outer `combine`'s 5-flow limit, alongside the frequency/
+ * trend/active-workout-id trio already grouped this way. */
+private data class SecondaryFlows(
+    val frequency: List<WeekCount>,
+    val trend: List<Float>,
+    val activeWorkoutId: String?,
+    val displayName: String?,
+)
+
 data class HomeUiState(
     val greetingPeriod: GreetingPeriod? = null,
+    /** The signed-in account's first name, e.g. "Jane" from "Jane Doe" - null when signed out or
+     * the account has no display name, in which case the greeting falls back to unnamed copy. */
+    val firstName: String? = null,
     val hasRoutines: Boolean = false,
     /** Has at least one completed workout - unlocks the freeform Quick workout entry. */
     val isEstablished: Boolean = false,
@@ -82,6 +96,7 @@ class HomeViewModel @Inject constructor(
     observeMeasurementTypes: ObserveMeasurementTypesUseCase,
     observeMeasurements: ObserveMeasurementsUseCase,
     observeActiveWorkoutId: ObserveActiveWorkoutIdUseCase,
+    observeAccountStatus: ObserveAccountStatusUseCase,
     private val startWorkoutUseCase: StartWorkoutUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
 ) : ViewModel() {
@@ -135,8 +150,11 @@ class HomeViewModel @Inject constructor(
             getWorkoutFrequency(HistoryRange.FOUR_WEEKS),
             bodyweightTrend,
             observeActiveWorkoutId(),
-        ) { frequency, trend, activeWorkoutId -> Triple(frequency, trend, activeWorkoutId) },
-    ) { summary, routines, history, prefs, (frequency, weightTrend, activeWorkoutId) ->
+            observeAccountStatus(),
+        ) { frequency, trend, activeWorkoutId, account ->
+            SecondaryFlows(frequency, trend, activeWorkoutId, account?.displayName)
+        },
+    ) { summary, routines, history, prefs, (frequency, weightTrend, activeWorkoutId, displayName) ->
         val system = prefs.weightUnit
 
         // Order quick-start chips by most-recently-used routine, then by manual position.
@@ -154,6 +172,7 @@ class HomeViewModel @Inject constructor(
 
         HomeUiState(
             greetingPeriod = greetingPeriodFor(LocalTime.now()),
+            firstName = displayName?.trim()?.takeIf { it.isNotEmpty() }?.substringBefore(' '),
             hasRoutines = routines.isNotEmpty(),
             isEstablished = history.isNotEmpty(),
             workoutsThisWeek = summary.workoutsThisWeek,

@@ -5,6 +5,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import dev.gouthaman.regimen.navigation.AccountRoute
 import dev.gouthaman.regimen.navigation.ExerciseLibraryRoute
 import dev.gouthaman.regimen.navigation.SettingsRoute
 
@@ -18,6 +19,7 @@ fun NavGraphBuilder.settingsGraph(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,
             onOpenExerciseLibrary = { navController.navigate(ExerciseLibraryRoute) },
+            onOpenAccount = { navController.navigate(AccountRoute) }
         )
     }
 }

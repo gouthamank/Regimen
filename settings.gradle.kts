@@ -42,4 +42,4 @@ include(":feature:routines")
 include(":feature:history")
 include(":feature:home")
 include(":feature:active")
-
+include(":feature:account")

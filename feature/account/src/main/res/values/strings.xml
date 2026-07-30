@@ -1,0 +1,24 @@
+<resources>
+    <string name="account_title">Account</string>
+    <string name="account_signed_out_message">Sign in to back up your data and sync across devices.</string>
+    <string name="account_sign_in_button">Sign in with Google</string>
+    <string name="account_play_services_required">Requires Google Play Services, which isn\'t available on this device.</string>
+    <string name="account_danger_zone_title">Danger zone</string>
+    <string name="account_sign_out_headline">Sign out</string>
+    <string name="account_sign_out_description">Stops syncing. Local data and your cloud backup are kept.</string>
+    <string name="account_sign_out_button">Sign out</string>
+    <string name="account_sign_out_dialog_title">Sign out?</string>
+    <string name="account_sign_out_dialog_text">You can sign back in at any time. Local data and your cloud backup are kept as-is.</string>
+    <string name="account_delete_cloud_data_headline">Delete cloud data</string>
+    <string name="account_delete_cloud_data_description">Permanently deletes your cloud backup and signs you out of Regimen. Doesn\'t touch data on this
+  device.</string>
+    <string name="account_delete_cloud_data_button">Delete cloud data</string>
+    <string name="account_delete_cloud_data_dialog_title">Delete cloud data?</string>
+    <string name="account_delete_cloud_data_dialog_text">This permanently deletes your backup from the cloud and signs you out of Regimen. It does not
+  sign you out of Google or affect any data on this device.</string>
+    <string name="account_cancel_button">Cancel</string>
+    <string name="account_error_no_credentials">No Google account found on this device. Add one in your device\'s account settings, then try again.</string>
+    <string name="account_error_cancelled">Sign-in was cancelled.</string>
+    <string name="account_error_network">Couldn\'t reach the server. Check your connection and try again.</string>
+    <string name="account_error_unknown">Something went wrong. Please try again.</string>
+</resources>

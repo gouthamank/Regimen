@@ -135,16 +135,20 @@ the reusable pieces; a test seeds whatever data it needs directly through the in
 ## `:feature:*` - ViewModel JVM unit tests
 
 Tested: `RoutineEditorViewModel` (`setExercises()` reconciliation), `RoutinesListViewModel`
-(optimistic drag-reorder overlay), `HomeViewModel` (quick-start ordering + aggregation),
+(optimistic drag-reorder overlay), `HomeViewModel` (quick-start ordering + aggregation,
+signed-in-account first-name derivation for the greeting),
 `ProgressViewModel` (PR value resolution, muscle-group ordering), `ExerciseDetailViewModel` (PR
 branching), `ExerciseLibraryViewModel` (filter-toggle chain), `ActiveWorkoutViewModel` (rest-timer
 countdown/auto-complete/clamping - uses `StandardTestDispatcher` shared between `MainDispatcherRule`
 and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope`),
 `WorkoutSummaryViewModel` (volume summation + PR comparison), `SessionDetailViewModel`
-(save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation).
+(save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation),
+`AccountViewModel` (sign-in success/failure, sign-out and delete-cloud-data dispatch, using a
+`FakeAuthRepository`).
 
-Skipped entirely: `:feature:onboarding`, `:feature:settings` (pure preference pass-through
-setters), `EditExerciseViewModel` (simple edit-vs-new branching), `HistoryViewModel`
+Skipped entirely: `:feature:onboarding`, `:feature:settings` (pure preference/account-status
+pass-through - `SettingsViewModel` just exposes two independent `StateFlow`s side by side, no
+branching of its own), `EditExerciseViewModel` (simple edit-vs-new branching), `HistoryViewModel`
 (grouping/sorting only), `MeasurementDetailViewModel` (flow mapping + unit conversion only),
 `EditWorkoutViewModel` (same set/cardio/note pass-through calls `ActiveWorkoutViewModel` already
 covers, minus the rest-timer branching that's actually tested).

@@ -25,6 +25,10 @@ fun exerciseRowTransitionKey(exerciseId: String) = "exercise-row-$exerciseId"
  * Settings is Library's only entry point, so this is applied unconditionally. */
 const val exerciseLibraryFromSettingsTransitionKey = "exercise-library-from-settings"
 
+/** Links Settings' "Account" row to the Account screen's root container - Settings is Account's
+ * only entry point, so this is applied unconditionally. */
+const val accountFromSettingsTransitionKey = "account-from-settings"
+
 /** Links a Measurements row's card to the Measurement Detail screen's root container for that
  * same measurement type, so Detail expands from the tapped card. */
 fun measurementRowTransitionKey(typeId: String) = "measurement-row-$typeId"

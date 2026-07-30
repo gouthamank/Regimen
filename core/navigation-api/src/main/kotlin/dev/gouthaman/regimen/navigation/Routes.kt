@@ -47,3 +47,6 @@ data object MeasurementsRoute
 
 @Serializable
 data class MeasurementDetailRoute(val typeId: String)
+
+@Serializable
+data object AccountRoute

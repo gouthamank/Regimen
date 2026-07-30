@@ -14,8 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.accountFromSettingsTransitionKey
 import dev.gouthaman.regimen.common.exerciseLibraryFromSettingsTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
@@ -48,6 +49,7 @@ import dev.gouthaman.regimen.designsystem.component.EnumDropdown
 import dev.gouthaman.regimen.designsystem.component.SectionHeader
 import dev.gouthaman.regimen.designsystem.component.ThemeModeSelector
 import dev.gouthaman.regimen.designsystem.component.UnitSystemSelector
+import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
@@ -66,8 +68,11 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     onOpenExerciseLibrary: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
+    onOpenAccount: () -> Unit = {},
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
+
     SettingsScreen(
         prefs = prefs,
         sharedTransitionScope = sharedTransitionScope,
@@ -81,6 +86,8 @@ fun SettingsScreen(
         onRestChimeEnabledChange = viewModel::setRestChimeEnabled,
         onMaxWorkoutDurationChange = viewModel::setMaxWorkoutDuration,
         onOpenExerciseLibrary = onOpenExerciseLibrary,
+        account = account,
+        onOpenAccount = onOpenAccount,
     )
 }
 
@@ -99,9 +106,12 @@ fun SettingsScreen(
     onRestChimeEnabledChange: (Boolean) -> Unit = {},
     onMaxWorkoutDurationChange: (MaxWorkoutDuration) -> Unit = {},
     onOpenExerciseLibrary: () -> Unit = {},
+    account: AuthAccount? = null,
+    onOpenAccount: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val windowInfo = LocalRegimenWindowInfo.current
+
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -224,12 +234,20 @@ fun SettingsScreen(
                         )
                     },
                 )
+
                 NavRow(
-                    headline = stringResource(R.string.settings_export_data_headline),
-                    supporting = stringResource(R.string.settings_export_data_description),
-                    icon = Icons.Filled.Upload,
-                    enabled = false,
-                    onClick = {},
+                    headline = stringResource(R.string.settings_account_headline),
+                    supporting = account?.email
+                        ?: stringResource(R.string.settings_account_signed_out),
+                    icon = Icons.Filled.AccountCircle,
+                    enabled = true,
+                    onClick = onOpenAccount,
+                    modifier = with(sharedTransitionScope) {
+                        Modifier.sharedBounds(
+                            rememberSharedContentState(key = accountFromSettingsTransitionKey),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    },
                 )
             }
         }

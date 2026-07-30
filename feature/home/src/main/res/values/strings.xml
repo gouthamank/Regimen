@@ -41,5 +41,8 @@
     <string name="home_greeting_morning">Good morning</string>
     <string name="home_greeting_afternoon">Good afternoon</string>
     <string name="home_greeting_evening">Good evening</string>
+    <string name="home_greeting_morning_named">Good morning, %1$s!</string>
+    <string name="home_greeting_afternoon_named">Good afternoon, %1$s!</string>
+    <string name="home_greeting_evening_named">Good evening, %1$s!</string>
     <string name="home_weight_value_label">%1$s %2$s</string>
 </resources>

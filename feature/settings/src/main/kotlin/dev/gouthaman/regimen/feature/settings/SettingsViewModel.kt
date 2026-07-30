@@ -3,10 +3,12 @@ package dev.gouthaman.regimen.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.MaxWorkoutDuration
 import dev.gouthaman.regimen.domain.model.ThemeMode
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.UserPreferences
+import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdatePreferencesUseCase
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,10 +21,13 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     observePreferences: ObservePreferencesUseCase,
     private val updatePreferences: UpdatePreferencesUseCase,
+    observeAccountStatus: ObserveAccountStatusUseCase,
 ) : ViewModel() {
 
     val preferences: StateFlow<UserPreferences> = observePreferences()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserPreferences())
+
+    val account: StateFlow<AuthAccount?> = observeAccountStatus()
 
     fun setWeightUnit(value: UnitSystem) = viewModelScope.launch {
         updatePreferences.setWeightUnit(value)

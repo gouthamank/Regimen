@@ -15,6 +15,7 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import dev.gouthaman.regimen.feature.account.accountGraph
 import dev.gouthaman.regimen.feature.active.activeGraph
 import dev.gouthaman.regimen.feature.exercise.exerciseGraph
 import dev.gouthaman.regimen.feature.history.historyGraph
@@ -60,6 +61,7 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *
  *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
  *    Settings  ──▶ [✓] Exercise Library   ExerciseLibraryRoute
+ *              ──▶ [✓] Account            AccountRoute (sign in/out, sync status)
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
  *    Detail    ──▶ [✓] Edit Exercise      EditExerciseRoute(exerciseId)
@@ -216,6 +218,7 @@ fun RegimenNavHost(
             activeGraph(navController)
             progressGraph(navController, sharedTransitionScope)
             settingsGraph(navController, sharedTransitionScope)
+            accountGraph(navController, sharedTransitionScope)
             measurementsGraph(navController, sharedTransitionScope)
             exerciseGraph(navController, sharedTransitionScope)
         }

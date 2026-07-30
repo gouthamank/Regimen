@@ -118,7 +118,7 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(uiState.greetingPeriod?.let { greetingLabel(it) }
+                    Text(uiState.greetingPeriod?.let { greetingLabel(it, uiState.firstName) }
                         ?: stringResource(R.string.home_greeting_fallback))
                 },
                 scrollBehavior = scrollBehavior,
@@ -619,10 +619,18 @@ private fun BodyweightSection(uiState: HomeUiState, onOpenMeasurements: () -> Un
 }
 
 @Composable
-private fun greetingLabel(period: GreetingPeriod): String = when (period) {
-    GreetingPeriod.MORNING -> stringResource(R.string.home_greeting_morning)
-    GreetingPeriod.AFTERNOON -> stringResource(R.string.home_greeting_afternoon)
-    GreetingPeriod.EVENING -> stringResource(R.string.home_greeting_evening)
+private fun greetingLabel(period: GreetingPeriod, firstName: String?): String = when (period) {
+    GreetingPeriod.MORNING -> firstName
+        ?.let { stringResource(R.string.home_greeting_morning_named, it) }
+        ?: stringResource(R.string.home_greeting_morning)
+
+    GreetingPeriod.AFTERNOON -> firstName
+        ?.let { stringResource(R.string.home_greeting_afternoon_named, it) }
+        ?: stringResource(R.string.home_greeting_afternoon)
+
+    GreetingPeriod.EVENING -> firstName
+        ?.let { stringResource(R.string.home_greeting_evening_named, it) }
+        ?: stringResource(R.string.home_greeting_evening)
 }
 
 @Composable

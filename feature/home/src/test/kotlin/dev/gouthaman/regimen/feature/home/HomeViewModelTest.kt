@@ -1,6 +1,7 @@
 package dev.gouthaman.regimen.feature.home
 
 import app.cash.turbine.test
+import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.Routine
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.SetEntry
@@ -9,6 +10,7 @@ import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
@@ -16,6 +18,7 @@ import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
+import dev.gouthaman.regimen.testing.FakeAuthRepository
 import dev.gouthaman.regimen.testing.FakeClock
 import dev.gouthaman.regimen.testing.FakeMeasurementRepository
 import dev.gouthaman.regimen.testing.FakePreferencesRepository
@@ -38,6 +41,7 @@ class HomeViewModelTest {
     private val workoutRepo = FakeWorkoutRepository()
     private val preferencesRepo = FakePreferencesRepository()
     private val measurementRepo = FakeMeasurementRepository()
+    private val authRepo = FakeAuthRepository()
     private val clock = FakeClock(1_000L)
 
     private fun newViewModel() = HomeViewModel(
@@ -49,6 +53,7 @@ class HomeViewModelTest {
         observeMeasurementTypes = ObserveMeasurementTypesUseCase(measurementRepo),
         observeMeasurements = ObserveMeasurementsUseCase(measurementRepo),
         observeActiveWorkoutId = ObserveActiveWorkoutIdUseCase(workoutRepo),
+        observeAccountStatus = ObserveAccountStatusUseCase(authRepo),
         startWorkoutUseCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock),
         getInProgressWorkoutId = GetInProgressWorkoutIdUseCase(workoutRepo),
     )
@@ -132,6 +137,57 @@ class HomeViewModelTest {
             while (state.workoutsThisWeek == 0) state = awaitItem()
             assertEquals(1, state.workoutsThisWeek)
             assertEquals("500", state.volumeThisWeek.displayValue)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `firstName is null when signed out`() = runTest {
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.loaded) state = awaitItem()
+            assertEquals(null, state.firstName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `firstName is the first token of the signed-in account's display name`() = runTest {
+        authRepo.seedSignedIn(AuthAccount(uid = "u1", email = "a@b.com", displayName = "Jane Doe"))
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.loaded) state = awaitItem()
+            assertEquals("Jane", state.firstName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `firstName is the whole display name when it has no space`() = runTest {
+        authRepo.seedSignedIn(AuthAccount(uid = "u1", email = "a@b.com", displayName = "Jane"))
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.loaded) state = awaitItem()
+            assertEquals("Jane", state.firstName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `firstName is null when the display name is blank`() = runTest {
+        authRepo.seedSignedIn(AuthAccount(uid = "u1", email = "a@b.com", displayName = "   "))
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.loaded) state = awaitItem()
+            assertEquals(null, state.firstName)
             cancelAndIgnoreRemainingEvents()
         }
     }

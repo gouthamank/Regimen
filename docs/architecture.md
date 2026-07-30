@@ -47,7 +47,13 @@ also get a secondary, freeform **Quick workout** entry point.
   (`WindowAdaptive.kt`), `dragdrop/` (`ReorderableList.kt`'s drag-to-reorder state/gesture
   helpers).
 - **`:core:navigation-api`** - the `@Serializable` route types only; no composables, pure Kotlin.
-- **`:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active}`**
+- **`:core:sync`** - Firebase Auth (Google Sign-In via Credential Manager) and Firestore clients,
+  behind `:core:domain`'s `AuthRepository` interface. `AuthRepositoryImpl` also owns "Delete cloud
+  data" (wipes the signed-in user's Firestore documents and Firebase Auth record). No Firestore
+  push/pull sync job exists yet - see `docs/todo-remote-sync.md`.
+- **
+  `:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active,account}`
+  **
     - one module per bottom-tab/major screen. Each exposes a `NavGraphBuilder.xGraph()` extension
   that `RegimenNavHost` wires together, except Onboarding, which `MainActivity` shows directly as
       a first-launch gate rather than routing it through `RegimenNavHost`. `:feature:active` now
@@ -126,7 +132,10 @@ A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in
 ### Tab 1 - Home
 
 - **Home** - greeting (time-of-day, or a generic fallback before any workout has been logged),
-  primary **Start Workout** CTA, **quick-start routine chips** (ordered most-recently-used first;
+  personalized with the signed-in account's first name when signed in (e.g. "Good morning,
+  Jane!"), falling back to the unnamed greeting when signed out or the account has no display
+  name, primary **Start Workout** CTA, **quick-start routine chips** (ordered most-recently-used
+  first;
   tapping one begins a session immediately), a **this-week** summary (workouts / volume / time)
   with a weekly **streak** indicator, a **this-month** summary, a workout-frequency chart (last 4
   weeks), and a bodyweight trend chart (last 4 weeks, with a "Log bodyweight" CTA into Body
@@ -171,8 +180,18 @@ Per-exercise progress (history and PRs) lives on Exercise Detail, not on a separ
 
 - **Settings** - units (metric/imperial: kg/lb + km/mi, weight and distance selected
   independently), theme (light/dark/system plus a dynamic-color toggle), rest-timer default
-  duration, a rest-alert sound toggle, custom measurement type management, and an entry point to
-  the Exercise Library. Data export to JSON is not implemented.
+  duration, a rest-alert sound toggle, custom measurement type management, and entry points to the
+  Exercise Library and the Account screen (a compact row showing the signed-in account's email, or
+  "Signed out"). Data export to JSON is not implemented.
+- **Account** (`:feature:account`) - sign in with Google (Credential Manager; the sign-in button is
+  disabled with an explanatory caption if Google Play Services isn't available) or, once signed in,
+  the account's name/email plus two destructive actions, each behind a confirmation dialog: **Sign
+  out** (stops nothing else - local data and any cloud backup are kept) and **Delete cloud data**
+  (wipes the Firestore backup and the Firebase Auth user record; does not sign out of Google or
+  touch local data). There is no separate "delete account" concept. Signing in is optional - every
+  other screen works fully signed-out. No sync job pushes or pulls data yet, so "Delete cloud data"
+  currently only ever deletes an empty backup - see `docs/todo-remote-sync.md` for the sync work
+  this screen is a foundation for.
 - **Exercise Library** - every exercise (built-in and custom), filterable by type
   (strength/cardio), muscle group, and equipment, with free-text search. Ships with a curated set
   of built-in strength and cardio movements. No favorites. Also serves as the exercise-picker
@@ -465,6 +484,15 @@ Exercise(id, name, type, muscleGroup, equipment, isCustom)
     built-in MeasurementType row are the one exception: their id is a deterministic,
     name-derived UUID (BuiltInData.stableId) instead of a random one, so every fresh install
     seeds the identical id for the same built-in row.
+
+    Built-in rows are never removed from BuiltInData once shipped, only retired (a not-yet-added
+    isRetired/isVisible-style flag would hide a retired row from exercise pickers while still
+    seeding it) - RoutineExercise/WorkoutExercise reference exercises by this same stable id, and
+    those referencing rows sync across devices (see docs/todo-remote-sync.md) while Exercise rows
+    themselves do not. Deleting a built-in entry outright would leave any device that seeds after
+    the removal (a fresh install, a reinstall, or first seed on a newer app version) with a
+    dangling foreign key the moment it pulls synced Workout/Routine data referencing that id from
+    a device that already had it.
 
 Routine(id, name, position)
 RoutineExercise(id, routineId, exerciseId, position, targetSets, targetReps, targetRestSec,

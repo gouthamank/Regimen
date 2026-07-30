@@ -71,6 +71,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:common-ui"))
     implementation(project(":core:navigation-api"))
+    implementation(project(":core:sync"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:exercise"))
@@ -80,6 +81,7 @@ dependencies {
     implementation(project(":feature:history"))
     implementation(project(":feature:home"))
     implementation(project(":feature:active"))
+    implementation(project(":feature:account"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
