@@ -1,0 +1,137 @@
+@import url("https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@600;700&family=Outfit:wght@400;500&display=swap");
+
+:root {
+  --primary: #6650a4;
+  --on-primary: #ffffff;
+  --primary-container: #eaddff;
+  --on-primary-container: #21005d;
+  --background: #fffbfe;
+  --on-background: #1c1b1f;
+  --surface-container: #f3edf7;
+  --outline: #79747e;
+  --outline-variant: #cac4d0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #d0bcff;
+    --on-primary: #381e72;
+    --primary-container: #4f378b;
+    --on-primary-container: #eaddff;
+    --background: #1c1b1f;
+    --on-background: #e6e1e5;
+    --surface-container: #211f26;
+    --outline: #938f99;
+    --outline-variant: #49454f;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--background);
+  color: var(--on-background);
+  margin: 0;
+  padding: 3rem 1.5rem 4rem;
+  line-height: 1.65;
+  font-size: 1rem;
+  letter-spacing: 0.15px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--surface-container);
+  border-radius: 28px;
+  padding: 2.25rem 2rem;
+}
+
+h1, h2, h3 {
+  font-family: "Sofia Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  line-height: 1.25;
+  color: var(--on-background);
+}
+
+h1 { font-size: 2rem; margin: 0 0 0.35rem; }
+h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.75rem; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Sofia Sans", sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.eyebrow .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.updated {
+  color: var(--outline);
+  font-size: 0.9rem;
+  margin: 0.25rem 0 1.75rem;
+}
+
+p { margin: 0 0 1rem; }
+ul { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin-bottom: 0.5rem; }
+strong { font-weight: 600; }
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+a:hover { text-decoration: underline; }
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.75rem;
+  padding: 0.7rem 1.4rem;
+  border-radius: 100px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: "Sofia Sans", sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.button-link:hover { text-decoration: none; opacity: 0.92; }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 2.5rem;
+  font-size: 0.95rem;
+}
+
+hr.divider {
+  border: none;
+  border-top: 1px solid var(--outline-variant);
+  margin: 2.5rem 0;
+}
+
+.footer {
+  text-align: center;
+  color: var(--outline);
+  font-size: 0.85rem;
+  margin-top: 2.5rem;
+}
