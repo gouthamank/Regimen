@@ -98,7 +98,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     private val syncedSubcollections = listOf(
-        "workouts", "routines", "exercises", "measurementTypes", "bodyMetrics",
+        "workouts", "routines", "exercises", "measurementTypes", "bodyMetrics", "syncConfig",
     )
 
     override suspend fun deleteCloudData(): Result<Unit> {

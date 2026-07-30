@@ -5,14 +5,17 @@ import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.AuthErrorReason
 import dev.gouthaman.regimen.domain.model.AuthException
 import dev.gouthaman.regimen.domain.usecase.DeleteCloudDataUseCase
+import dev.gouthaman.regimen.domain.usecase.EnsurePrimaryClaimedUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.SignInUseCase
 import dev.gouthaman.regimen.domain.usecase.SignOutUseCase
 import dev.gouthaman.regimen.testing.FakeAuthRepository
+import dev.gouthaman.regimen.testing.FakeSyncDeviceRepository
 import dev.gouthaman.regimen.testing.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -21,11 +24,15 @@ class AccountViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private fun viewModel(repo: FakeAuthRepository) = AccountViewModel(
+    private fun viewModel(
+        repo: FakeAuthRepository,
+        syncDeviceRepo: FakeSyncDeviceRepository = FakeSyncDeviceRepository(),
+    ) = AccountViewModel(
         observeAccountStatus = ObserveAccountStatusUseCase(repo),
         signInUseCase = SignInUseCase(repo),
         signOutUseCase = SignOutUseCase(repo),
         deleteCloudDataUseCase = DeleteCloudDataUseCase(repo),
+        ensurePrimaryClaimedUseCase = EnsurePrimaryClaimedUseCase(syncDeviceRepo),
     )
 
     @Test
@@ -61,6 +68,29 @@ class AccountViewModelTest {
         viewModel.uiState.test {
             assertEquals(AuthErrorReason.NO_CREDENTIALS, awaitItem().errorReason)
         }
+    }
+
+    @Test
+    fun `sign in success triggers a primary-device claim`() = runTest {
+        val account = AuthAccount(uid = "u1", email = "a@b.com", displayName = "A B")
+        val repo = FakeAuthRepository(signInResult = Result.success(account))
+        val syncDeviceRepo = FakeSyncDeviceRepository()
+        val viewModel = viewModel(repo, syncDeviceRepo)
+
+        viewModel.signIn()
+
+        assertTrue(syncDeviceRepo.ensurePrimaryClaimedCalled)
+    }
+
+    @Test
+    fun `sign in failure does not trigger a primary-device claim`() = runTest {
+        val repo = FakeAuthRepository(signInResult = Result.failure(RuntimeException("boom")))
+        val syncDeviceRepo = FakeSyncDeviceRepository()
+        val viewModel = viewModel(repo, syncDeviceRepo)
+
+        viewModel.signIn()
+
+        assertEquals(false, syncDeviceRepo.ensurePrimaryClaimedCalled)
     }
 
     @Test

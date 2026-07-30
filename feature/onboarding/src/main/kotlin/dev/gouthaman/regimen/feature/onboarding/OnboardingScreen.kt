@@ -21,8 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -40,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenWindowInfo
@@ -60,17 +57,14 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
-    val signInState by viewModel.signInState.collectAsStateWithLifecycle()
     val windowInfo = LocalRegimenWindowInfo.current
     OnboardingScreen(
         prefs = prefs,
-        signInState = signInState,
         windowInfo = windowInfo,
         onWeightUnitChange = viewModel::setWeightUnit,
         onDistanceUnitChange = viewModel::setDistanceUnit,
         onThemeModeChange = viewModel::setThemeMode,
         onDynamicColorChange = viewModel::setDynamicColor,
-        onSignIn = viewModel::signIn,
         onFinish = { viewModel.finish() },
         modifier = modifier,
     )
@@ -79,13 +73,11 @@ fun OnboardingScreen(
 @Composable
 fun OnboardingScreen(
     prefs: UserPreferences,
-    signInState: OnboardingSignInState,
     windowInfo: RegimenWindowInfo,
     onWeightUnitChange: (UnitSystem) -> Unit,
     onDistanceUnitChange: (UnitSystem) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
-    onSignIn: () -> Unit,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,10 +101,7 @@ fun OnboardingScreen(
                 onDynamicColorChange = onDynamicColorChange,
             )
 
-            else -> SignInPage(
-                state = signInState,
-                onSignIn = onSignIn,
-            )
+            else -> SignInPage()
         }
     }
     val onNextOrFinish: () -> Unit = {
@@ -323,65 +312,13 @@ private fun AppearancePage(
     }
 }
 
+/** Purely informational - no sign-in action here. Sign-in itself lives in Settings/Account. */
 @Composable
-private fun SignInPage(
-    state: OnboardingSignInState,
-    onSignIn: () -> Unit,
-) {
+private fun SignInPage() {
     OnboardingPage(
         title = stringResource(R.string.onboarding_signin_title),
         subtitle = stringResource(R.string.onboarding_signin_subtitle),
-    ) {
-        val account = state.account
-        if (account == null) {
-            Button(onClick = onSignIn, enabled = state.isSignInAvailable && !state.isSigningIn) {
-                if (state.isSigningIn) {
-                    ButtonProgressIndicator()
-                } else {
-                    Text(stringResource(R.string.onboarding_signin_button))
-                }
-            }
-
-            if (!state.isSignInAvailable) {
-                Text(
-                    stringResource(R.string.onboarding_signin_play_services_required),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-
-            state.errorReason?.let {
-                Text(
-                    it.text(),
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        } else {
-            Text(
-                stringResource(
-                    R.string.onboarding_signin_signed_in_message,
-                    account.displayName ?: account.email.orEmpty(),
-                ),
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
-/** Replaces a button's label with a spinner sized to sit on the same content baseline, matching
- * the button's own content color so it looks native to filled and text buttons alike. Mirrors
- * `:feature:account`'s `AccountScreen.kt` helper of the same shape. */
-@Composable
-private fun ButtonProgressIndicator(modifier: Modifier = Modifier) {
-    CircularProgressIndicator(
-        modifier = modifier.size(18.dp),
-        strokeWidth = 2.dp,
-        color = LocalContentColor.current,
-    )
+    ) {}
 }
 
 /** Shared layout for an onboarding page: centered title + subtitle above a control block. */
