@@ -81,3 +81,7 @@ lives, and what's deliberately left untested. Read it before writing new tests.
 Open the project in Android Studio and run the `app` configuration on a device or emulator
 running Android 8.0 (API 26) or later, or build from the command line with `./gradlew
 :app:assembleDebug`.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
