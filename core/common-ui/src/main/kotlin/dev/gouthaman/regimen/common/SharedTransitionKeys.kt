@@ -1,11 +1,9 @@
 package dev.gouthaman.regimen.common
 
 /**
- * Every shared-bounds/shared-element key used for container-transform navigation across the app,
- * collected in one place (`:core:common-ui`, which every feature module already depends on) so
- * cross-module pairs (e.g. Progress <-> Measurements, Settings <-> Exercise Library) don't need a
- * direct module dependency just to share a string constant, and so same-module pairs (e.g.
- * Routines row <-> Routine Editor) aren't scattered across a separate file per feature.
+ * Every shared-bounds/shared-element key used for container-transform navigation, collected here
+ * (`:core:common-ui`, which every feature module already depends on) so cross-module pairs don't
+ * need a direct module dependency just to share a string constant.
  */
 
 /** Links a Routines row's card to the Routine Editor screen's root container for that same

@@ -100,14 +100,10 @@ class AccountViewModel @Inject constructor(
         refreshOnResume()
     }
 
-    // Best-effort, same reasoning as claimPrimaryIfUnset(): may briefly race the fire-and-forget
-    // claim attempt right after a fresh sign-in, in which case this simply shows the single-device
-    // experience for a moment longer than strictly necessary - never the reverse (never a false
-    // positive), since secondaryDeviceReason() only ever returns non-null once a real reason is
-    // actually on record. Not private - also called from the Composable on every screen resume
-    // (see AccountScreen.kt), since this device can be demoted to secondary (or found to have
-    // stale local state) by another device's Claim, or have its next scheduled sync time change,
-    // at any point - not just around sign-in/init.
+    // Best-effort: may briefly race the fire-and-forget claim attempt right after a fresh sign-in,
+    // showing the single-device experience a moment longer than necessary - never a false
+    // positive. Not private - also called from the Composable on every screen resume, since this
+    // device can be demoted to secondary at any point, not just around sign-in/init.
     fun refreshOnResume() {
         viewModelScope.launch {
             runCatching { getSecondaryDeviceReasonUseCase() }.onSuccess {

@@ -3,10 +3,8 @@ package dev.gouthaman.regimen.data.local.migration
 import androidx.room.migration.Migration
 
 /**
- * v4 -> v5: drops `workouts.preEditEndTime` (unused now - editing a past session no longer
- * touches `endTime`/`preEditEndTime`, see :feature:history's EditWorkoutViewModel).
- * `ALTER TABLE ... DROP COLUMN` isn't reliable across Android's SQLite versions, so this
- * rebuilds the table instead: new shape, copy surviving columns, drop old, rename.
+ * v4 -> v5: drops `workouts.preEditEndTime` (no longer touched by session editing).
+ * Rebuilds the table since `DROP COLUMN` isn't reliable across Android's SQLite versions.
  */
 val MIGRATION_4_5 = Migration(4, 5) { db ->
     db.execSQL(
@@ -37,11 +35,9 @@ val MIGRATION_4_5 = Migration(4, 5) { db ->
 }
 
 /**
- * v5 -> v6: adds an explicit [dev.gouthaman.regimen.domain.model.WorkoutStatus] column plus the
- * rest-countdown columns (`restTimeEndAt`/`restTotalSec`/`restWorkoutExerciseId`), replacing ad hoc
- * inference of session state from `pausedAt`/`endTime` nullability. Rebuilds the table (same
- * reasoning as MIGRATION_4_5 - adding columns alone would be a plain ALTER TABLE, but this also
- * needs to backfill `workoutStatus` from existing rows in one pass).
+ * v5 -> v6: adds an explicit [dev.gouthaman.regimen.domain.model.WorkoutStatus] column plus
+ * rest-countdown columns, replacing inference of session state from `pausedAt`/`endTime`
+ * nullability. Rebuilds the table to backfill `workoutStatus` from existing rows in one pass.
  */
 val MIGRATION_5_6 = Migration(5, 6) { db ->
     db.execSQL(
@@ -83,9 +79,7 @@ val MIGRATION_5_6 = Migration(5, 6) { db ->
 
 /**
  * v6 -> v7: adds `workout_exercises.isDone` (per-exercise completion, alongside `isSkipped`).
- * A plain `ADD COLUMN` suffices here - unlike MIGRATION_4_5/5_6, nothing on this table is being
- * renamed or dropped, and `ADD COLUMN` (unlike `DROP`/`RENAME COLUMN`) is reliable across
- * Android's bundled SQLite versions.
+ * Plain `ADD COLUMN` - reliable across Android's SQLite versions, unlike drop/rename.
  */
 val MIGRATION_6_7 = Migration(6, 7) { db ->
     db.execSQL("ALTER TABLE `workout_exercises` ADD COLUMN `isDone` INTEGER NOT NULL DEFAULT 0")
@@ -101,25 +95,14 @@ val MIGRATION_7_8 = Migration(7, 8) { db ->
 }
 
 /**
- * v8 -> v9: swaps every entity's autoincrement `Long` primary key (and every FK column pointing at
- * one) for a client-generated UUID `String`. Two offline devices can independently generate the
- * same next autoincrement id; they can't independently generate the same UUID.
+ * v8 -> v9: swaps every entity's autoincrement `Long` primary key (and FK columns pointing at one)
+ * for a client-generated UUID `String` - offline devices can't independently generate the same
+ * next autoincrement id, but can't collide on UUIDs either.
  *
- * Rebuilds every table (new UUID-keyed shape, not a plain `ALTER TABLE`) and walks existing rows
- * in FK dependency order - parents first (`exercises`/`routines`/`measurement_types`), then their
- * children (`routine_exercises`/`workouts`/`body_metrics`), then `workout_exercises`, then
- * `set_entries`/`cardio_entries` - generating a UUID per old row and remapping every FK column via
- * an old-`Long`-id -> new-UUID map for that entity, built while that entity's own table is copied.
- *
- * `workouts.restWorkoutExerciseId` is the one forward reference (a workout pointing at one of its
- * own not-yet-migrated `workout_exercises` rows) - it's copied over as `NULL` in the initial
- * `workouts` pass and patched in after `workout_exercises` (and its id map) exist.
- *
- * Built-in (seed) rows are the one exception to "fresh random UUID per row": `exercises` rows
- * with `isCustom = 0` and the `measurement_types` row with `isBuiltIn = 1` are remapped to
- * [BuiltInData.stableId]'s deterministic, name-derived id instead of a random one, so an
- * upgrading install's "Bench Press" (etc.) ends up with the exact same id a fresh install's seed
- * would assign it.
+ * Rebuilds every table in FK dependency order, remapping each old id to a new UUID as it goes.
+ * `workouts.restWorkoutExerciseId` is the one forward reference, so it's copied as `NULL` and
+ * patched in after `workout_exercises` exists. Built-in `exercises`/`measurement_types` rows get
+ * [BuiltInData.stableId]'s deterministic id instead of a random one, so upgrades match fresh installs.
  */
 val MIGRATION_8_9 = Migration(8, 9) { db ->
     val exerciseIdMap = migrateExercises8To9(db)
@@ -135,13 +118,9 @@ val MIGRATION_8_9 = Migration(8, 9) { db ->
 }
 
 /**
- * v9 -> v10: adds `isDirty`/`lastModifiedAt` to every entity that's part of remote sync -
- * `isDirty` is local-only bookkeeping a sync push filters on, `lastModifiedAt` is a plain
- * informational "last edited" timestamp. Plain `ADD COLUMN` on every table, same reasoning as
- * MIGRATION_6_7/7_8 - nothing renamed or dropped. Existing rows backfill `isDirty = 1` (so a
- * user's entire pre-existing history is eligible to back up on first sync, not just rows touched
- * after this migration) and `lastModifiedAt` to this migration's run time, uniformly - not each
- * row's own natural timestamp, an accepted tradeoff at this app's scale.
+ * v9 -> v10: adds `isDirty` (sync push filters on it) and `lastModifiedAt` to every synced entity.
+ * Existing rows backfill `isDirty = 1` so pre-existing history is eligible on first sync, and
+ * `lastModifiedAt` to this migration's run time uniformly rather than each row's real timestamp.
  */
 val MIGRATION_9_10 = Migration(9, 10) { db ->
     val now = System.currentTimeMillis()
@@ -155,10 +134,9 @@ val MIGRATION_9_10 = Migration(9, 10) { db ->
 }
 
 /**
- * v10 -> v11: adds `sync_tombstones`, a pending-deletion record (entity type + id, plus the
- * ancestor ids some entity types need to rebuild their Firestore document path) for the sync push
- * job to read - Room's cascade deletes leave no other trace a row ever existed, so without this
- * the push job would have no way to know a locally-deleted row's Firestore copy needs deleting too.
+ * v10 -> v11: adds `sync_tombstones`, a pending-deletion record for the sync push job to read -
+ * Room's cascade deletes leave no other trace a row existed, so without this the push job can't
+ * know a locally-deleted row's Firestore copy needs deleting too.
  */
 val MIGRATION_10_11 = Migration(10, 11) { db ->
     db.execSQL(

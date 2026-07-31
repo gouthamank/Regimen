@@ -123,14 +123,10 @@ class SyncReplaceRepositoryImpl @Inject constructor(
             .collection("syncConfig").document("current")
 
         return try {
-            // Checks lockedAt and claims primary - setting lockedAt again ourselves in the same
-            // write, not just primaryDeviceId - inside one transaction, so a push that's
-            // genuinely in flight right now can't have its destination pulled out from under it
-            // mid-claim. Unlike a normal push (which only holds the lock for its own run), this
-            // claim holds it for its *entire* duration - through the wipe and force-push below,
-            // not just this initial flip - and SyncPushRunner now refuses to start at all while
-            // it's held (see its own doc), closing the reverse race too: an old primary device's
-            // push landing writes into a cloud this claim is concurrently wiping/rebuilding.
+            // Checks lockedAt and claims primary in one transaction, so an in-flight push can't
+            // have its destination pulled out from under it mid-claim. Unlike a normal push, this
+            // claim holds the lock for its entire duration (through the wipe and force-push
+            // below) - SyncPushRunner refuses to start while it's held, closing the reverse race.
             firestore.runTransaction { transaction ->
                 val lockedAt =
                     transaction.get(syncConfigRef).toObject(SyncConfigDto::class.java)?.lockedAt
@@ -163,12 +159,9 @@ class SyncReplaceRepositoryImpl @Inject constructor(
                 }
                 preferencesRepository.markPreferencesDirty()
 
-                // Reuses the exact same incremental push loop Phase 1 built, not a separate
-                // upload path - a full initial backfill can easily exceed one run's batch cap
-                // (unlike a typical incremental sync), but that's not a failure here either:
-                // whatever's left dirty drains on the next periodic/manual run, same as any
-                // capped-partial push. This call also releases the lock above as part of its own
-                // normal start-of-run/finally handling, once it actually runs.
+                // Reuses the same incremental push loop, not a separate upload path - a full
+                // backfill can exceed one run's batch cap, but whatever's left dirty just drains
+                // on the next run, same as any capped-partial push.
                 val status = syncPushRepository.push()
                 status.lastError?.let {
                     return Result.failure(SyncReplaceException(it.toSyncReplaceReason()))

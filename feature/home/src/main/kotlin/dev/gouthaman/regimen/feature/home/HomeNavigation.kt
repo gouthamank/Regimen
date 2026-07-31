@@ -8,15 +8,10 @@ import dev.gouthaman.regimen.navigation.MeasurementsRoute
 import dev.gouthaman.regimen.navigation.RoutinesRoute
 
 /**
- * [onSwitchToTab] is a single combined callback for "act like tapping the Routines tab" (updates
- * the bottom-bar's own selected-tab state *and* the NavHost's tab back stack) - both halves of
- * that live in `:app` (`RegimenApp`'s tab state, `NavHostController.navigateToTab`), so the
- * composition root builds this callback and hands it down rather than this module depending on
- * either directly.
- *
- * [onWorkoutStarted] expands the persistent ActiveWorkoutSheet (`:app`'s RegimenApp/
- * ActiveWorkoutSheet) rather than navigating anywhere - the live in-progress workout isn't a
- * NavHost destination.
+ * [onSwitchToTab] combines "act like tapping the Routines tab" (bottom-bar selected-tab state and
+ * the NavHost's tab back stack) into one callback built by `:app`'s composition root, so this
+ * module doesn't depend on either directly. [onWorkoutStarted] expands `:app`'s persistent
+ * ActiveWorkoutSheet rather than navigating anywhere - it isn't a NavHost destination.
  */
 fun NavGraphBuilder.homeGraph(
     navController: NavHostController,

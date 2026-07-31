@@ -9,13 +9,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** This device's local copy of `syncConfig.lastPushedAt`, in the same `sync_state` DataStore
- * [DeviceIdentityStore] uses (covered by Auto Backup, same as the device id) - the freshness
- * watermark's read side. Written only after a genuinely successful push (see
- * `SyncPushRunner.runPush()`) or a successful Pull cloud data (which resets it to match
- * whatever it just read from the cloud). Compared against the cloud's live `lastPushedAt` before
- * every push attempt - a mismatch means this device's local state can't be trusted to push from
- * (e.g. an Auto Backup restore landed with a stale snapshot), even though its device ID still
- * says primary. */
+ * [DeviceIdentityStore] uses. Written only after a genuinely successful push or a successful pull
+ * (which resets it to match the cloud). Compared against the cloud's live `lastPushedAt` before
+ * every push attempt - a mismatch means this device's local state can't be trusted (e.g. an Auto
+ * Backup restore landed with a stale snapshot), even though its device ID still says primary. */
 @Singleton
 class FreshnessWatermarkStore @Inject constructor(
     @ApplicationContext private val context: Context,

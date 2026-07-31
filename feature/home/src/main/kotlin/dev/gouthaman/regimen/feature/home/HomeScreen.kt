@@ -460,13 +460,11 @@ private fun animatedMillis(target: Long, durationMillis: Int, delayMillis: Int =
     return animatable.value.roundToLong()
 }
 
-/** Same idea as [animatedInt], but for a pre-formatted decimal string (e.g. weight/volume display
- * values) - parses the target, ticks a float up to it, then re-formats each frame using the app's
- * own [UnitConverter] formatters (so e.g. a whole-number frame reads "70", not "70.0", and it lands
- * on a clean "0" rather than "0.0"). Handles [UnitConverter.formatCompact]'s "1.23k" abbreviation
- * (volume totals over 1000) by recovering the raw value and re-abbreviating as it climbs, so large
- * volumes still animate instead of snapping straight to their final compact string. Falls back to
- * the raw string if it isn't numeric. */
+/** Same idea as [animatedInt], but for a pre-formatted decimal string (e.g. weight/volume) - parses
+ * the target, ticks a float up to it, then re-formats each frame with [UnitConverter] so whole
+ * numbers read "70" not "70.0". Recovers the raw value from [UnitConverter.formatCompact]'s "1.23k"
+ * abbreviation so large volumes still animate instead of snapping to their final string. Falls
+ * back to the raw string if it isn't numeric. */
 @Composable
 private fun animatedNumericLabel(
     target: String,

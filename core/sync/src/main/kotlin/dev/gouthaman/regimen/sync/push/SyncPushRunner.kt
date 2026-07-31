@@ -51,14 +51,10 @@ private const val PUSH_TIMEOUT_MS = 5 * 60_000L
 
 internal data class DirtyBatchResult(val remainingBudget: Int, val hasMore: Boolean)
 
-/** Shared read-write-clear loop for every list-shaped synced entity type, extracted as a plain
- * function (no Firestore/Room dependency of its own) so its partial-failure/batch-cap behavior is
- * unit-testable with fake lambdas. Clears each row's dirty flag immediately after its own write
- * succeeds - not batched at the end - so an exception partway through (which propagates out and
- * aborts the whole run) leaves only the unconfirmed rows dirty, exactly the partial-batch
- * behavior the change-tracking design calls for. [DirtyBatchResult.hasMore] is set whenever the
- * read returns a full page at the requested limit - a (harmless, self-correcting) signal there
- * may be more work than this call's budget allowed for, not a precise count. */
+/** Shared read-write-clear loop for every list-shaped synced entity type, kept dependency-free so
+ * it's unit-testable with fake lambdas. Clears each row's dirty flag right after its own write
+ * succeeds (not batched at the end), so a mid-run exception leaves only unconfirmed rows dirty.
+ * [DirtyBatchResult.hasMore] just signals a full page was read, not a precise count. */
 internal suspend fun <T> pushDirtyBatch(
     budget: Int,
     getDirty: suspend (Int) -> List<T>,
@@ -76,15 +72,12 @@ internal suspend fun <T> pushDirtyBatch(
 }
 
 /**
- * The primary device's incremental sync push - reads every dirty row/tombstone across the synced
- * Room tables and the preferences document, writes/deletes them via Firestore, and clears each
- * one only once its own write is confirmed (never batched-and-cleared-at-the-end, so a
- * mid-run failure leaves exactly the unconfirmed rows dirty for next run, not the whole batch).
- * Re-checks primary status between every entity-type step (not just once at the start) and holds
- * a soft `syncConfig.lockedAt` lease for the run's duration, guarding against a *different* device
- * claiming primary mid-run. Called by [SyncPushWorker] (periodic) and `AccountViewModel`'s manual
- * "Sync now" alike - the same code path either way. Firestore round-trips are verified manually on
- * the AVD, not by automated tests, per this module's existing convention (see `docs/testing.md`).
+ * The primary device's incremental sync push - reads every dirty row/tombstone, writes/deletes
+ * them via Firestore, and clears each one only once its own write is confirmed (so a mid-run
+ * failure leaves only the unconfirmed rows dirty). Re-checks primary status between every
+ * entity-type step and holds a soft `syncConfig.lockedAt` lease for the run's duration, guarding
+ * against a different device claiming primary mid-run. Shared by [SyncPushWorker] and
+ * `AccountViewModel`'s manual "Sync now".
  */
 @Singleton
 class SyncPushRunner @Inject constructor(
@@ -108,13 +101,9 @@ class SyncPushRunner @Inject constructor(
 
     override suspend fun getLastStatus(): SyncStatus = syncStatusStore.get()
 
-    /** Persists whatever [SyncStatus] [runPush] computes, on every branch it returns except the
-     * not-primary no-op - so this matches what [getLastStatus] reads back later, regardless of
-     * caller (periodic [SyncPushWorker] or manual "Sync now"). Not-primary is deliberately
-     * excluded: it means this device isn't the one syncing right now, not that its last real
-     * sync stopped being true - persisting it would overwrite a genuinely persisted "Synced at
-     * 2:14 PM" with "Not yet synced" the moment this device loses primary status, even though it
-     * really did sync before. */
+    /** Persists every [SyncStatus] [runPush] returns except the not-primary no-op - persisting
+     * that would overwrite a genuinely-synced status with "Not yet synced" just because this
+     * device lost primary status, even though it really did sync before. */
     override suspend fun push(): SyncStatus {
         val status = runPush()
         if (status != notPrimaryStatus()) syncStatusStore.save(status)
@@ -122,13 +111,10 @@ class SyncPushRunner @Inject constructor(
     }
 
     private suspend fun runPush(): SyncStatus {
-        // Fails fast without ever touching Firestore - offline, a bare `.await()` on a Firestore
-        // call doesn't reliably fail quickly (it can hang, waiting on a network state that never
-        // resolves), which is exactly what left "Sync now" spinning forever in airplane mode
-        // before this check existed. The periodic job never hits this, since WorkManager's own
-        // `NetworkType.CONNECTED` constraint already stops it from starting offline at all - only
-        // the manual "Sync now" path (which calls straight into this, bypassing WorkManager) needs
-        // its own check.
+        // Fails fast without touching Firestore - offline, a bare `.await()` doesn't reliably
+        // fail quickly, which left "Sync now" spinning forever in airplane mode. The periodic job
+        // never hits this (WorkManager's own NetworkType.CONNECTED constraint covers it); only the
+        // manual path needs its own check.
         if (!isNetworkAvailable()) {
             return SyncStatus(
                 lastSyncedAt = null,
@@ -168,11 +154,8 @@ class SyncPushRunner @Inject constructor(
         val syncConfigRef = firestore.collection("users").document(uid)
             .collection("syncConfig").document("current")
 
-        // One read serves two independent checks below - not a transaction (same rigor as the
-        // mid-run ensureStillPrimary() checks further down - reactive/best-effort, not perfectly
-        // atomic; a claim or a stale-watermark restore landing in the narrow gap after this read
-        // is an accepted, low-probability residual risk for what's still fundamentally a personal
-        // app).
+        // One read serves both checks below - not a transaction, so a claim or watermark restore
+        // landing in the narrow gap after this read is an accepted, low-probability risk.
         val config = syncConfigRef.get().await().toObject(SyncConfigDto::class.java)
 
         // Refuses to start while "Claim primary" is actively wiping/rebuilding this account
@@ -184,14 +167,10 @@ class SyncPushRunner @Inject constructor(
             return notPrimaryStatus()
         }
 
-        // Freshness watermark: device-ID matching primaryDeviceId isn't sufficient on its own to
-        // prove this device's local state is safe to push from - Auto Backup runs on its own
-        // opportunistic schedule, so a restored device's snapshot can be older than the last
-        // successful push, or carry a stale isDirty=true that would silently overwrite the
-        // cloud's already-newer state. A mismatch here means exactly that: this device thinks
-        // it's primary, but its local watermark doesn't match what the cloud says was last
-        // pushed - refuse rather than trust it. Cleared by a successful Pull cloud data, which
-        // resets the local watermark to match what it just read.
+        // Freshness watermark: device-ID match alone isn't enough - Auto Backup can restore a
+        // snapshot older than the last successful push, carrying a stale isDirty=true that would
+        // overwrite the cloud's newer state. A mismatch here means refuse rather than trust it;
+        // a successful pull resets the watermark to match what it read.
         if (watermarkStore.get() != config?.lastPushedAt) {
             return notPrimaryStatus()
         }
@@ -376,12 +355,9 @@ class SyncPushRunner @Inject constructor(
         }
     }
 
-    /** [dev.gouthaman.regimen.sync.auth.isSessionRevoked] checked first: a revoked Google grant
-     * can surface as any number of underlying exception shapes depending on which Firestore call
-     * hit it, so this takes priority over the plain network check rather than risking it getting
-     * misclassified as a transient `NETWORK` failure that a retry would never actually fix. Force
-     * signs out locally the moment this is detected, so the UI falls back to the signed-out state
-     * instead of silently retrying a session that can never succeed again. */
+    /** Checks [dev.gouthaman.regimen.sync.auth.isSessionRevoked] first - a revoked grant can
+     * surface as many different exception shapes, so it takes priority over misclassifying it as
+     * a retriable `NETWORK` failure. Force signs out locally so the UI falls back correctly. */
     private fun Throwable.toReason(): AuthErrorReason = when {
         isSessionRevoked() -> {
             firebaseAuth.signOut()

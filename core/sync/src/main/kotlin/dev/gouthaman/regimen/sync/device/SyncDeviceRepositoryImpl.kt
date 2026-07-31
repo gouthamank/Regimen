@@ -8,28 +8,16 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A lock older than this is treated as abandoned (a crashed/killed push or claim that never
- * cleared it), not genuinely in flight - 2x [dev.gouthaman.regimen.sync.push.SyncPushRunner]'s
- * own 5-minute push timeout, as a safety margin for clock skew rather than a tight threshold.
- * Shared by every [SyncConfigDto.lockedAt] consumer (`SyncPushRunner`,
- * `dev.gouthaman.regimen.sync.replace.SyncReplaceRepositoryImpl`) so they agree on what "stale"
- * means. */
+/** A lock older than this is treated as abandoned, not in flight - 2x SyncPushRunner's 5-minute
+ * push timeout, as a clock-skew safety margin. Shared by every [SyncConfigDto.lockedAt] consumer
+ * so they agree on what "stale" means. */
 internal const val LOCK_STALE_AFTER_MS = 10 * 60_000L
 
-/** Firestore shape for `users/{uid}/syncConfig/current` - the live, authoritative record of
- * which device is primary for this account. Every device reads this directly rather than
- * comparing against its own local bookkeeping, which is what makes this design immune to
- * stale-local-state problems (e.g. Auto Backup restoring an outdated value). [lastPushedAt] is
- * the freshness watermark - updated by the push job after every run that completes without error
- * (full or capped-partial alike), compared against this device's own local copy
- * ([FreshnessWatermarkStore]) before every push attempt and by [SyncDeviceRepositoryImpl.secondaryDeviceReason]
- * for the UI. [lockedAt] is a
- * soft lease shared by both the push job and "Claim primary" - set for the duration of either
- * one's work and cleared (`null`) when it ends (success, failure, or aborted), a timestamp rather
- * than a plain boolean so a crashed/killed run that never clears it doesn't lock the account out
- * forever (see [LOCK_STALE_AFTER_MS]). Both `SyncPushRunner` (refuses to start while it's held)
- * and `SyncReplaceRepositoryImpl.claimPrimary()` (checks it before claiming, then holds it for
- * its own entire wipe-and-force-push duration) read and write it. */
+/** Firestore shape for `users/{uid}/syncConfig/current` - the live, authoritative record of which
+ * device is primary, read directly by every device rather than compared against local bookkeeping.
+ * [lastPushedAt] is the freshness watermark, checked against [FreshnessWatermarkStore] before every
+ * push. [lockedAt] is a soft lease shared by the push job and "Claim primary", a timestamp (not a
+ * boolean) so a crashed run doesn't lock the account out forever (see [LOCK_STALE_AFTER_MS]). */
 data class SyncConfigDto(
     val primaryDeviceId: String? = null,
     val lastPushedAt: Long? = null,

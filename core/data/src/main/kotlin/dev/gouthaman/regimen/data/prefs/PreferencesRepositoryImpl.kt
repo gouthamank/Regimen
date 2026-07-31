@@ -76,12 +76,9 @@ class PreferencesRepositoryImpl @Inject constructor(
         )
     }
 
-    /** `null` if preferences aren't dirty - nothing for the sync push job to do. A device that's
-     * never called any setter has no `IS_DIRTY` key at all (unlike Room's `isDirty`, DataStore has
-     * no migration-time backfill for pre-existing installs) - checking for `== false` rather than
-     * `!= true` deliberately treats that "never set" (`null`) case as dirty too, so an existing
-     * user's current preferences still get an initial push rather than staying permanently
-     * un-synced until they happen to change a setting. */
+    /** `null` if preferences aren't dirty - nothing for the sync push job to do. Checks `== false`
+     * rather than `!= true` deliberately, so a device with no `IS_DIRTY` key at all (never called
+     * any setter) is treated as dirty too, getting an initial push instead of staying un-synced. */
     suspend fun getDirtyPreferences(): DirtyPreferences? {
         val p = context.dataStore.data.first()
         if (p[Keys.IS_DIRTY] == false) return null
@@ -96,11 +93,8 @@ class PreferencesRepositoryImpl @Inject constructor(
     }
 
     /** "Pull cloud data"'s write side - plain strings/primitives rather than a Dto type, since
-     * that type lives in `:core:sync` and this class can't depend on it (wrong direction; sync
-     * already depends on data). Callers already have the enum values serialized as `.name`
-     * strings (the same shape [setWeightUnit] etc. write), so no parsing round-trip is needed
-     * here. Deliberately doesn't touch `onboarded` - a per-device concept, never part of what's
-     * pulled. Marks clean (not dirty), since a freshly-pulled value already matches the cloud. */
+     * that type lives in `:core:sync` (wrong dependency direction). Doesn't touch `onboarded` - a
+     * per-device concept, never part of what's pulled. Marks clean, not dirty. */
     suspend fun applyPulledPreferences(
         weightUnit: String,
         distanceUnit: String,

@@ -137,11 +137,13 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
   dependency at all.
 - Skipped: everything else in `:core:sync` that actually touches the Firestore/Firebase Auth/
   WorkManager SDKs directly (`AuthRepositoryImpl`, `SyncDeviceRepositoryImpl`,
-  `DeviceIdentityStore`, `FirestoreSyncPaths`, `SyncPushRunner.push()`'s own orchestration around
+  `SyncReplaceRepositoryImpl`, `DeviceIdentityStore`, `FreshnessWatermarkStore`,
+  `FirestoreSyncPaths`, `FirestoreSyncReader`, `SyncPushRunner.push()`'s own orchestration around
   `pushDirtyBatch` including its mid-run `ensureStillPrimary()` re-checks, `SyncPushWorker`,
-  `SyncSchedulerImpl`) - per the Test strategy in `docs/todo-remote-sync.md`, actual Firestore
-  round-trips are verified manually against the real project on the AVD via a written action
-  script, not stood up against a Firebase Local Emulator Suite, mocked SDK calls, or WorkManager's
+  `SyncSchedulerImpl`) - business/branching logic gets real unit test coverage with fakes (see
+  `docs/architecture.md`'s "Remote sync" section), but actual Firestore round-trips are verified
+  manually against the real project on a physical device/AVD via a written action script, not
+  stood up against a Firebase Local Emulator Suite, mocked SDK calls, or WorkManager's
   `WorkManagerTestInitHelper`, since no CI pipeline exists here to make that investment pay for
   itself.
 

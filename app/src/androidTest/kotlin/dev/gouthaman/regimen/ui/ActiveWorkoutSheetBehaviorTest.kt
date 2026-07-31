@@ -23,12 +23,10 @@ import org.junit.runner.RunWith
 import javax.inject.Inject
 
 /**
- * Drives the persistent [ActiveWorkoutSheet] through the flow discussed while designing it: no
- * workout in progress, start one, collapse it, switch tabs while collapsed, re-expand, then switch
- * tabs while expanded (which should collapse it first rather than leaving it stuck on top). Runs
- * against a real Hilt graph with an in-memory Room database ([TestDatabaseModule]) so the whole
- * chain - Home's Start Workout button through to the sheet's own ViewModel - is exercised for
- * real, including the actual foreground service `StartWorkoutUseCase` triggers.
+ * Drives the persistent [ActiveWorkoutSheet]: start a workout, collapse it, switch tabs while
+ * collapsed, re-expand, then switch tabs while expanded (which should collapse it first rather
+ * than leaving it stuck on top). Runs against a real Hilt graph with an in-memory Room database
+ * ([TestDatabaseModule]), exercising the whole chain including the real foreground service.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)

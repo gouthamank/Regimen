@@ -1,11 +1,9 @@
 package dev.gouthaman.regimen.domain.service
 
 /**
- * Fires the rest-complete alert (S14): vibration + optional chime + a system notification.
- * The concrete implementation needs an Android `Context` and notification APIs, so it lives in
- * `:app` (`service/RestAlertsImpl.kt`) - this interface is what lets a feature module's ViewModel
- * depend on the capability without depending on `:app` itself, same as the repository interfaces
- * in `domain.repository`.
+ * Fires the rest-complete alert: vibration + optional chime + a system notification. The concrete
+ * implementation needs an Android `Context` and notification APIs, so it lives in `:app` - this
+ * interface lets a feature module's ViewModel depend on the capability without depending on `:app`.
  */
 interface RestAlerts {
     /** [workoutId] is used to deep-link the notification's tap target back into that session's

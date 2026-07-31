@@ -160,12 +160,9 @@ class ActiveWorkoutSheetState internal constructor(
     suspend fun expand() = draggableState.animateTo(WorkoutSheetValue.Expanded)
     suspend fun collapse() = draggableState.animateTo(WorkoutSheetValue.Collapsed)
 
-    /** Instantly resets to Collapsed with no animation - this state outlives any single workout
-     * (created once for the whole `RegimenApp` session), so without this a new workout mounting
-     * the sheet would inherit whatever expand/collapse state a *previous* workout left it in
-     * (e.g. finishing/discarding while Expanded), showing the full screen immediately instead of
-     * the collapsed banner. Called once, right as a new workout starts being tracked - not while
-     * one is already in progress, which would undo the user's own drag/tap. */
+    /** Snaps to Collapsed with no animation. Needed because this state outlives any single workout
+     * (created once per `RegimenApp` session), so a new workout would otherwise inherit whatever
+     * expand/collapse state the previous one left behind. */
     internal suspend fun resetToCollapsed() = draggableState.snapTo(WorkoutSheetValue.Collapsed)
 }
 
@@ -178,24 +175,13 @@ fun rememberActiveWorkoutSheetState(): ActiveWorkoutSheetState {
 
 /**
  * The live in-progress workout, modeled as a two-state draggable sheet rather than a NavHost
- * destination: collapsed shows a mini-player-style banner docked above the bottom nav; expanded
- * fills the screen with the full workout-logging UI, with a continuous drag/crossfade between the
- * two (no third, resting midway state - releasing mid-drag snaps to whichever anchor is closer).
- * Editing a past (already-finished) session goes through :feature:history's EditWorkoutScreen (a
- * normal NavHost push) instead - there's no "in progress" state to collapse an edit session to,
- * and it has none of this sheet's pause/rest-timer/finish machinery.
+ * destination, so it stays visible (collapsed) across every top-level tab and pushed screen.
+ * Editing an already-finished session instead goes through :feature:history's EditWorkoutScreen,
+ * which has none of this sheet's pause/rest-timer/finish machinery.
  *
- * Shown regardless of which NavHost destination is current, top-level tab or pushed screen alike
- * (Session Detail, Workout Summary, Exercise Library, "add custom exercise") - collapsed, it's
- * always reachable rather than only from the five tab roots.
- *
- * [workoutId] is bound directly to the DB's "is a workout in progress" signal by the caller - no
- * sticky/cached value needed. [onFinished]/[onDiscarded] fire synchronously from this composable's
- * own Finish/Discard confirm dialogs, right alongside the `finish()`/`discard()` calls that write
- * the change, rather than reactively off a round-tripped `uiState` flip - so there's no race to
- * avoid between the caller unmounting this composable and those callbacks getting a chance to run.
- * Deliberately does NOT navigate to Workout Summary itself either - that's the caller's job (it
- * owns the `NavController`, which this composable has no reason to reach into directly).
+ * [onFinished]/[onDiscarded] fire synchronously from this composable's own confirm dialogs,
+ * alongside the finish()/discard() calls - avoiding a race with the caller unmounting this
+ * composable. Does not navigate to Workout Summary itself; that's the caller's job.
  */
 @Composable
 fun ActiveWorkoutSheet(
@@ -213,11 +199,8 @@ fun ActiveWorkoutSheet(
 
     val scope = rememberCoroutineScope()
 
-    // Created here, unconditionally - not inside LiveWorkoutContent's `if (progress > 0f)` gate -
-    // so its combine()/stateIn() query chain starts running the instant the sheet mounts, even
-    // fully Collapsed, rather than only once the user first expands it. Data is warm (or at least
-    // well on its way) by the time someone actually taps to expand, instead of that first expand
-    // racing the initial query.
+    // Created unconditionally (not gated behind LiveWorkoutContent's progress check) so its query
+    // chain starts warm the instant the sheet mounts, before the user first expands it.
     val viewModel: ActiveWorkoutViewModel =
         hiltViewModel<ActiveWorkoutViewModel, ActiveWorkoutViewModel.Factory>(
             key = "active-workout-$workoutId",
@@ -228,12 +211,8 @@ fun ActiveWorkoutSheet(
         scope.launch { sheetState.animateTo(WorkoutSheetValue.Collapsed) }
     }
 
-    // Set-row enter/exit animations are disabled both while Collapsed and for the first second
-    // after expanding - the sheet's own expand transition plus every visible set row's enter
-    // animation firing at once was enough real, measured jank that it's not worth having both
-    // compete for frame budget at the same time. Keyed on targetValue (not currentValue) so this
-    // starts counting the instant expansion is requested, and immediately turns back off - not
-    // just pauses the countdown - if collapsed again before that second is up.
+    // Disabled during the sheet's own expand transition - both animating at once caused measured
+    // jank. Keyed on targetValue so it resets immediately if collapsed again mid-countdown.
     var setRowAnimationsEnabled by remember { mutableStateOf(false) }
     LaunchedEffect(sheetState.targetValue) {
         if (sheetState.targetValue == WorkoutSheetValue.Expanded) {
@@ -271,32 +250,16 @@ fun ActiveWorkoutSheet(
             },
         contentAlignment = Alignment.BottomCenter,
     ) {
-        // Decorative background only (color/shape/shadow, no children) - resizing this every
-        // animation frame is cheap since there's nothing expensive inside it to remeasure. The
-        // actual content below is laid out at this Box's own constant full size instead of being
-        // nested inside this Surface, so it's never forced through the same remeasure - expanding/
-        // collapsing used to also remeasure the full Scaffold+LazyColumn of exercise cards every
-        // frame just because it lived inside the element whose height was being animated.
-        //
-        // anchoredDraggable lives here, not on the outer Box, specifically *because* this Surface
-        // is sized to the sheet's current visible bounds (currentHeightPx) - putting it on the
-        // always-full-screen outer Box instead made the whole screen capture drag/scroll gestures
-        // even while collapsed, since a modifier's touch-detection region is its own layout
-        // bounds, not "whatever's visually on top."
-        // The pill's pronounced primaryContainer tint only ever showed up incidentally, via
-        // LiveWorkoutContent's own (alpha-fading) Scaffold background happening to reveal this
-        // Surface's fixed color underneath as it faded out - which read as a deliberate color
-        // morph while collapsing, but on expand the same incidental reveal gets covered back up by
-        // that same content fading IN almost immediately, so the collapsed tint barely registers
-        // before it's gone. Interpolating this Surface's own color directly against progress (not
-        // an animateColorAsState - that would add its own lag on top of an already-live drag)
-        // makes the morph deliberate and identical in both directions, instead of a side effect of
-        // one direction's alpha fade.
+        // Decorative background only, sized to track the drag - cheap to remeasure since it has
+        // no children; content below stays at this Box's constant full size so it's never
+        // remeasured with it.
         val expandedBackground = MaterialTheme.colorScheme.background
         val expandedOnBackground = MaterialTheme.colorScheme.onBackground
         val collapsedBackground = MaterialTheme.colorScheme.primaryContainer
         val collapsedOnBackground = MaterialTheme.colorScheme.onPrimaryContainer
         Surface(
+            // Interpolated directly (not animateColorAsState) so the color morph tracks the
+            // live drag instead of lagging behind it.
             color = lerp(collapsedBackground, expandedBackground, progress),
             contentColor = lerp(collapsedOnBackground, expandedOnBackground, progress),
             shadowElevation = 2.dp,
@@ -310,7 +273,8 @@ fun ActiveWorkoutSheet(
                 .anchoredDraggable(
                     state = sheetState,
                     orientation = Orientation.Vertical,
-                    // Dragging up should grow the sheet (toward Expanded, the larger anchor).
+                    // Lives here, not on the outer Box, so touch detection matches the visible
+                    // sheet bounds rather than the full screen even while collapsed.
                     reverseDirection = true,
                 ),
         ) {}
@@ -328,20 +292,9 @@ fun ActiveWorkoutSheet(
                     .alpha(1 - progress),
             )
         }
-        // Full content: slides up + fades in as the sheet expands, rather than fading in place -
-        // a flat crossfade doesn't visually track the drag at all (the whole screen's worth of
-        // content just appears behind the pill, disconnected from where your finger actually is),
-        // most apparent when slowly dragging the collapsed pill up by hand. Translating by however
-        // much of the container is still "uncovered" (containerHeightPx - currentHeightPx) ties
-        // its position directly to the same drag progress that's growing the pill, so it reads as
-        // being pulled up out of it instead of materializing on its own. Still alpha-faded too -
-        // pure translation alone would mean the still-full-size top app bar visibly overlaps the
-        // collapsed banner's own fading-out content in the same 72dp space early in the drag.
-        // Always composed (not gated behind an if) once past the very start of the drag, so the
-        // live workout's state (scroll position, the ViewModel's collected StateFlow) survives
-        // being dragged back down rather than being torn down and recreated. Sized against this
-        // Box's constant full size, not the animated Surface, so the drag/expand animation never
-        // remeasures it - only repaints (alpha + a graphicsLayer transform, both draw-phase-only).
+        // Translates by the uncovered container height (not a flat crossfade) so content visually
+        // tracks the drag instead of materializing in place. Composed once the drag starts (not
+        // gated behind an if) so the live workout's state survives being dragged back down.
         if (progress > 0f) {
             LiveWorkoutContent(
                 viewModel = viewModel,

@@ -43,12 +43,9 @@ fun WorkoutEntity.toDto(): WorkoutDto = WorkoutDto(
 )
 
 /** "Pull cloud data"'s reverse of [toDto]. `workoutStatus` falls back to `COMPLETE` on an
- * unrecognized value rather than throwing - consistent with every document in this collection
- * already being `COMPLETE` by construction (see [FirestoreSyncReader.countWorkouts]'s own doc).
- * `endReason` falls back to `MANUAL` - a non-null string means the workout did end for some
- * reason, just not one this app version recognizes yet, and "the user finished it themselves" is
- * the safer assumption than guessing `TIMEOUT`. See [parseEnumOrDefault]'s own doc for why this
- * fails closed instead of crashing the whole pull. */
+ * unrecognized value, consistent with every document in this collection already being `COMPLETE`
+ * by construction. `endReason` falls back to `MANUAL` - a non-null string means it ended for some
+ * reason this app version doesn't recognize yet, and "the user finished it" is the safer guess. */
 fun WorkoutDto.toEntity(id: String): WorkoutEntity = WorkoutEntity(
     id = id,
     startTime = startTime,

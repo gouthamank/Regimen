@@ -66,18 +66,10 @@ fun RegimenApp(
     val inProgressWorkoutId by viewModel.inProgressWorkoutId.collectAsStateWithLifecycle()
     val windowInfo = LocalRegimenWindowInfo.current
 
-    // Tracks which bottom tab stays highlighted. Routes live in one flat NavHost (no per-tab
-    // nested graphs), so a pushed detail screen (e.g. Session Detail) has no graph-level tie back
-    // to its tab - and restoreState can land back on that detail screen rather than the tab root,
-    // so this can't be inferred from the resolved destination alone. Set eagerly at the point of
-    // intent (see onNavigateToTab / navigateToTab call sites); the listener below only fills in
-    // non-explicit cases (cold start, popping back to a tab's own root).
-    //
-    // Saved as an index into topLevelDestinations via rememberSaveable, not remember or the route
-    // object itself - plain `remember` was lost on rotation (Activity recreation), resetting this
-    // to null with no tab highlighted after rotating on a non-top-level screen like Session
-    // Detail. The listener's immediate re-add callback only matches top-level destinations
-    // directly, so it couldn't recover the value either.
+    // Tracks which bottom tab stays highlighted. Can't be inferred from the resolved destination
+    // alone (pushed detail screens have no graph-level tie back to their tab), so it's set eagerly
+    // at the point of intent; the listener below only fills in non-explicit cases. Saved via
+    // rememberSaveable (not remember) so it survives rotation.
     var activeTabIndex by rememberSaveable { mutableStateOf<Int?>(null) }
     val activeTabRoute: Any? = activeTabIndex?.let { topLevelDestinations.getOrNull(it)?.route }
     val onNavigateToTab: (Any) -> Unit = { route ->
@@ -121,14 +113,9 @@ fun RegimenApp(
         }
     }
 
-    // Requested here (app launch, right after onboarding gates past MainActivity) rather than
-    // inside Active Workout, so it's always resolved (granted or denied) well before a workout
-    // can ever start - the system dialog is modal, so the user can't reach Home/Start Workout
-    // while it's showing. This closes a real race (item 11 of the Active Workout punch list):
-    // asking from inside Active Workout meant the foreground service's first startForeground()
-    // call - fired the instant the workout's DB row is written, before Compose even navigates
-    // there - could beat the permission grant, silently suppressing that first notification with
-    // nothing to retroactively re-post it.
+    // Requested at app launch (not inside Active Workout) so it's always resolved before a
+    // workout can start - otherwise the foreground service's first startForeground() call could
+    // beat the permission grant, silently suppressing that first notification.
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -180,21 +167,12 @@ fun RegimenApp(
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            // A `when` previously calling RegimenNavHost from two branches (bare vs. wrapped in
-            // Box/Column) tore down and recomposed the whole nav-host subtree on every posture
-            // change, orphaning/restoring-stale every rememberSaveable underneath - the actual
-            // cause of sheets spuriously closing/reopening when rotating in and out of Tabletop
-            // (see "Modal/dialog dismissed on rotation fix" below). Only the width-cap Modifier
-            // value varies by posture now, not the composable structure.
-            //
-            // Compact and Tabletop both keep the bottom NavigationBar, but the window behind it
-            // isn't guaranteed phone-narrow: Tabletop can be genuinely wide (confirmed via a
-            // half-opened, 90°-hinge AVD state at ~852dp) since isTabletop overrides the
-            // width-based Rail decision. Cap and center content in both cases rather than
-            // stretching edge-to-edge under phone-like chrome. The cap is the same Medium-width
-            // breakpoint classify() uses to decide "promote to BookOrExpanded"
-            // (androidx.window.core.layout.WindowSizeClass) - not arbitrary, and a no-op for the
-            // common Compact case since a normal phone is already narrower than this.
+            // Only the width-cap Modifier value varies by posture (not composable structure) -
+            // branching to different composable shapes per posture tore down the whole nav-host
+            // subtree on rotation, resetting every rememberSaveable underneath. Tabletop can still
+            // be wide (confirmed via a half-opened hinge state), so it's capped/centered like
+            // Compact rather than stretched, using the same Medium-width breakpoint classify()
+            // uses to promote to BookOrExpanded.
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -208,21 +186,13 @@ fun RegimenApp(
                         .widthIn(max = WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp)
                         .fillMaxHeight()
                 }
-                // RegimenNavHost and ActiveWorkoutSheet overlap here (a Box, not a Column) so the
-                // sheet can grow to cover the NavHost's content when expanded - confined to this
-                // content pane specifically (not a sibling of the whole NavigationSuiteScaffold)
-                // so it never draws over the nav bar/rail, which NavigationSuiteScaffold reserves
-                // as separate space outside this Column entirely. Matches how the old NavHost-
-                // pushed Active Workout screen behaved too - it never covered the nav bar either.
+                // Overlaps (Box, not Column) so the sheet can grow to cover NavHost content when
+                // expanded, confined to this content pane so it never draws over the nav bar/rail.
                 Box(modifier = widthCapModifier) {
-                    // Reserves the collapsed banner's own footprint at the bottom of every
-                    // screen's content, rather than letting the banner float over whatever's
-                    // already there - it's a sibling Box overlay (needed so it can grow to cover
-                    // the whole pane when Expanded), which has no other way to participate in
-                    // NavHost's layout the way a real Scaffold bottomBar would. Animated in step
-                    // with the sheet's own mount/unmount transition below, since covering/
-                    // uncovering that space instantly while the banner fades in/out over several
-                    // frames would read as a mismatched jump.
+                    // Reserves the collapsed banner's footprint so content doesn't sit under it -
+                    // the banner is a sibling overlay (so it can grow to cover the pane when
+                    // expanded), with no other way to participate in NavHost's layout. Animated in
+                    // step with the sheet's own transition so the two don't visually jump apart.
                     val bottomInset by animateDpAsState(
                         targetValue = if (inProgressWorkoutId != null) CollapsedHeight else 0.dp,
                         animationSpec = tween(220),
@@ -277,12 +247,9 @@ fun RegimenApp(
                                 workoutId = workoutIdToAnimate,
                                 state = activeWorkoutSheetState,
                                 navController = navController,
-                                // Fired directly from the sheet's own Finish/Discard confirm
-                                // dialogs, not reactively off the DB write - navigation doesn't
-                                // need to wait for that write to land, and this composable owns the
-                                // NavController (unlike the sheet, which is why it wasn't safe to
-                                // have the sheet call navController.navigate() itself). See
-                                // ActiveWorkoutSheet's doc.
+                                // Fired directly from the sheet's confirm dialogs (not off the DB
+                                // write) since this composable, not the sheet, owns the
+                                // NavController.
                                 onFinished = { finishedWorkoutId ->
                                     navController.navigate(WorkoutSummaryRoute(finishedWorkoutId))
                                 },

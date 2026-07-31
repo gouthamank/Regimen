@@ -48,9 +48,11 @@ also get a secondary, freeform **Quick workout** entry point.
   helpers).
 - **`:core:navigation-api`** - the `@Serializable` route types only; no composables, pure Kotlin.
 - **`:core:sync`** - Firebase Auth (Google Sign-In via Credential Manager) and Firestore clients,
-  behind `:core:domain`'s `AuthRepository` interface. `AuthRepositoryImpl` also owns "Delete cloud
-  data" (wipes the signed-in user's Firestore documents and Firebase Auth record). No Firestore
-  push/pull sync job exists yet - see `docs/todo-remote-sync.md`.
+  behind `:core:domain`'s `AuthRepository`/`SyncPushRepository`/`SyncDeviceRepository`/
+  `SyncReplaceRepository`/`SyncScheduleRepository` interfaces. Owns the periodic + manual push job
+  (`push/`), the primary/secondary device model and full-replace actions (`replace/`,
+  `device/`), and the Room entity ↔ Firestore document mapping layer (`firestore/`). See "Remote
+  sync" below for the full picture.
 - **
   `:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active,account}`
   **
@@ -184,14 +186,19 @@ Per-exercise progress (history and PRs) lives on Exercise Detail, not on a separ
   Exercise Library and the Account screen (a compact row showing the signed-in account's email, or
   "Signed out"). Data export to JSON is not implemented.
 - **Account** (`:feature:account`) - sign in with Google (Credential Manager; the sign-in button is
-  disabled with an explanatory caption if Google Play Services isn't available) or, once signed in,
-  the account's name/email plus two destructive actions, each behind a confirmation dialog: **Sign
-  out** (stops nothing else - local data and any cloud backup are kept) and **Delete cloud data**
-  (wipes the Firestore backup and the Firebase Auth user record; does not sign out of Google or
-  touch local data). There is no separate "delete account" concept. Signing in is optional - every
-  other screen works fully signed-out. No sync job pushes or pulls data yet, so "Delete cloud data"
-  currently only ever deletes an empty backup - see `docs/todo-remote-sync.md` for the sync work
-  this screen is a foundation for.
+  disabled with an explanatory caption if Google Play Services isn't available). Once signed in:
+  the account's name/email; a sync status row ("Synced at ...", "Backing up...", "Sync failed," or
+  "Not yet synced," per `SyncStatus`) with a "Sync now" button and a "Next sync scheduled at ..."
+  line (both hidden on a secondary device, since it can't push); and, only once there's an actual
+  competing primary device or this device's own local state can't be trusted (see "Remote sync"
+  below), a disclaimer plus two full-replace actions, **Pull cloud data** and **Use this device
+  instead** - each behind a count-based confirmation dialog (3-second-delayed confirm button, same
+  mechanism `ActiveWorkoutSheet` uses for ending a workout with incomplete exercises). Two
+  destructive actions round out the screen, each behind their own confirmation dialog: **Sign out**
+  (stops nothing else - local data and any cloud backup are kept) and **Delete cloud data** (wipes
+  every Firestore document under the account and the Firebase Auth user record; does not sign out
+  of Google or touch local data). There is no separate "delete account" concept. Signing in is
+  optional - every other screen works fully signed-out.
 - **Exercise Library** - every exercise (built-in and custom), filterable by type
   (strength/cardio), muscle group, and equipment, with free-text search. Ships with a curated set
   of built-in strength and cardio movements. No favorites. Also serves as the exercise-picker
@@ -480,44 +487,57 @@ implemented.
 ## Data model (Room entities, `:core:data`)
 
 ```
-Exercise(id, name, type, muscleGroup, equipment, isCustom)
+Exercise(id, name, type, muscleGroup, equipment, isCustom, isDirty, lastModifiedAt)
     type = strength | cardio
     id (and every other entity's id below) is a client-generated UUID string, not an
-    autoincrement Long - generated at creation time, a Phase 0 prerequisite for eventual
-    multi-device sync (see docs/todo-remote-sync.md). Built-in (seeded) Exercise rows and the
-    built-in MeasurementType row are the one exception: their id is a deterministic,
-    name-derived UUID (BuiltInData.stableId) instead of a random one, so every fresh install
-    seeds the identical id for the same built-in row.
+    autoincrement Long - generated at creation time, since a stable, globally-unique id (not one
+    scoped to a single device's own autoincrement sequence) is what makes multi-device sync
+    possible at all. Built-in (seeded) Exercise rows and the built-in MeasurementType row are the
+    one exception: their id is a deterministic, name-derived UUID (BuiltInData.stableId) instead
+    of a random one, so every fresh install seeds the identical id for the same built-in row.
 
     Built-in rows are never removed from BuiltInData once shipped, only retired (a not-yet-added
     isRetired/isVisible-style flag would hide a retired row from exercise pickers while still
     seeding it) - RoutineExercise/WorkoutExercise reference exercises by this same stable id, and
-    those referencing rows sync across devices (see docs/todo-remote-sync.md) while Exercise rows
-    themselves do not. Deleting a built-in entry outright would leave any device that seeds after
-    the removal (a fresh install, a reinstall, or first seed on a newer app version) with a
-    dangling foreign key the moment it pulls synced Workout/Routine data referencing that id from
-    a device that already had it.
+    those referencing rows sync across devices (see "Remote sync" below) while Exercise rows
+    themselves do not (isCustom = false rows are never in sync scope). Deleting a built-in entry
+    outright would leave any device that seeds after the removal (a fresh install, a reinstall, or
+    first seed on a newer app version) with a dangling foreign key the moment it pulls synced
+    Workout/Routine data referencing that id from a device that already had it.
 
-Routine(id, name, position)
+    isDirty/lastModifiedAt exist on every synced entity below - see "Remote sync"'s
+    change-tracking section for what they mean and who reads/writes them.
+
+Routine(id, name, position, isDirty, lastModifiedAt)
 RoutineExercise(id, routineId, exerciseId, position, targetSets, targetReps, targetRestSec,
-                supersetGroupId?)
+                supersetGroupId?, isDirty, lastModifiedAt)
 
 Workout(id, startTime, endTime, note, routineId?, workoutStatus, pausedAt?, accumulatedPausedMs,
-        restTimeEndAt?, restTotalSec?, restWorkoutExerciseId?)
+        restTimeEndAt?, restTotalSec?, restWorkoutExerciseId?, isDirty, lastModifiedAt)
     workoutStatus = IN_PROGRESS | IN_REST_TIME | PAUSED | EDITING | COMPLETE - the single source of
         truth for session lifecycle; restTimeEndAt/restTotalSec/restWorkoutExerciseId are non-null
-        only while IN_REST_TIME, pausedAt only while PAUSED
-WorkoutExercise(id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId?)
+        only while IN_REST_TIME, pausedAt only while PAUSED. Only COMPLETE workouts are ever in
+        sync scope.
+WorkoutExercise(id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId?, isDirty,
+                lastModifiedAt)
     isSkipped/isDone are mutually exclusive at the UI level (see Active Workout spec)
 
-SetEntry(id, workoutExerciseId, setNumber, weightKg?, reps?, isComplete)
+SetEntry(id, workoutExerciseId, setNumber, weightKg?, reps?, isComplete, isDirty, lastModifiedAt)
     strength WorkoutExercises only; weight stored canonically in kg
 
-CardioEntry(id, workoutExerciseId, durationSec, distanceMeters?)
+CardioEntry(id, workoutExerciseId, durationSec, distanceMeters?, isDirty, lastModifiedAt)
     cardio WorkoutExercises only; distance stored canonically in meters
 
-MeasurementType(id, name, unit, isBuiltIn)   -- "Bodyweight" is built-in
-BodyMetric(id, measurementTypeId, date, value)
+MeasurementType(id, name, unit, isBuiltIn, isDirty, lastModifiedAt)   -- "Bodyweight" is built-in
+BodyMetric(id, measurementTypeId, date, value, isDirty, lastModifiedAt)
+
+SyncTombstone(entityType, entityId, parentId?, grandparentId?, deletedAt)
+    One row per locally-deleted synced entity, until the primary device's push job confirms the
+    matching Firestore document is deleted too, then this row is cleared. parentId/grandparentId
+    carry the ancestor ids entity types nested under a Firestore subcollection need to build their
+    document path (e.g. RoutineExercise needs its routineId; SetEntry/CardioEntry need both their
+    workoutExerciseId and its workoutId) - null for entity types that sit flat at Firestore's top
+    level. See "Remote sync" below.
 ```
 
 Domain models (`:core:domain`'s `domain/model/`) are plain Kotlin data classes with no
@@ -530,7 +550,139 @@ boundary, so `:core:domain` has zero dependency on Room.
   stored.
 - `supersetGroupId` on `RoutineExercise`/`WorkoutExercise` is reserved for future superset
   grouping; currently always null.
-- Database version 9.
+- Database version 11.
+
+---
+
+## Remote sync
+
+Optional, opt-in cloud backup and multi-device sync via Firebase Auth (Google Sign-In) +
+Firestore - every other screen works fully signed-out, and the local-only Room database is always
+the source of truth for whatever device you're using. **Single-writer model, not a merge/CRDT
+system**: exactly one device per account (the **primary**) pushes automatically; every other
+signed-in device is **secondary** and can only pull the cloud's current state or take over as
+primary, never merge. This trades away automatic multi-device write reconciliation for a much
+simpler, easier-to-reason-about design - a deliberate simplification for an app whose realistic
+usage is overwhelmingly single-device.
+
+### What's synced
+
+`users/{uid}/` in Firestore, with subcollections nested to mirror the Room foreign-key chain
+exactly (not embedded arrays, not flattened siblings) - this sidesteps Firestore's 1 MiB
+document-size limit and lets the push job touch only whichever specific rows are actually dirty:
+
+```
+users/{uid}/
+  exercises/{id}            (isCustom == true only)
+  measurementTypes/{id}      (isBuiltIn == false only)
+  bodyMetrics/{id}
+  routines/{id}
+    routineExercises/{id}
+  workouts/{id}               (workoutStatus == COMPLETE only)
+    workoutExercises/{id}
+      setEntries/{id}   -or-  cardioEntries/{id}
+  preferences/current                              (single document: units, theme, rest timer
+                                                       defaults - not `onboarded`, a per-device
+                                                       concept that never syncs)
+  syncConfig/current                                (see "Primary/secondary devices" below)
+```
+
+`SetEntry`/`CardioEntry` nest under `WorkoutExercise`, not directly under `Workout`, matching the
+actual Room FK chain. Each `*Dto` (`:core:sync`'s `firestore/*Mapping.kt`) mirrors its Room entity
+exactly minus `id` (implied by the document's own path) and `isDirty` (local-only bookkeeping,
+never leaves the device).
+
+### Change tracking
+
+Every synced Room entity carries `isDirty: Boolean` and `lastModifiedAt: Long` (see "Data model"
+above); every write sets `isDirty = true`. The push job reads dirty rows oldest-`lastModifiedAt`-
+first (so a backlog drains in order rather than newer edits perpetually cutting the line ahead of
+an old one), writes them via Firestore, and clears each row's flag only once its own write is
+confirmed - not batched-and-cleared-at-the-end, so a failure partway through a run leaves exactly
+the unconfirmed rows dirty for next time, never the whole batch. Deletes work the same way but
+through `SyncTombstone` rows (see "Data model" above) instead of an `isDirty` flag, since a
+deleted row no longer exists locally to carry one.
+
+### The push job
+
+Runs two ways, same underlying code path (`:core:sync`'s `push/SyncPushRunner.kt`): a periodic
+`WorkManager` job (every 24h, `NetworkType.CONNECTED`-constrained, `BackoffPolicy.EXPONENTIAL` on
+failure - scheduled idempotently on every sign-in, cancelled on sign-out) and manual "Sync now" on
+the Account screen. Each run is capped (1,000 rows per entity type, deletes get their own separate
+1,000 cap) - a run that hits the cap completes successfully but leaves the remainder dirty for the
+next run, which the UI surfaces as "Backing up..." rather than "Synced." An upfront
+`ConnectivityManager` check fails fast instead of hanging when offline (only needed by manual
+"Sync now," since the periodic job's own `NetworkType.CONNECTED` constraint already prevents it
+from starting offline at all), backed by a 5-minute timeout as a backstop against any other kind
+of hang. `SyncStatus` (four states: synced / still backing up / failed / never synced) persists
+across app restarts in its own DataStore, so the Account screen doesn't reset to "Not yet synced"
+every time the app restarts.
+
+### Primary/secondary devices
+
+`syncConfig/current` is the live, authoritative record every device reads directly (never compared
+against its own local bookkeeping, which is what keeps this design immune to stale-local-state
+problems like an Auto Backup restore bringing back an outdated value):
+
+- **`primaryDeviceId`** - which device (a random UUID generated once per install) is allowed to
+  push automatically right now. Claimed silently, with no confirmation dialog, the first time a
+  device signs in to an account with no primary claimed yet - the common single-device case, where
+  there's nothing to protect against with an empty claim.
+- **`lastPushedAt`** - the freshness watermark. Every device also keeps its own local copy
+  (`:core:sync`'s `device/FreshnessWatermarkStore.kt`, in the same DataStore Auto Backup already
+  covers); the push job refuses to run if its local copy doesn't match the cloud's current value,
+  since device-ID matching primary alone doesn't prove local state is actually safe to push from
+  (Auto Backup's own ~daily schedule means a restored snapshot can be older than the last real
+  push).
+- **`lockedAt`** - a soft lease held for the duration of a push or a primary-device claim (a
+  timestamp, not a boolean, so a crashed/killed run doesn't lock the account out forever - treated
+  as stale past a fixed age). Both the push job and "Use this device instead" below check and hold
+  it, closing the race between an in-flight push and a concurrent claim from a different device in
+  both directions.
+
+A device that's primary but whose freshness watermark doesn't match the cloud, or that's simply
+not primary at all, shows the same secondary-device UI on the Account screen (a disclaimer,
+reason-specific copy for which of the two cases applies) with two actions:
+
+- **Pull cloud data** - wipes this device's local sync-scoped state and replaces it with whatever
+  is currently in Firestore. Refuses while a workout is in progress (checked twice: once before
+  the network read, once again as the transaction's own authoritative check, since a workout can
+  start in the gap between the two) - that row lives in the same `Workout` table but was never in
+  sync scope, and a wipe would destroy a live, foreground-service-backed session. Also resets the
+  local freshness watermark to match.
+- **Use this device instead** - wipes the account's entire Firestore tree (recursively, including
+  every nested subcollection - Firestore has no cascade delete) and force-pushes everything local
+  (marking every synced row dirty regardless of its prior state, not just whatever already
+  happened to be flagged), then claims primary. Both actions require the same count-based
+  confirmation ("this will replace/overwrite N workouts...") - always shown, never conditional,
+  since a fresh reformatted device with zero local data would otherwise make "Use this device
+  instead" ("this is obviously my device") the natural but catastrophically wrong first move.
+
+### Auth failure handling
+
+A stale/invalid Firebase session (most realistically: another device called "Delete cloud data,"
+which deletes the Firebase Auth user record and invalidates every other signed-in device's
+session) is classified via `:core:sync`'s `auth/SessionRevocation.kt` and forces a local sign-out
+with a clear message, rather than falling through to a generic error. Revoking Regimen's access
+from Google Account settings, on the other hand, does **not** stop sync on its own - Firebase
+Auth's session renews itself independently of the live Google OAuth grant once established. The
+only ways to actually stop sync are the app's own **Sign out** (ends this device's session) or
+**Delete cloud data** (also deletes the Firebase Auth user record server-side).
+
+### Schema evolution & testing
+
+Firestore has no formal migration mechanism. Additive changes need no migration step - every `Dto`
+gives each field a default so a missing new field on an old document just reads as that default.
+Enum fields fail closed on an unrecognized value (`:core:sync`'s `firestore/EnumFallback.kt`)
+rather than throwing, so an old app version's mapper can't crash entirely just because a newer
+version wrote a value it doesn't recognize yet. No dedicated schema-version field or migration
+step is planned - this is a mapper-layer convention, not new infrastructure.
+
+Business/branching logic (cascade-tombstone enumeration, retry/backoff decisions, the primary-
+status check) has real unit test coverage with fakes. Actual Firestore round-trips are verified
+manually against the real project on a physical device/AVD with a real Google account, not against
+a Firebase Local Emulator Suite or mocked SDK calls - there's no CI pipeline here to make standing
+one up pay for itself.
 
 ---
 

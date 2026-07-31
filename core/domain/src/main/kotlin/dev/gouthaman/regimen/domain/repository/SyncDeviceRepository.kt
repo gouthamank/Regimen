@@ -17,11 +17,9 @@ interface SyncDeviceRepository {
      * in, or if a different device holds it. */
     suspend fun isPrimary(): Boolean
 
-    /** Which reason (if either) the secondary-device disclaimer/Pull/Claim UI should show for
-     * right now - `null` means this device is safely, exclusively primary (or nobody's signed
-     * in, or nobody's claimed primary at all yet - the common brand-new-account case, where
-     * nothing extra should be shown), the common case. Deliberately distinct from `!isPrimary()`,
-     * which doesn't distinguish "a different device is primary" from "nobody's claimed primary
-     * yet" from "this device is primary but its local state can't be trusted." */
+    /** Which reason the secondary-device disclaimer/Pull/Claim UI should show right now - `null`
+     * means this device is safely primary (or nobody's claimed primary yet). Deliberately distinct
+     * from `!isPrimary()`, which can't tell "a different device is primary" apart from "this
+     * device is primary but its local state can't be trusted." */
     suspend fun secondaryDeviceReason(): SecondaryDeviceReason?
 }

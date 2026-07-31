@@ -62,12 +62,9 @@ class RoutineRepositoryImpl @Inject constructor(
             )
             routineId
         }
-        // A routine can never contain the same exercise twice (enforced in the editor's UI state),
-        // so exerciseId is a safe join key between the old rows and the new specs - unlike a
-        // RoutineExercise's own id, which the editor never tracks or threads back through
-        // `ExerciseSpec`. Matching by exerciseId (rather than always minting a fresh id) is what
-        // lets an edit that keeps an exercise actually keep its row - and its Firestore document -
-        // instead of tombstoning and recreating every exercise in the routine on every save.
+        // A routine can never contain the same exercise twice, so exerciseId is a safe join key
+        // between old rows and new specs - matching on it (rather than always minting a fresh id)
+        // lets an edit that keeps an exercise keep its row and Firestore document too.
         db.withTransaction {
             val existingByExerciseId = dao.routineExercisesFor(id).associateBy { it.exerciseId }
             val items = specs.mapIndexed { index, spec ->

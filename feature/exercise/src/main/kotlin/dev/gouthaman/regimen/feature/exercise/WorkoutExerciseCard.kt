@@ -324,18 +324,14 @@ fun ExerciseCard(
 
 /**
  * Wraps [SetRow] with an enter animation for new sets and a delayed exit for deletion - the real
- * [onDelete] (which removes the set from the backing list) fires only after the shrink/fade
- * finishes, since [AnimatedVisibility] needs the composable to stay mounted for its exit
- * duration ([SetRowExitDurationMs]). Set [animated] to false to skip both entirely - [onDelete]
- * fires immediately instead of after the exit delay.
+ * [onDelete] fires only after the shrink/fade finishes, since [AnimatedVisibility] needs the
+ * composable to stay mounted for its exit duration. Set [animated] to false to skip both and fire
+ * [onDelete] immediately.
  *
- * [animated] is read directly into `visible`'s *initial* value and the enter/exit specs, rather
- * than branching into an entirely different composable structure (an early `if (!animated) return`
- * used to live here) - toggling [animated] later, e.g. once some external "don't animate yet"
- * window elapses, would otherwise reset this row's `remember`ed `visible`/`removing` state, since
- * that whole subtree wouldn't have existed in the composition while animated was false. Keeping
- * the structure identical regardless of [animated] means a row already showing just keeps
- * showing - toggling animated on later doesn't replay its entrance.
+ * [animated] is read directly into `visible`'s initial value and the enter/exit specs, rather than
+ * branching into a different composable structure - toggling it later (e.g. an external "don't
+ * animate yet" window elapsing) would otherwise reset this row's remembered state, since that
+ * subtree wouldn't have existed in composition while animated was false.
  */
 @Composable
 private fun AnimatedSetRow(

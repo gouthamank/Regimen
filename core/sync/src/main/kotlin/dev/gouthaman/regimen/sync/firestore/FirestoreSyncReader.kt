@@ -111,19 +111,12 @@ class FirestoreSyncReader(firestore: FirebaseFirestore, uid: String) {
     suspend fun countWorkouts(): Int =
         userDoc.collection("workouts").count().get(AggregateSource.SERVER).await().count.toInt()
 
-    /** "Claim primary"'s wipe side, before its forced full re-push - deletes every document this
-     * account's push job ever wrote, recursively including every nested subcollection. Firestore
-     * has no cascade delete, so deleting only the top-level `workouts`/`routines` documents (the
-     * way [dev.gouthaman.regimen.sync.auth.AuthRepositoryImpl.deleteCloudData] currently does)
-     * would orphan their `workoutExercises`/`routineExercises`/`setEntries`/`cardioEntries`
-     * subcollections rather than actually removing them - a separate, pre-existing gap in that
-     * method, not something this class copies. Deletes children before their parent at every
-     * level, not just for tidiness - Firestore has no referential integrity either, so deleting a
-     * parent first wouldn't error, it would silently orphan its children. If this gets
-     * interrupted partway (e.g. a network drop), children-first leaves a harmless "parent with no
-     * children yet" state, safely re-deletable on retry; parent-first would leave genuinely
-     * orphaned children with no parent - invisible garbage a future call would never even find,
-     * since discovery here always starts from the top-level collections and descends. */
+    /** "Claim primary"'s wipe side, before its forced full re-push - recursively deletes every
+     * document this account's push job ever wrote, including nested subcollections (Firestore has
+     * no cascade delete). Deletes children before their parent at every level: if interrupted
+     * partway, children-first leaves a harmless "parent with no children yet" state that's safely
+     * re-deletable, while parent-first would leave orphaned children a future call could never
+     * find. */
     suspend fun deleteAll() {
         for (routineDoc in userDoc.collection("routines").get().await().documents) {
             for (reDoc in routineDoc.reference.collection("routineExercises").get()

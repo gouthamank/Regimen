@@ -17,14 +17,10 @@ import kotlinx.coroutines.delay
 
 /**
  * A title/text confirmation with a confirm action and an optional dismiss action - shared by
- * every delete/discard/finish confirmation across the app. Omit [dismissLabel] for an
- * acknowledgment-only dialog with a single button (e.g. an info dialog explaining why an action
- * was blocked). [destructive] colors the confirm button with the error color, for actions that
- * discard data or in-progress work; [positive] colors it with tertiary instead, for an
- * unambiguously good-to-go confirmation (e.g. finishing a workout with everything logged) - leave
- * both false for a plain neutral confirmation. [confirmEnableDelayMillis] disables the confirm
- * button for that long after the dialog appears, for a confirmation that deserves a beat before
- * committing (e.g. finishing with something still unmarked).
+ * every delete/discard/finish confirmation across the app. Omit [dismissLabel] for a single-button
+ * acknowledgment-only dialog. [destructive]/[positive] color the confirm button (error/tertiary)
+ * for discard-data vs. unambiguously-good actions; leave both false for neutral. [confirmEnableDelayMillis]
+ * disables confirm for a beat, for confirmations that deserve a pause before committing.
  */
 @Composable
 fun ConfirmDialog(

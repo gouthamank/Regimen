@@ -27,20 +27,16 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
 /**
- * A minimal line chart plotting [points] (already sorted by x, e.g. chronological). Self-contained
- * on [Canvas] - no third-party charting dependency - so it can be shared by Body Measurements
- * (trend), Progress (frequency), and Home (frequency + bodyweight).
+ * A minimal line chart plotting [points] (already sorted by x). Self-contained on [Canvas] - no
+ * third-party charting dependency - so it's shared by Body Measurements, Progress, and Home.
  *
- * X is treated as evenly spaced by index (dates aren't laid out to scale in v1). Y is scaled to
- * the value range and always labeled with a top/bottom gridline so the scale reads on its own
- * rather than only relative to itself - without this, a flat series is indistinguishable from any
- * other flat series regardless of its actual value (including all-zero). A single point renders as
- * a lone dot.
+ * X is evenly spaced by index (dates aren't laid out to scale in v1). Y is always labeled with a
+ * top/bottom gridline so the scale reads on its own, not just relative to itself - otherwise a
+ * flat series is indistinguishable from any other flat series regardless of its actual value.
  *
- * [zeroBaseline] pins the bottom of the Y range to 0 instead of the data minimum. Set this for
- * count-style data (e.g. workouts/week): otherwise a steady "1 every week" reads as a flat line at
- * the very bottom of the chart (identical to all-zero), and a single week that bumps to 2 renders
- * as a full-height spike instead of the minor blip it is.
+ * [zeroBaseline] pins the bottom of the Y range to 0 instead of the data minimum - set this for
+ * count-style data (e.g. workouts/week), otherwise a steady "1 every week" reads as flat-at-bottom
+ * and a bump to 2 renders as a full-height spike instead of a minor blip.
  */
 @Composable
 fun LineChart(
