@@ -22,6 +22,23 @@ resides on the device.
 - Material 3 Expressive UI with dynamic color, light/dark theming, and a metric/imperial unit
   preference (weight and distance are stored canonically and converted only for display).
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/screenshots/home_light.png" width="200" alt="Home"/>
+  <img src="docs/images/screenshots/active_workout_dark.png" width="200" alt="Active Workout"/>
+  <img src="docs/images/screenshots/routine_editor_light.png" width="200" alt="Routine Editor"/>
+  <img src="docs/images/screenshots/history_dark.png" width="200" alt="History"/>
+  <img src="docs/images/screenshots/progress_light.png" width="200" alt="Progress"/>
+  <img src="docs/images/screenshots/rest_timer_dark.png" width="200" alt="Rest Timer"/>
+</p>
+
+Regimen also adapts to foldables and other large screens:
+
+<p align="center">
+  <img src="docs/images/screenshots/foldable_layout.png" width="500" alt="Foldable adaptive layout"/>
+</p>
+
 ## Architecture
 
 Multi-module Gradle project: `:app` is the composition root. `:core:domain`, `:core:data`,
