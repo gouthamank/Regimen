@@ -193,7 +193,10 @@ and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope
 `FakeAuthRepository`; sign-in scheduling and sign-out cancelling the periodic sync job via
 `FakeSyncScheduleRepository`; `syncNow()` dispatching to and storing the result of
 `FakeSyncPushRepository`; the persisted `SyncStatus` being loaded into state on init, also via
-`FakeSyncPushRepository`).
+`FakeSyncPushRepository`; Pull/Claim confirmation-count population and dispatch via
+`FakeSyncReplaceRepository`; `secondaryDeviceReason`/`nextScheduledSyncAt` loading on init and via
+`refreshOnResume()`, and Claim primary clearing/rescheduling on success, via
+`FakeSyncDeviceRepository`/`FakeSyncScheduleRepository`).
 
 Skipped entirely: `:feature:settings` (pure preference/account-status
 pass-through - `SettingsViewModel` just exposes two independent `StateFlow`s side by side, no

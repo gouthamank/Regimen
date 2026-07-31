@@ -23,6 +23,9 @@
     <string name="account_secondary_device_title">Another device is primary</string>
     <string name="account_secondary_device_description">This device can\'t sync automatically while another device is set up as the primary sync device for this account.</string>
 
+    <string name="account_stale_local_state_title">Sync paused on this device</string>
+    <string name="account_stale_local_state_description">This device\'s local data doesn\'t match your cloud backup\'s latest state (this can happen after restoring from a backup). Pull the latest data, or use this device instead if you\'re sure its local data is what you want to keep.</string>
+
     <string name="account_pull_cloud_data_headline">Pull cloud data</string>
     <string name="account_pull_cloud_data_description">Replace this device\'s data with what\'s in your cloud backup.</string>
     <string name="account_pull_cloud_data_button">Pull cloud data</string>

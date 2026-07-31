@@ -28,13 +28,15 @@ fun ExerciseEntity.toDto(): ExerciseDto = ExerciseDto(
 )
 
 /** "Pull cloud data"'s reverse of [toDto] - [id] comes from the document's own path, [isDirty]
- * is always `false` since a freshly-pulled row already matches the cloud exactly. */
+ * is always `false` since a freshly-pulled row already matches the cloud exactly. Enum fields
+ * fail closed via [parseEnumOrDefault] rather than throwing on an unrecognized value - see that
+ * function's own doc. */
 fun ExerciseDto.toEntity(id: String): ExerciseEntity = ExerciseEntity(
     id = id,
     name = name,
-    type = ExerciseType.valueOf(type),
-    muscleGroup = MuscleGroup.valueOf(muscleGroup),
-    equipment = Equipment.valueOf(equipment),
+    type = parseEnumOrDefault(type, ExerciseType.STRENGTH),
+    muscleGroup = parseEnumOrDefault(muscleGroup, MuscleGroup.OTHER),
+    equipment = parseEnumOrDefault(equipment, Equipment.OTHER),
     isCustom = isCustom,
     isDirty = false,
     lastModifiedAt = lastModifiedAt,

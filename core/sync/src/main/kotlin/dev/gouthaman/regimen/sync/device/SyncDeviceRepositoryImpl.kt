@@ -2,6 +2,7 @@ package dev.gouthaman.regimen.sync.device
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
 import dev.gouthaman.regimen.domain.repository.SyncDeviceRepository
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -20,7 +21,9 @@ internal const val LOCK_STALE_AFTER_MS = 10 * 60_000L
  * comparing against its own local bookkeeping, which is what makes this design immune to
  * stale-local-state problems (e.g. Auto Backup restoring an outdated value). [lastPushedAt] is
  * the freshness watermark - updated by the push job after every run that completes without error
- * (full or capped-partial alike), read-and-compared-on-launch is still unbuilt. [lockedAt] is a
+ * (full or capped-partial alike), compared against this device's own local copy
+ * ([FreshnessWatermarkStore]) before every push attempt and by [SyncDeviceRepositoryImpl.secondaryDeviceReason]
+ * for the UI. [lockedAt] is a
  * soft lease shared by both the push job and "Claim primary" - set for the duration of either
  * one's work and cleared (`null`) when it ends (success, failure, or aborted), a timestamp rather
  * than a plain boolean so a crashed/killed run that never clears it doesn't lock the account out
@@ -38,6 +41,7 @@ class SyncDeviceRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
     private val deviceIdentityStore: DeviceIdentityStore,
+    private val watermarkStore: FreshnessWatermarkStore,
 ) : SyncDeviceRepository {
 
     override suspend fun ensurePrimaryClaimed(): Boolean {
@@ -72,13 +76,17 @@ class SyncDeviceRepositoryImpl @Inject constructor(
         return snapshot.toObject(SyncConfigDto::class.java)?.primaryDeviceId == deviceId
     }
 
-    override suspend fun hasCompetingPrimary(): Boolean {
-        val uid = firebaseAuth.currentUser?.uid ?: return false
+    override suspend fun secondaryDeviceReason(): SecondaryDeviceReason? {
+        val uid = firebaseAuth.currentUser?.uid ?: return null
         val deviceId = deviceIdentityStore.getOrCreateDeviceId()
         val syncConfigRef = firestore.collection("users").document(uid)
             .collection("syncConfig").document("current")
-        val primaryDeviceId = syncConfigRef.get().await()
-            .toObject(SyncConfigDto::class.java)?.primaryDeviceId
-        return primaryDeviceId != null && primaryDeviceId != deviceId
+        val config = syncConfigRef.get().await().toObject(SyncConfigDto::class.java)
+        return when {
+            config?.primaryDeviceId == null -> null
+            config.primaryDeviceId != deviceId -> SecondaryDeviceReason.COMPETING_PRIMARY
+            watermarkStore.get() != config.lastPushedAt -> SecondaryDeviceReason.STALE_LOCAL_STATE
+            else -> null
+        }
     }
 }

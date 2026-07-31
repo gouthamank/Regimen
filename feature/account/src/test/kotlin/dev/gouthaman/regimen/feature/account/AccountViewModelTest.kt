@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.AuthErrorReason
 import dev.gouthaman.regimen.domain.model.AuthException
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
 import dev.gouthaman.regimen.domain.model.SyncReplaceErrorReason
 import dev.gouthaman.regimen.domain.model.SyncReplaceException
 import dev.gouthaman.regimen.domain.model.SyncStatus
@@ -14,7 +15,7 @@ import dev.gouthaman.regimen.domain.usecase.DeleteCloudDataUseCase
 import dev.gouthaman.regimen.domain.usecase.EnsurePrimaryClaimedUseCase
 import dev.gouthaman.regimen.domain.usecase.GetLastSyncStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.GetNextScheduledSyncAtUseCase
-import dev.gouthaman.regimen.domain.usecase.HasCompetingPrimaryUseCase
+import dev.gouthaman.regimen.domain.usecase.GetSecondaryDeviceReasonUseCase
 import dev.gouthaman.regimen.domain.usecase.LocalWorkoutCountUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.PullCloudDataUseCase
@@ -57,7 +58,7 @@ class AccountViewModelTest {
         cancelPeriodicSyncUseCase = CancelPeriodicSyncUseCase(syncScheduleRepo),
         syncNowUseCase = SyncNowUseCase(syncPushRepo),
         getLastSyncStatusUseCase = GetLastSyncStatusUseCase(syncPushRepo),
-        hasCompetingPrimaryUseCase = HasCompetingPrimaryUseCase(syncDeviceRepo),
+        getSecondaryDeviceReasonUseCase = GetSecondaryDeviceReasonUseCase(syncDeviceRepo),
         pullCloudDataUseCase = PullCloudDataUseCase(syncReplaceRepo),
         claimPrimaryUseCase = ClaimPrimaryUseCase(syncReplaceRepo),
         localWorkoutCountUseCase = LocalWorkoutCountUseCase(syncReplaceRepo),
@@ -268,17 +269,17 @@ class AccountViewModelTest {
     fun `refreshing on resume updates secondary-device status and next scheduled sync time`() =
         runTest {
             val repo = FakeAuthRepository()
-            val syncDeviceRepo = FakeSyncDeviceRepository(hasCompetingPrimaryResult = false)
+            val syncDeviceRepo = FakeSyncDeviceRepository(secondaryDeviceReasonResult = null)
             val syncScheduleRepo = FakeSyncScheduleRepository(nextScheduledSyncAtResult = null)
             val viewModel = viewModel(repo, syncDeviceRepo, syncScheduleRepo = syncScheduleRepo)
 
-            syncDeviceRepo.hasCompetingPrimaryResult = true
+            syncDeviceRepo.secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY
             syncScheduleRepo.nextScheduledSyncAtResult = 9_000L
             viewModel.refreshOnResume()
 
             viewModel.uiState.test {
                 val state = awaitItem()
-                assertTrue(state.isSecondaryDevice)
+                assertEquals(SecondaryDeviceReason.COMPETING_PRIMARY, state.secondaryDeviceReason)
                 assertEquals(9_000L, state.nextScheduledSyncAt)
             }
         }
@@ -286,11 +287,12 @@ class AccountViewModelTest {
     @Test
     fun `loads secondary-device status on init`() = runTest {
         val repo = FakeAuthRepository()
-        val syncDeviceRepo = FakeSyncDeviceRepository(hasCompetingPrimaryResult = true)
+        val syncDeviceRepo =
+            FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
         val viewModel = viewModel(repo, syncDeviceRepo)
 
         viewModel.uiState.test {
-            assertTrue(awaitItem().isSecondaryDevice)
+            assertEquals(SecondaryDeviceReason.COMPETING_PRIMARY, awaitItem().secondaryDeviceReason)
         }
     }
 
@@ -375,7 +377,8 @@ class AccountViewModelTest {
     fun `confirming claim primary invokes the use case and clears secondary-device status`() =
         runTest {
             val repo = FakeAuthRepository()
-            val syncDeviceRepo = FakeSyncDeviceRepository(hasCompetingPrimaryResult = true)
+            val syncDeviceRepo =
+                FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
             val syncReplaceRepo = FakeSyncReplaceRepository()
             val viewModel = viewModel(repo, syncDeviceRepo, syncReplaceRepo = syncReplaceRepo)
 
@@ -383,7 +386,7 @@ class AccountViewModelTest {
 
             assertTrue(syncReplaceRepo.claimCalled)
             viewModel.uiState.test {
-                assertFalse(awaitItem().isSecondaryDevice)
+                assertNull(awaitItem().secondaryDeviceReason)
             }
         }
 
@@ -406,7 +409,8 @@ class AccountViewModelTest {
     fun `claim primary failure surfaces its reason and does not clear secondary-device status`() =
         runTest {
             val repo = FakeAuthRepository()
-            val syncDeviceRepo = FakeSyncDeviceRepository(hasCompetingPrimaryResult = true)
+            val syncDeviceRepo =
+                FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
             val syncReplaceRepo = FakeSyncReplaceRepository(
                 claimResult = Result.failure(SyncReplaceException(SyncReplaceErrorReason.PUSH_IN_PROGRESS))
             )
@@ -417,7 +421,7 @@ class AccountViewModelTest {
             viewModel.uiState.test {
                 val state = awaitItem()
                 assertEquals(SyncReplaceErrorReason.PUSH_IN_PROGRESS, state.replaceErrorReason)
-                assertTrue(state.isSecondaryDevice)
+                assertEquals(SecondaryDeviceReason.COMPETING_PRIMARY, state.secondaryDeviceReason)
             }
         }
 }

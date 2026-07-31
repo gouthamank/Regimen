@@ -55,6 +55,7 @@ import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
 import dev.gouthaman.regimen.domain.model.SyncStatus
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -68,7 +69,7 @@ fun AccountScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // isSecondaryDevice/nextScheduledSyncAt only refresh on demand (a one-shot Firestore/
+    // secondaryDeviceReason/nextScheduledSyncAt only refresh on demand (a one-shot Firestore/
     // WorkManager read, not a live listener) - re-check on every resume, not just when this
     // ViewModel is first created, so a demotion or reschedule that happened while this screen
     // was merely backgrounded (not navigated away from) still shows up without a full app
@@ -220,7 +221,7 @@ private fun AccountScreen(
                         )
                         // Hidden, not just disabled, for a secondary device - it can't push at
                         // all right now, so there's nothing for this button to meaningfully do.
-                        if (!uiState.isSecondaryDevice) {
+                        if (uiState.secondaryDeviceReason == null) {
                             TextButton(
                                 onClick = onSyncNow,
                                 enabled = uiState.busyAction == null,
@@ -233,7 +234,7 @@ private fun AccountScreen(
                             }
                         }
                     }
-                    if (!uiState.isSecondaryDevice) {
+                    if (uiState.secondaryDeviceReason == null) {
                         uiState.nextScheduledSyncAt?.let {
                             Text(
                                 stringResource(
@@ -246,17 +247,26 @@ private fun AccountScreen(
                         }
                     }
 
-                    if (uiState.isSecondaryDevice) {
+                    uiState.secondaryDeviceReason?.let { reason ->
                         Spacer(Modifier.height(24.dp))
                         HorizontalDivider()
                         Spacer(Modifier.height(24.dp))
 
+                        val (titleRes, descriptionRes) = when (reason) {
+                            SecondaryDeviceReason.COMPETING_PRIMARY ->
+                                R.string.account_secondary_device_title to
+                                        R.string.account_secondary_device_description
+
+                            SecondaryDeviceReason.STALE_LOCAL_STATE ->
+                                R.string.account_stale_local_state_title to
+                                        R.string.account_stale_local_state_description
+                        }
                         Text(
-                            stringResource(R.string.account_secondary_device_title),
+                            stringResource(titleRes),
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
-                            stringResource(R.string.account_secondary_device_description),
+                            stringResource(descriptionRes),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

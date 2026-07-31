@@ -1,11 +1,12 @@
 package dev.gouthaman.regimen.testing
 
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
 import dev.gouthaman.regimen.domain.repository.SyncDeviceRepository
 
 class FakeSyncDeviceRepository(
     private val ensurePrimaryClaimedResult: Boolean = true,
     var isPrimaryResult: Boolean = true,
-    var hasCompetingPrimaryResult: Boolean = false,
+    var secondaryDeviceReasonResult: SecondaryDeviceReason? = null,
 ) : SyncDeviceRepository {
 
     var ensurePrimaryClaimedCalled = false
@@ -18,5 +19,6 @@ class FakeSyncDeviceRepository(
 
     override suspend fun isPrimary(): Boolean = isPrimaryResult
 
-    override suspend fun hasCompetingPrimary(): Boolean = hasCompetingPrimaryResult
+    override suspend fun secondaryDeviceReason(): SecondaryDeviceReason? =
+        secondaryDeviceReasonResult
 }

@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.AuthErrorReason
 import dev.gouthaman.regimen.domain.model.AuthException
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
 import dev.gouthaman.regimen.domain.model.SyncReplaceErrorReason
 import dev.gouthaman.regimen.domain.model.SyncReplaceException
 import dev.gouthaman.regimen.domain.model.SyncStatus
@@ -16,7 +17,7 @@ import dev.gouthaman.regimen.domain.usecase.DeleteCloudDataUseCase
 import dev.gouthaman.regimen.domain.usecase.EnsurePrimaryClaimedUseCase
 import dev.gouthaman.regimen.domain.usecase.GetLastSyncStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.GetNextScheduledSyncAtUseCase
-import dev.gouthaman.regimen.domain.usecase.HasCompetingPrimaryUseCase
+import dev.gouthaman.regimen.domain.usecase.GetSecondaryDeviceReasonUseCase
 import dev.gouthaman.regimen.domain.usecase.LocalWorkoutCountUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.PullCloudDataUseCase
@@ -56,7 +57,7 @@ data class AccountUiState(
     val busyAction: AccountAction? = null,
     val errorReason: AuthErrorReason? = null,
     val syncStatus: SyncStatus? = null,
-    val isSecondaryDevice: Boolean = false,
+    val secondaryDeviceReason: SecondaryDeviceReason? = null,
     val replaceErrorReason: SyncReplaceErrorReason? = null,
     val pullConfirmation: ReplaceConfirmation? = null,
     val claimConfirmation: ReplaceConfirmation? = null,
@@ -74,7 +75,7 @@ class AccountViewModel @Inject constructor(
     private val cancelPeriodicSyncUseCase: CancelPeriodicSyncUseCase,
     private val syncNowUseCase: SyncNowUseCase,
     private val getLastSyncStatusUseCase: GetLastSyncStatusUseCase,
-    private val hasCompetingPrimaryUseCase: HasCompetingPrimaryUseCase,
+    private val getSecondaryDeviceReasonUseCase: GetSecondaryDeviceReasonUseCase,
     private val pullCloudDataUseCase: PullCloudDataUseCase,
     private val claimPrimaryUseCase: ClaimPrimaryUseCase,
     private val localWorkoutCountUseCase: LocalWorkoutCountUseCase,
@@ -85,7 +86,7 @@ class AccountViewModel @Inject constructor(
     private val busyAction = MutableStateFlow<AccountAction?>(null)
     private val error = MutableStateFlow<AuthErrorReason?>(null)
     private val syncStatus = MutableStateFlow<SyncStatus?>(null)
-    private val isSecondaryDevice = MutableStateFlow(false)
+    private val secondaryDeviceReason = MutableStateFlow<SecondaryDeviceReason?>(null)
     private val replaceError = MutableStateFlow<SyncReplaceErrorReason?>(null)
     private val pullConfirmation = MutableStateFlow<ReplaceConfirmation?>(null)
     private val claimConfirmation = MutableStateFlow<ReplaceConfirmation?>(null)
@@ -102,15 +103,15 @@ class AccountViewModel @Inject constructor(
     // Best-effort, same reasoning as claimPrimaryIfUnset(): may briefly race the fire-and-forget
     // claim attempt right after a fresh sign-in, in which case this simply shows the single-device
     // experience for a moment longer than strictly necessary - never the reverse (never a false
-    // positive), since hasCompetingPrimary() only ever returns true once a *different* device's id
-    // is actually on record. Not private - also called from the Composable on every screen resume
-    // (see AccountScreen.kt), since this device can be demoted to secondary by another device's
-    // Claim, or have its next scheduled sync time change, at any point - not just around
-    // sign-in/init.
+    // positive), since secondaryDeviceReason() only ever returns non-null once a real reason is
+    // actually on record. Not private - also called from the Composable on every screen resume
+    // (see AccountScreen.kt), since this device can be demoted to secondary (or found to have
+    // stale local state) by another device's Claim, or have its next scheduled sync time change,
+    // at any point - not just around sign-in/init.
     fun refreshOnResume() {
         viewModelScope.launch {
-            runCatching { hasCompetingPrimaryUseCase() }.onSuccess {
-                isSecondaryDevice.value = it
+            runCatching { getSecondaryDeviceReasonUseCase() }.onSuccess {
+                secondaryDeviceReason.value = it
             }
         }
         viewModelScope.launch {
@@ -122,13 +123,17 @@ class AccountViewModel @Inject constructor(
 
     val uiState: StateFlow<AccountUiState> = combine(
         observeAccountStatus(), busyAction, error, syncStatus,
-        isSecondaryDevice, replaceError, pullConfirmation, claimConfirmation, nextScheduledSyncAt,
+        secondaryDeviceReason,
+        replaceError,
+        pullConfirmation,
+        claimConfirmation,
+        nextScheduledSyncAt,
     ) { values ->
         val account = values[0] as AuthAccount?
         val busy = values[1] as AccountAction?
         val errorReason = values[2] as AuthErrorReason?
         val status = values[3] as SyncStatus?
-        val secondary = values[4] as Boolean
+        val secondary = values[4] as SecondaryDeviceReason?
         val replaceErrorReason = values[5] as SyncReplaceErrorReason?
         val pullConfirm = values[6] as ReplaceConfirmation?
         val claimConfirm = values[7] as ReplaceConfirmation?
@@ -139,7 +144,7 @@ class AccountViewModel @Inject constructor(
             busyAction = busy,
             errorReason = errorReason,
             syncStatus = status,
-            isSecondaryDevice = secondary,
+            secondaryDeviceReason = secondary,
             replaceErrorReason = replaceErrorReason,
             pullConfirmation = pullConfirm,
             claimConfirmation = claimConfirm,
@@ -181,7 +186,7 @@ class AccountViewModel @Inject constructor(
             cancelPeriodicSyncUseCase()
             // A dialog left over from this session shouldn't be able to show again for whoever
             // signs in next.
-            isSecondaryDevice.value = false
+            secondaryDeviceReason.value = null
             replaceError.value = null
             pullConfirmation.value = null
             claimConfirmation.value = null
@@ -233,15 +238,19 @@ class AccountViewModel @Inject constructor(
         pullConfirmation.value = null
     }
 
-    /** This device's primary status is unaffected by a pull either way, so unlike [confirmClaimPrimary]
-     * there's nothing to re-check afterward. */
+    /** A pull resets the local freshness watermark to match the cloud - which can resolve
+     * [SecondaryDeviceReason.STALE_LOCAL_STATE] for a device that was already primary but had
+     * stale local state, so [refreshOnResume] re-checks afterward the same way
+     * [confirmClaimPrimary] does. Doesn't affect primary status itself either way, unlike Claim. */
     fun confirmPullCloudData() {
         pullConfirmation.value = null
         if (busyAction.value != null) return
         viewModelScope.launch {
             busyAction.value = AccountAction.PULL_CLOUD_DATA
             replaceError.value = null
-            pullCloudDataUseCase().onFailure { replaceError.value = it.toReplaceReason() }
+            pullCloudDataUseCase()
+                .onSuccess { refreshOnResume() }
+                .onFailure { replaceError.value = it.toReplaceReason() }
             busyAction.value = null
         }
     }
@@ -272,7 +281,7 @@ class AccountViewModel @Inject constructor(
             replaceError.value = null
             claimPrimaryUseCase()
                 .onSuccess {
-                    isSecondaryDevice.value = false
+                    secondaryDeviceReason.value = null
                     // A device that was secondary already had its own periodic job self-cancel
                     // (it noticed it wasn't primary and stopped itself) - nothing else
                     // re-schedules one once it becomes primary again, so this is what actually

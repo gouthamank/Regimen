@@ -1,5 +1,6 @@
 package dev.gouthaman.regimen.domain.usecase
 
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
 import dev.gouthaman.regimen.domain.repository.SyncDeviceRepository
 import javax.inject.Inject
 
@@ -15,8 +16,8 @@ class IsPrimaryUseCase @Inject constructor(
     suspend operator fun invoke(): Boolean = repo.isPrimary()
 }
 
-class HasCompetingPrimaryUseCase @Inject constructor(
+class GetSecondaryDeviceReasonUseCase @Inject constructor(
     private val repo: SyncDeviceRepository,
 ) {
-    suspend operator fun invoke(): Boolean = repo.hasCompetingPrimary()
+    suspend operator fun invoke(): SecondaryDeviceReason? = repo.secondaryDeviceReason()
 }

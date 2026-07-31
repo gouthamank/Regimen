@@ -28,6 +28,7 @@ import dev.gouthaman.regimen.domain.model.SyncStatus
 import dev.gouthaman.regimen.domain.repository.SyncDeviceRepository
 import dev.gouthaman.regimen.domain.repository.SyncPushRepository
 import dev.gouthaman.regimen.sync.auth.isSessionRevoked
+import dev.gouthaman.regimen.sync.device.FreshnessWatermarkStore
 import dev.gouthaman.regimen.sync.device.LOCK_STALE_AFTER_MS
 import dev.gouthaman.regimen.sync.device.SyncConfigDto
 import dev.gouthaman.regimen.sync.firestore.FirestoreSyncPaths
@@ -98,6 +99,7 @@ class SyncPushRunner @Inject constructor(
     private val tombstoneDao: SyncTombstoneDao,
     private val preferencesRepository: PreferencesRepositoryImpl,
     private val syncStatusStore: SyncStatusStore,
+    private val watermarkStore: FreshnessWatermarkStore,
 ) : SyncPushRepository {
     /** Set once per [push] call whenever a dirty/tombstone read returns a full page at its
      * requested limit - a (harmless, self-correcting) signal that there may be more work than
@@ -166,15 +168,31 @@ class SyncPushRunner @Inject constructor(
         val syncConfigRef = firestore.collection("users").document(uid)
             .collection("syncConfig").document("current")
 
+        // One read serves two independent checks below - not a transaction (same rigor as the
+        // mid-run ensureStillPrimary() checks further down - reactive/best-effort, not perfectly
+        // atomic; a claim or a stale-watermark restore landing in the narrow gap after this read
+        // is an accepted, low-probability residual risk for what's still fundamentally a personal
+        // app).
+        val config = syncConfigRef.get().await().toObject(SyncConfigDto::class.java)
+
         // Refuses to start while "Claim primary" is actively wiping/rebuilding this account
         // (holding the same lock for its own, longer-than-a-push duration) - otherwise this run
         // could write fresh data into a destination that's concurrently being deleted out from
-        // under it. A plain read-then-write, not a transaction (same rigor as the mid-run
-        // ensureStillPrimary() checks below - reactive/best-effort, not perfectly atomic; a claim
-        // starting in the narrow gap between this check and this run's own lock write below is an
-        // accepted, low-probability residual risk for what's still fundamentally a personal app).
-        val existingLock = syncConfigRef.get().await().toObject(SyncConfigDto::class.java)?.lockedAt
+        // under it.
+        val existingLock = config?.lockedAt
         if (existingLock != null && System.currentTimeMillis() - existingLock < LOCK_STALE_AFTER_MS) {
+            return notPrimaryStatus()
+        }
+
+        // Freshness watermark: device-ID matching primaryDeviceId isn't sufficient on its own to
+        // prove this device's local state is safe to push from - Auto Backup runs on its own
+        // opportunistic schedule, so a restored device's snapshot can be older than the last
+        // successful push, or carry a stale isDirty=true that would silently overwrite the
+        // cloud's already-newer state. A mismatch here means exactly that: this device thinks
+        // it's primary, but its local watermark doesn't match what the cloud says was last
+        // pushed - refuse rather than trust it. Cleared by a successful Pull cloud data, which
+        // resets the local watermark to match what it just read.
+        if (watermarkStore.get() != config?.lastPushedAt) {
             return notPrimaryStatus()
         }
 
@@ -219,6 +237,9 @@ class SyncPushRunner @Inject constructor(
 
         val now = System.currentTimeMillis()
         syncConfigRef.set(mapOf("lastPushedAt" to now), SetOptions.merge()).await()
+        // The freshness watermark's write side - keeps this device's local record in lockstep
+        // with what it just told the cloud, so the next run's comparison above matches.
+        watermarkStore.set(now)
         return SyncStatus(lastSyncedAt = now, isFullyUpToDate = !hasMoreWork, lastError = null)
     }
 

@@ -1,5 +1,7 @@
 package dev.gouthaman.regimen.domain.repository
 
+import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
+
 interface SyncDeviceRepository {
     /** Checks the signed-in account's live primary-device record and silently claims it if unset
      * (the common single-device case - no confirmation needed, nothing to protect against with an
@@ -15,10 +17,11 @@ interface SyncDeviceRepository {
      * in, or if a different device holds it. */
     suspend fun isPrimary(): Boolean
 
-    /** True only when a *different* device already holds the live primary-device record - the
-     * gate for showing the secondary-device disclaimer/Pull/Claim UI. Deliberately distinct from
-     * `!isPrimary()`, which is also true when nobody has claimed primary at all yet (the common
-     * brand-new-account case, where nothing extra should be shown). `false` if nobody's signed
-     * in, if primary is unset, or if this device itself already holds it. */
-    suspend fun hasCompetingPrimary(): Boolean
+    /** Which reason (if either) the secondary-device disclaimer/Pull/Claim UI should show for
+     * right now - `null` means this device is safely, exclusively primary (or nobody's signed
+     * in, or nobody's claimed primary at all yet - the common brand-new-account case, where
+     * nothing extra should be shown), the common case. Deliberately distinct from `!isPrimary()`,
+     * which doesn't distinguish "a different device is primary" from "nobody's claimed primary
+     * yet" from "this device is primary but its local state can't be trusted." */
+    suspend fun secondaryDeviceReason(): SecondaryDeviceReason?
 }

@@ -18,6 +18,7 @@ import dev.gouthaman.regimen.domain.model.SyncReplaceException
 import dev.gouthaman.regimen.domain.repository.SyncPushRepository
 import dev.gouthaman.regimen.domain.repository.SyncReplaceRepository
 import dev.gouthaman.regimen.sync.device.DeviceIdentityStore
+import dev.gouthaman.regimen.sync.device.FreshnessWatermarkStore
 import dev.gouthaman.regimen.sync.device.LOCK_STALE_AFTER_MS
 import dev.gouthaman.regimen.sync.device.SyncConfigDto
 import dev.gouthaman.regimen.sync.firestore.FirestoreSyncReader
@@ -38,6 +39,7 @@ class SyncReplaceRepositoryImpl @Inject constructor(
     private val preferencesRepository: PreferencesRepositoryImpl,
     private val deviceIdentityStore: DeviceIdentityStore,
     private val syncPushRepository: SyncPushRepository,
+    private val watermarkStore: FreshnessWatermarkStore,
 ) : SyncReplaceRepository {
 
     override suspend fun pullCloudData(): Result<Unit> {
@@ -93,9 +95,16 @@ class SyncReplaceRepositoryImpl @Inject constructor(
                 )
             }
 
-            // Deliberately not resetting a local freshness watermark here - that local store
-            // doesn't exist as its own feature yet (see docs/todo-remote-sync.md's Freshness
-            // watermark item, Phase 2). Wire this in once it does.
+            // Resets the local freshness watermark to match what the cloud says was last
+            // pushed - this is what lets a device that failed SyncPushRunner's watermark check
+            // resume normal automatic sync afterward, if it's already primary (or becomes primary
+            // later without an intervening push from anywhere else).
+            val syncConfigRef = firestore.collection("users").document(uid)
+                .collection("syncConfig").document("current")
+            val cloudLastPushedAt = syncConfigRef.get().await()
+                .toObject(SyncConfigDto::class.java)?.lastPushedAt
+            watermarkStore.set(cloudLastPushedAt)
+
             Result.success(Unit)
         } catch (e: SyncReplaceException) {
             Result.failure(e)

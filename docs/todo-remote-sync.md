@@ -580,26 +580,34 @@ reconcile against - never for the common, single-device case.
   `EnsurePrimaryClaimedUseCase`/`SyncDeviceRepository` live in `:core:domain`; a
   `FakeSyncDeviceRepository`
   in `:core:testing` backs `AccountViewModelTest`'s claim-triggered/not-triggered cases.
-- [ ] **Freshness watermark, to catch a stale Auto-Backup restore before it can regress the
-  cloud.** Device-ID matching `primaryDeviceId` isn't sufficient on its own to prove this device's
-  local state is safe to push from - Auto Backup runs on its own opportunistic (~daily) schedule,
-  so a restored device's snapshot can be older than the last successful push. Concretely: the same
-  physical device edits an entity, pushes it, then edits it *again* before any Auto Backup
-  snapshot captures that second edit, then gets reformatted - the restored local state only has
-  the first edit, `isDirty` still `false` for it (since it *was* successfully pushed once), so a
-  naive resume-as-primary would never re-push it at all... but a related risk is worse: if the
-  restore instead lands with that row `isDirty = true` for a *stale* reason and gets pushed, it
-  would silently overwrite the cloud's already-newer second edit with the older restored one. Add
-  a single scalar `syncConfig.lastPushedAt` (Phase 1's push job already writes this on every
-  successful run), and store the same value locally (in the same sync-state store already covered
-  by Auto Backup). Compare on every launch: match → resume automatic push normally (the common
-  case, stays frictionless); mismatch (cloud's is newer) → don't resume automatic push - fall back
-  to the same secondary-device disclaimer/Pull flow below even though the device ID still says
-  primary, until the user explicitly pulls, which also resets the local watermark to match. One
-  scalar, one comparison, no merge or per-row reconciliation - not a reintroduction of the
-  complexity that got cut earlier. Depends on **Secondary-device UI** below existing as the thing
-  a mismatch falls back to - that's why this sits in Phase 2 rather than Phase 1, even though the
-  write side of the watermark is Phase 1 work that's already done.
+- [x] **Freshness watermark, to catch a stale Auto-Backup restore before it can regress the
+  cloud - built.** Device-ID matching `primaryDeviceId` isn't sufficient on its own to prove this
+  device's local state is safe to push from - Auto Backup runs on its own opportunistic (~daily)
+  schedule, so a restored device's snapshot can be older than the last successful push.
+  Concretely: the same physical device edits an entity, pushes it, then edits it *again* before
+  any Auto Backup snapshot captures that second edit, then gets reformatted - the restored local
+  state only has the first edit, `isDirty` still `false` for it (since it *was* successfully
+  pushed once), so a naive resume-as-primary would never re-push it at all... but a related risk
+  is worse: if the restore instead lands with that row `isDirty = true` for a *stale* reason and
+  gets pushed, it would silently overwrite the cloud's already-newer second edit with the older
+  restored one. `:core:sync`'s `device/FreshnessWatermarkStore.kt` holds this device's local copy
+  of `syncConfig.lastPushedAt` (same `sync_state` DataStore covered by Auto Backup, alongside the
+  device id) - written every time `SyncPushRunner` completes a successful run (in lockstep with
+  the cloud write) or "Pull cloud data" succeeds (reset to whatever it just read). Compared before
+  every push attempt, inside `SyncPushRunner.doPush()`'s same read that already fetches
+  `lockedAt`: match (including both-null, the common never-synced-anywhere case) → proceed
+  normally; mismatch → refuse via the same not-primary no-op path (no persisted-status
+  clobbering, per that existing fix). The UI side needed its own signal, since `primaryDeviceId`
+  matching this device no longer guarantees "safe to treat as normally primary" -
+  `SyncDeviceRepository.secondaryDeviceReason(): SecondaryDeviceReason?` (`COMPETING_PRIMARY` |
+  `STALE_LOCAL_STATE`, replacing the old plain `hasCompetingPrimary(): Boolean`) drives the same
+  disclaimer/Pull/Claim UI with reason-specific copy - "Sync paused on this device" for the stale
+  case, since "Another device is primary" would be actively wrong when nothing else has actually
+  claimed primary. One scalar, one comparison, no merge or per-row reconciliation - not a
+  reintroduction of the complexity that got cut earlier. **Not yet manually verified** -
+  would need actually reproducing a stale Auto Backup restore (backup a device mid-session,
+  edit again, restore over it) to see the disclaimer switch to the stale-state copy and confirm
+  automatic push actually refuses until Pull/Claim resolves it.
 - [x] **Secondary-device UI**: once a primary *is* already claimed (by this same device
   previously, or by a different one), any device that isn't the current primary shows a
   persistent disclaimer (Account screen, `AccountUiState.isSecondaryDevice` -
@@ -718,16 +726,26 @@ reconcile against - never for the common, single-device case.
       devices) reads `WorkInfo.nextScheduleTimeMillis` for the actual unique periodic work
       (`SyncScheduleRepository.nextScheduledSyncAt()`) - genuine WorkManager-computed data, not
       derived/guessed from the 24h interval. `null`/hidden if nothing's currently scheduled.
-- [ ] Firestore document schema evolution (unlike Room, there's no formal `Migration` mechanism
-  for a schemaless store): additive changes are the default and need no migration step - new
-  fields are read with a default/fallback when absent, handled defensively in the Firestore
-  document ↔ domain model mapper layer, since an old document simply won't have the field yet.
-  Renames/breaking shape changes are the risky case (an old app version could still push the old
-  shape while a new version writes the new one) but low-probability given single-primary-writer
-  design, not concurrent app versions writing simultaneously - the mapper should still fail closed
-  on an unrecognized shape (ignore/default the field) rather than crash. No dedicated
-  schema-version field or migration step planned; this is a mapper-layer convention, not new
-  infrastructure.
+- [x] Firestore document schema evolution (unlike Room, there's no formal `Migration` mechanism
+  for a schemaless store): additive changes are the default and need no migration step - every
+  `*Dto` gives each field a default value (already true throughout, required for Firestore's
+  reflection-based POJO mapping to work at all when a field is absent), so a missing new field on
+  an old document just reads as that default rather than failing. Renames/breaking shape changes
+  are the risky case (an old app version could still push the old shape while a new version
+  writes the new one) but low-probability given single-primary-writer design, not concurrent app
+  versions writing simultaneously - the mapper still fails closed on an unrecognized shape
+  (ignore/default the field) rather than crash, via `:core:sync`'s `firestore/EnumFallback.kt`
+  (`parseEnumOrDefault<T>(value, default)`, falling back rather than throwing the way a plain
+  `Enum.valueOf(value)` would). No dedicated schema-version field or migration step planned; this
+  is a mapper-layer convention, not new infrastructure. **Bug found and fixed while auditing
+  this**: every `*Dto.toEntity()` reverse mapper added earlier this session for "Pull cloud data"
+  (`ExerciseDto`/`WorkoutDto`) used raw `EnumType.valueOf(string)` for their enum fields
+  (`ExerciseType`/`MuscleGroup`/`Equipment`/`WorkoutStatus`/`WorkoutEndReason`) - which throws on
+  an unrecognized value, directly violating this item's own stated convention, and would have
+  crashed a Pull entirely the first time any single document had an enum value an older app
+  version didn't recognize yet. `PreferencesRepositoryImpl`'s pre-existing enum parsing
+  (`UnitSystem`/`ThemeMode`/`MaxWorkoutDuration`) was already correctly defensive
+  (`runCatching { ... }.getOrNull() ?: default`) and needed no change.
 - [x] Manual account/data deletion is two distinct, clearly-separated actions on the dedicated
   Account screen (Phase 1) - not one ambiguous "delete account," since there's no separate
   Regimen account to delete: **sign-out** keeps local data and the cloud backup, just stops
