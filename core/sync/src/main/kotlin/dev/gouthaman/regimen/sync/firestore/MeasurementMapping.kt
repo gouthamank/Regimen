@@ -4,18 +4,20 @@ import dev.gouthaman.regimen.data.local.entity.BodyMetricEntity
 import dev.gouthaman.regimen.data.local.entity.MeasurementTypeEntity
 
 /** Firestore shape for `users/{uid}/measurementTypes/{typeId}` - only `isBuiltIn == false` rows
- * are ever mapped (the built-in Bodyweight type ships with the APK, out of sync scope entirely). */
+ * are ever mapped (the built-in Bodyweight type ships with the APK, out of sync scope entirely).
+ * `builtIn`, not `isBuiltIn` - see `WorkoutExerciseDto`'s doc (WorkoutMapping.kt) for why an
+ * `is`-prefixed Boolean silently loses its value across a Firestore round trip. */
 data class MeasurementTypeDto(
     val name: String = "",
     val unit: String = "",
-    val isBuiltIn: Boolean = false,
+    val builtIn: Boolean = false,
     val lastModifiedAt: Long = 0,
 )
 
 fun MeasurementTypeEntity.toDto(): MeasurementTypeDto = MeasurementTypeDto(
     name = name,
     unit = unit,
-    isBuiltIn = isBuiltIn,
+    builtIn = isBuiltIn,
     lastModifiedAt = lastModifiedAt,
 )
 
@@ -24,7 +26,7 @@ fun MeasurementTypeDto.toEntity(id: String): MeasurementTypeEntity = Measurement
     id = id,
     name = name,
     unit = unit,
-    isBuiltIn = isBuiltIn,
+    isBuiltIn = builtIn,
     isDirty = false,
     lastModifiedAt = lastModifiedAt,
 )

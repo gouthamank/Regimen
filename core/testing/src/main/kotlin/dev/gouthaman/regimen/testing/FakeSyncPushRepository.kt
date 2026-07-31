@@ -18,9 +18,16 @@ class FakeSyncPushRepository(
 
     var pushCalled = false
         private set
+    var forcePushCalled = false
+        private set
 
     override suspend fun push(): SyncStatus {
         pushCalled = true
+        return result
+    }
+
+    override suspend fun forcePush(): SyncStatus {
+        forcePushCalled = true
         return result
     }
 

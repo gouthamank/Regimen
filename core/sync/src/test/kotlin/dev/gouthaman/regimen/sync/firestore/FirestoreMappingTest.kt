@@ -42,7 +42,7 @@ class FirestoreMappingTest {
                 type = "STRENGTH",
                 muscleGroup = "CHEST",
                 equipment = "BARBELL",
-                isCustom = true,
+                custom = true,
                 lastModifiedAt = 1000L,
             ),
             entity.toDto(),
@@ -141,8 +141,8 @@ class FirestoreMappingTest {
             WorkoutExerciseDto(
                 exerciseId = "e1",
                 position = 0,
-                isSkipped = false,
-                isDone = true,
+                skipped = false,
+                done = true,
                 supersetGroupId = null,
                 lastModifiedAt = 5000L,
             ),
@@ -163,7 +163,7 @@ class FirestoreMappingTest {
                 setNumber = 1,
                 weightKg = 100.0,
                 reps = 5,
-                isComplete = true,
+                complete = true,
                 lastModifiedAt = 6000L
             ),
             setEntry.toDto(),
@@ -195,7 +195,7 @@ class FirestoreMappingTest {
             MeasurementTypeDto(
                 name = "Waist",
                 unit = "cm",
-                isBuiltIn = false,
+                builtIn = false,
                 lastModifiedAt = 8000L
             ),
             type.toDto(),

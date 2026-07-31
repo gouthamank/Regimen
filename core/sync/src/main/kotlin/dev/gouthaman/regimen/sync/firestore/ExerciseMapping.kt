@@ -8,13 +8,15 @@ import dev.gouthaman.regimen.domain.model.MuscleGroup
 /** Firestore shape for `users/{uid}/exercises/{exerciseId}` - only `isCustom == true` rows are
  * ever mapped (built-ins ship with the APK, out of sync scope entirely). Mirrors [ExerciseEntity]
  * exactly except `id` (the document's own path) and `isDirty` (local-only, never leaves the
- * device) - every property needs a default for Firestore's reflection-based POJO mapping. */
+ * device) - every property needs a default for Firestore's reflection-based POJO mapping.
+ * `custom`, not `isCustom` - see `WorkoutExerciseDto`'s doc (WorkoutMapping.kt) for why an
+ * `is`-prefixed Boolean silently loses its value across a Firestore round trip. */
 data class ExerciseDto(
     val name: String = "",
     val type: String = "",
     val muscleGroup: String = "",
     val equipment: String = "",
-    val isCustom: Boolean = true,
+    val custom: Boolean = true,
     val lastModifiedAt: Long = 0,
 )
 
@@ -23,7 +25,7 @@ fun ExerciseEntity.toDto(): ExerciseDto = ExerciseDto(
     type = type.name,
     muscleGroup = muscleGroup.name,
     equipment = equipment.name,
-    isCustom = isCustom,
+    custom = isCustom,
     lastModifiedAt = lastModifiedAt,
 )
 
@@ -37,7 +39,7 @@ fun ExerciseDto.toEntity(id: String): ExerciseEntity = ExerciseEntity(
     type = parseEnumOrDefault(type, ExerciseType.STRENGTH),
     muscleGroup = parseEnumOrDefault(muscleGroup, MuscleGroup.OTHER),
     equipment = parseEnumOrDefault(equipment, Equipment.OTHER),
-    isCustom = isCustom,
+    isCustom = custom,
     isDirty = false,
     lastModifiedAt = lastModifiedAt,
 )

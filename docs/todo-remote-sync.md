@@ -658,8 +658,15 @@ reconcile against - never for the common, single-device case.
       own `getDirty` query) - not just whatever already happened to be dirty from this device's
       past history, which matters if this device was primary before and has mostly-clean
       `isDirty` state left over from prior incremental syncs. The actual upload reuses
-      `SyncPushRepository.push()` (Phase 1's exact same incremental push loop) rather than a
-      separate code path; a full initial backfill exceeding one run's batch cap isn't a failure,
+      `SyncPushRepository.forcePush()`, not `push()` - the same incremental push loop Phase 1
+      uses, but entered through a variant that skips `push()`'s own "is somebody else's lock
+      already held" and freshness-watermark checks. Those checks exist to protect `push()` against
+      a *different* device's in-flight write, but the lock Claim's own transaction just took a
+      moment earlier is this same call chain's, not a foreign one - calling plain `push()` here
+      would see that fresh `lockedAt`, treat it as another device's active write, and silently
+      no-op the entire claim (reporting success without ever force-pushing anything, since a
+      not-primary no-op carries no error). `forcePush()` exists specifically so this call site
+      doesn't self-deadlock. A full initial backfill exceeding one run's batch cap isn't a failure,
       same as any capped-partial push - whatever's left dirty drains on the next periodic/manual
       run. The previously-primary device (if any) discovers it's been superseded passively, via
       its own periodic job's primary-status check - no push notification or cross-device
@@ -745,7 +752,23 @@ reconcile against - never for the common, single-device case.
   crashed a Pull entirely the first time any single document had an enum value an older app
   version didn't recognize yet. `PreferencesRepositoryImpl`'s pre-existing enum parsing
   (`UnitSystem`/`ThemeMode`/`MaxWorkoutDuration`) was already correctly defensive
-  (`runCatching { ... }.getOrNull() ?: default`) and needed no change.
+  (`runCatching { ... }.getOrNull() ?: default`) and needed no change. Every `*Dto` field name
+  deliberately avoids the `is`-prefix Kotlin/Java-bean boolean convention (`complete`/`skipped`/
+  `done`/`custom`/`builtIn`, not `isComplete`/`isSkipped`/`isDone`/`isCustom`/`isBuiltIn`) - for a
+  `data class`'s `val isXxx: Boolean`, Kotlin generates a bean-style `isXxx()` getter, Firestore's
+  serializer strips that `is` prefix when deriving the document field name on write, but
+  `toObject()`'s data-class deserialization matches document fields against constructor parameter
+  names literally on read - so an `is`-prefixed field name would silently round-trip back to its
+  default value every time, rather than the value actually pushed. **Bug found and fixed**: every
+  boolean `*Dto` field originally used the `is`-prefixed name matching its `*Entity` counterpart,
+  so every synced `SetEntryEntity.isComplete`/`WorkoutExerciseEntity.isSkipped`/`isDone`/
+  `ExerciseEntity.isCustom`/`MeasurementTypeEntity.isBuiltIn` silently reset to its default on
+  every "Pull cloud data" - concretely, this meant every synced set showed as incomplete, which
+  fed directly into personal records reading as empty on any device relying on synced (not
+  locally-logged) data, since the PR query filters on `isComplete = 1`. `*Entity`/domain-model
+  field names are unaffected (still `is`-prefixed, which is correct/idiomatic there - only the
+  Firestore-facing `*Dto` shape needed the rename); each `toDto()`/`toEntity()` mapper now does the
+  rename at the boundary.
 - [x] Manual account/data deletion is two distinct, clearly-separated actions on the dedicated
   Account screen (Phase 1) - not one ambiguous "delete account," since there's no separate
   Regimen account to delete: **sign-out** keeps local data and the cloud backup, just stops

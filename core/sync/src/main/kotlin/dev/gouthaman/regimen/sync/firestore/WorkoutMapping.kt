@@ -65,11 +65,17 @@ fun WorkoutDto.toEntity(id: String): WorkoutEntity = WorkoutEntity(
 
 /** Firestore shape for `users/{uid}/workouts/{workoutId}/workoutExercises/{weId}` - `workoutId`
  * itself is omitted, since it's already the parent document's own path. */
+/** `skipped`/`done`, not `isSkipped`/`isDone` - Kotlin's Java-bean-style getter for an
+ * `is`-prefixed `Boolean` (`isSkipped()`) gets its `is` stripped by Firestore's serializer when
+ * deriving the document field name, but `toObject()`'s data-class deserialization matches document
+ * fields against constructor parameter names literally - so a round trip through Firestore would
+ * silently reset every `is`-prefixed boolean back to its default. Avoiding the `is` prefix here
+ * sidesteps the mismatch entirely. */
 data class WorkoutExerciseDto(
     val exerciseId: String = "",
     val position: Int = 0,
-    val isSkipped: Boolean = false,
-    val isDone: Boolean = false,
+    val skipped: Boolean = false,
+    val done: Boolean = false,
     val supersetGroupId: String? = null,
     val lastModifiedAt: Long = 0,
 )
@@ -77,8 +83,8 @@ data class WorkoutExerciseDto(
 fun WorkoutExerciseEntity.toDto(): WorkoutExerciseDto = WorkoutExerciseDto(
     exerciseId = exerciseId,
     position = position,
-    isSkipped = isSkipped,
-    isDone = isDone,
+    skipped = isSkipped,
+    done = isDone,
     supersetGroupId = supersetGroupId,
     lastModifiedAt = lastModifiedAt,
 )
@@ -91,20 +97,22 @@ fun WorkoutExerciseDto.toEntity(id: String, workoutId: String): WorkoutExerciseE
         workoutId = workoutId,
         exerciseId = exerciseId,
         position = position,
-        isSkipped = isSkipped,
-        isDone = isDone,
+        isSkipped = skipped,
+        isDone = done,
         supersetGroupId = supersetGroupId,
         isDirty = false,
         lastModifiedAt = lastModifiedAt,
     )
 
 /** Firestore shape for `.../workoutExercises/{weId}/setEntries/{id}` - `workoutExerciseId` itself
- * is omitted, since it's already the parent document's own path. */
+ * is omitted, since it's already the parent document's own path. `complete`, not `isComplete` -
+ * see [WorkoutExerciseDto]'s doc for why an `is`-prefixed Boolean silently loses its value across
+ * a Firestore round trip. */
 data class SetEntryDto(
     val setNumber: Int = 0,
     val weightKg: Double? = null,
     val reps: Int? = null,
-    val isComplete: Boolean = false,
+    val complete: Boolean = false,
     val lastModifiedAt: Long = 0,
 )
 
@@ -112,7 +120,7 @@ fun SetEntryEntity.toDto(): SetEntryDto = SetEntryDto(
     setNumber = setNumber,
     weightKg = weightKg,
     reps = reps,
-    isComplete = isComplete,
+    complete = isComplete,
     lastModifiedAt = lastModifiedAt,
 )
 
@@ -124,7 +132,7 @@ fun SetEntryDto.toEntity(id: String, workoutExerciseId: String): SetEntryEntity 
     setNumber = setNumber,
     weightKg = weightKg,
     reps = reps,
-    isComplete = isComplete,
+    isComplete = complete,
     isDirty = false,
     lastModifiedAt = lastModifiedAt,
 )

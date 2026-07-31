@@ -105,12 +105,21 @@ class SyncPushRunner @Inject constructor(
      * that would overwrite a genuinely-synced status with "Not yet synced" just because this
      * device lost primary status, even though it really did sync before. */
     override suspend fun push(): SyncStatus {
-        val status = runPush()
+        val status = runPush(bypassLock = false)
         if (status != notPrimaryStatus()) syncStatusStore.save(status)
         return status
     }
 
-    private suspend fun runPush(): SyncStatus {
+    /** See the interface doc on [dev.gouthaman.regimen.domain.repository.SyncPushRepository.forcePush]
+     * for why this exists and skips both the lock and watermark checks. Also persists its result,
+     * same as [push]. */
+    override suspend fun forcePush(): SyncStatus {
+        val status = runPush(bypassLock = true)
+        if (status != notPrimaryStatus()) syncStatusStore.save(status)
+        return status
+    }
+
+    private suspend fun runPush(bypassLock: Boolean): SyncStatus {
         // Fails fast without touching Firestore - offline, a bare `.await()` doesn't reliably
         // fail quickly, which left "Sync now" spinning forever in airplane mode. The periodic job
         // never hits this (WorkManager's own NetworkType.CONNECTED constraint covers it); only the
@@ -124,7 +133,7 @@ class SyncPushRunner @Inject constructor(
         }
 
         return try {
-            withTimeout(PUSH_TIMEOUT_MS) { doPush() }
+            withTimeout(PUSH_TIMEOUT_MS) { doPush(bypassLock) }
         } catch (e: TimeoutCancellationException) {
             SyncStatus(
                 lastSyncedAt = null,
@@ -142,7 +151,7 @@ class SyncPushRunner @Inject constructor(
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    private suspend fun doPush(): SyncStatus {
+    private suspend fun doPush(bypassLock: Boolean): SyncStatus {
         val uid = firebaseAuth.currentUser?.uid
             ?: return notPrimaryStatus()
         // Not an error - a device that isn't primary anymore has nothing to report beyond "not my
@@ -158,21 +167,30 @@ class SyncPushRunner @Inject constructor(
         // landing in the narrow gap after this read is an accepted, low-probability risk.
         val config = syncConfigRef.get().await().toObject(SyncConfigDto::class.java)
 
-        // Refuses to start while "Claim primary" is actively wiping/rebuilding this account
-        // (holding the same lock for its own, longer-than-a-push duration) - otherwise this run
-        // could write fresh data into a destination that's concurrently being deleted out from
-        // under it.
-        val existingLock = config?.lockedAt
-        if (existingLock != null && System.currentTimeMillis() - existingLock < LOCK_STALE_AFTER_MS) {
-            return notPrimaryStatus()
-        }
+        if (!bypassLock) {
+            // Refuses to start while "Claim primary" is actively wiping/rebuilding this account
+            // (holding the same lock for its own, longer-than-a-push duration) - otherwise this
+            // run could write fresh data into a destination that's concurrently being deleted out
+            // from under it. Skipped when [bypassLock] is set - that means the lock we'd read here
+            // is this same call chain's own (from "Claim primary"), not a foreign one, so treating
+            // it as a blocking lock would make the claim's own forced push refuse itself every
+            // time.
+            val existingLock = config?.lockedAt
+            if (existingLock != null &&
+                System.currentTimeMillis() - existingLock < LOCK_STALE_AFTER_MS
+            ) {
+                return notPrimaryStatus()
+            }
 
-        // Freshness watermark: device-ID match alone isn't enough - Auto Backup can restore a
-        // snapshot older than the last successful push, carrying a stale isDirty=true that would
-        // overwrite the cloud's newer state. A mismatch here means refuse rather than trust it;
-        // a successful pull resets the watermark to match what it read.
-        if (watermarkStore.get() != config?.lastPushedAt) {
-            return notPrimaryStatus()
+            // Freshness watermark: device-ID match alone isn't enough - Auto Backup can restore a
+            // snapshot older than the last successful push, carrying a stale isDirty=true that
+            // would overwrite the cloud's newer state. A mismatch here means refuse rather than
+            // trust it; a successful pull resets the watermark to match what it read. Skipped when
+            // [bypassLock] is set, since a forced re-upload is meant to happen regardless of
+            // watermark state.
+            if (watermarkStore.get() != config?.lastPushedAt) {
+                return notPrimaryStatus()
+            }
         }
 
         hasMoreWork = false

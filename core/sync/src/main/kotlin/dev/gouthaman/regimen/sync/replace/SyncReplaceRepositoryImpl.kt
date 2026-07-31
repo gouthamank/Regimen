@@ -161,8 +161,11 @@ class SyncReplaceRepositoryImpl @Inject constructor(
 
                 // Reuses the same incremental push loop, not a separate upload path - a full
                 // backfill can exceed one run's batch cap, but whatever's left dirty just drains
-                // on the next run, same as any capped-partial push.
-                val status = syncPushRepository.push()
+                // on the next run, same as any capped-partial push. Uses forcePush(), not push() -
+                // this claim already holds syncConfig.lockedAt itself (set in the transaction
+                // above), and push()'s own lock/watermark checks would otherwise see that same
+                // fresh lock and refuse to run at all, silently no-op'ing the entire claim.
+                val status = syncPushRepository.forcePush()
                 status.lastError?.let {
                     return Result.failure(SyncReplaceException(it.toSyncReplaceReason()))
                 }
