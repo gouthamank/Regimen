@@ -32,6 +32,7 @@ import dev.gouthaman.regimen.domain.usecase.StartRestUseCase
 import dev.gouthaman.regimen.domain.usecase.StopRestUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleDoneExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
+import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutExerciseNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
@@ -42,6 +43,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -102,6 +105,7 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
     private val addExercisesUseCase: AddExercisesToWorkoutUseCase,
     private val upsertCardio: UpsertCardioUseCase,
     private val updateNoteUseCase: UpdateWorkoutNoteUseCase,
+    private val updateExerciseNoteUseCase: UpdateWorkoutExerciseNoteUseCase,
     private val finishWorkoutUseCase: FinishWorkoutUseCase,
     private val cancelWorkoutUseCase: CancelWorkoutUseCase,
     private val pauseWorkoutUseCase: PauseWorkoutUseCase,
@@ -138,11 +142,16 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
             emptyList()
         )
 
+    // Which exercises' blank note field is toggled open to type into - UI-only, not persisted;
+    // a non-blank note is always shown regardless of this set (see WorkoutExerciseRow.notes).
+    private val expandedNotes = MutableStateFlow<Set<String>>(emptySet())
+
     val uiState: StateFlow<ActiveWorkoutUiState> = combine(
         observeWorkout(workoutId),
         observeRoutines(),
         observePreferences(),
-    ) { workout, routines, prefs ->
+        expandedNotes,
+    ) { workout, routines, prefs, expandedIds ->
         if (workout == null) {
             ActiveWorkoutUiState(workoutId = workoutId, loaded = true, notFound = true)
         } else {
@@ -183,6 +192,8 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
                             sets = we.sets.sortedBy { it.setNumber },
                             cardio = we.cardio.firstOrNull(),
                             restTargetSec = restByExercise[we.exercise.id] ?: prefs.restDefaultSec,
+                            notes = we.workoutExercise.notes,
+                            notesToggledOpen = we.workoutExercise.id in expandedIds,
                         )
                     },
                 loaded = true,
@@ -237,6 +248,13 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
     fun updateCardio(cardio: CardioEntry) = viewModelScope.launch { upsertCardio(cardio) }
 
     fun updateNote(note: String) = viewModelScope.launch { updateNoteUseCase(workoutId, note) }
+
+    fun updateExerciseNote(exercise: WorkoutExercise, notes: String) =
+        viewModelScope.launch { updateExerciseNoteUseCase(exercise, notes) }
+
+    fun toggleExerciseNotes(workoutExerciseId: String) = expandedNotes.update {
+        if (workoutExerciseId in it) it - workoutExerciseId else it + workoutExerciseId
+    }
 
     fun pause() = viewModelScope.launch { pauseWorkoutUseCase(workoutId) }
 

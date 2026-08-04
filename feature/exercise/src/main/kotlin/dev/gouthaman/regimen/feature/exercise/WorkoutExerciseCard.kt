@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
@@ -81,6 +82,10 @@ data class WorkoutExerciseRow(
     val sets: List<SetEntry>,
     val cardio: CardioEntry?,
     val restTargetSec: Int = 0,
+    val notes: String? = null,
+    /** Whether the user has tapped the notes icon to reveal a blank field to type into - only
+     * matters while [notes] is blank; once it has text the field always shows regardless. */
+    val notesToggledOpen: Boolean = false,
 ) {
     val workoutExerciseId: String get() = workoutExercise.id
 }
@@ -103,6 +108,8 @@ fun ExerciseCard(
     onToggleDone: (WorkoutExercise) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onStartRest: (String, Int) -> Unit,
+    onToggleNotes: (String) -> Unit,
+    onUpdateNotes: (WorkoutExercise, String) -> Unit,
     modifier: Modifier = Modifier,
     showRestTimer: Boolean = true,
     enabled: Boolean = true,
@@ -216,6 +223,19 @@ fun ExerciseCard(
                         }
                     }
                 }
+                // Only while there's nothing to show yet - once notes has text the field below
+                // is already visible and can't be hidden by this button (only by clearing it).
+                if (bodyState == ExerciseCardBody.NORMAL && exercise.notes.isNullOrBlank()) {
+                    IconButton(
+                        onClick = { onToggleNotes(exercise.workoutExerciseId) },
+                        enabled = enabled,
+                    ) {
+                        Icon(
+                            Icons.Filled.Notes,
+                            contentDescription = stringResource(R.string.workout_add_notes_description),
+                        )
+                    }
+                }
             }
 
             // Cross-fades skipped/done labels vs the sets/cardio body, resizing smoothly instead
@@ -317,6 +337,38 @@ fun ExerciseCard(
                         )
                     }
                 }
+            }
+            val showNotes = if (bodyState == ExerciseCardBody.NORMAL) {
+                exercise.notesToggledOpen || !exercise.notes.isNullOrBlank()
+            } else {
+                !exercise.notes.isNullOrBlank()
+            }
+            if (showNotes && bodyState == ExerciseCardBody.NORMAL) {
+                var notesText by remember(exercise.workoutExerciseId, exercise.notes) {
+                    mutableStateOf(exercise.notes.orEmpty())
+                }
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = {
+                        notesText = it
+                        onUpdateNotes(exercise.workoutExercise, it)
+                    },
+                    label = { Text(stringResource(R.string.workout_notes_label)) },
+                    enabled = enabled,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                )
+            } else if (showNotes) {
+                // Skipped/done - read-only, matches the collapsed summary's plain-text styling.
+                Text(
+                    exercise.notes.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = contentColor.copy(alpha = 0.75f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                )
             }
         }
     }

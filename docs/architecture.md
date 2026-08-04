@@ -267,10 +267,10 @@ The core loop; users spend the majority of session time here.
 - **Per-set completion** - a set's checkbox only becomes checkable once its numeric fields are
   actually filled in (for a non-bodyweight exercise, both weight and reps; unchecking is always
   allowed, no validation). Once checked, the set's fields lock - uncheck to edit them again.
-- **Prefill** - each exercise's sets, and the session note, are prefilled from the most recent
-  completed session of the same routine (the note is a common place to jot which exercises to
-  advance next time). For a freeform workout, or a newly added exercise with no history, fields
-  start blank.
+- **Prefill** - each exercise's sets, the session note, and each exercise's own note are prefilled
+  from the most recent completed session of the same routine (a note is a common place to jot
+  which exercises to advance next time, at either the session or per-exercise level). For a
+  freeform workout, or a newly added exercise with no history, fields start blank.
 - **Skip / Done** - a strength exercise can be marked skipped (bypasses all completion checks) or
   done (only once every set is checked complete), each via its own header icon toggle; the two are
   mutually exclusive - marking one hides the other's icon until it's undone. Marking done also
@@ -283,6 +283,12 @@ The core loop; users spend the majority of session time here.
   left-skipped exercise is recorded in history as skipped (an adherence signal), not removed.
 - **Cardio** - a cardio activity can be added to the session, recording duration and distance.
   Cardio entries are session-only; never part of a routine.
+- **Per-exercise notes** - each exercise, in addition to the session-wide note, has its own optional
+  note (`WorkoutExercise.notes`), editable from both the live Active Workout screen and Edit
+  Workout. A header icon toggles a blank field open to type into; once a note has real text it's
+  always shown (the toggle can no longer hide it - only deleting the text can) and stays visible
+  even once the card collapses to its skipped/done summary. A blank, merely-toggled-open field is
+  not shown once the exercise is skipped/done, and isn't part of that summary.
 - **Other** - exercises can be added or removed mid-session via the picker; per-set completion is
   checked against personal records as it happens; per-session notes are supported.
 - **Resilience** - the screen survives process death, rotation, and backgrounding. The
@@ -518,8 +524,8 @@ Workout(id, startTime, endTime, note, routineId?, workoutStatus, pausedAt?, accu
         truth for session lifecycle; restTimeEndAt/restTotalSec/restWorkoutExerciseId are non-null
         only while IN_REST_TIME, pausedAt only while PAUSED. Only COMPLETE workouts are ever in
         sync scope.
-WorkoutExercise(id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId?, isDirty,
-                lastModifiedAt)
+WorkoutExercise(id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId?, notes?,
+                isDirty, lastModifiedAt)
     isSkipped/isDone are mutually exclusive at the UI level (see Active Workout spec)
 
 SetEntry(id, workoutExerciseId, setNumber, weightKg?, reps?, isComplete, isDirty, lastModifiedAt)

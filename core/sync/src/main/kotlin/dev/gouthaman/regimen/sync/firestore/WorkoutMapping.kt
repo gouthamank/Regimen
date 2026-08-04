@@ -77,6 +77,7 @@ data class WorkoutExerciseDto(
     val skipped: Boolean = false,
     val done: Boolean = false,
     val supersetGroupId: String? = null,
+    val notes: String? = null,
     val lastModifiedAt: Long = 0,
 )
 
@@ -86,6 +87,7 @@ fun WorkoutExerciseEntity.toDto(): WorkoutExerciseDto = WorkoutExerciseDto(
     skipped = isSkipped,
     done = isDone,
     supersetGroupId = supersetGroupId,
+    notes = notes,
     lastModifiedAt = lastModifiedAt,
 )
 
@@ -100,6 +102,7 @@ fun WorkoutExerciseDto.toEntity(id: String, workoutId: String): WorkoutExerciseE
         isSkipped = skipped,
         isDone = done,
         supersetGroupId = supersetGroupId,
+        notes = notes,
         isDirty = false,
         lastModifiedAt = lastModifiedAt,
     )

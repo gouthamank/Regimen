@@ -78,6 +78,8 @@ fun EditWorkoutScreen(
         onAddExercises = viewModel::addExercises,
         onUpdateCardio = viewModel::updateCardio,
         onUpdateNote = viewModel::updateNote,
+        onToggleNotes = viewModel::toggleExerciseNotes,
+        onUpdateNotes = viewModel::updateExerciseNote,
         onDone = {
             viewModel.doneEditing()
             onFinished()
@@ -106,6 +108,8 @@ fun EditWorkoutScreen(
     onAddExercises: (List<String>) -> Unit,
     onUpdateCardio: (CardioEntry) -> Unit,
     onUpdateNote: (String) -> Unit,
+    onToggleNotes: (String) -> Unit,
+    onUpdateNotes: (WorkoutExercise, String) -> Unit,
     onDone: () -> Unit,
     onCancelEdit: () -> Unit,
     onCreateCustomExercise: () -> Unit,
@@ -203,6 +207,8 @@ fun EditWorkoutScreen(
                             onToggleDone = onToggleDone,
                             onUpdateCardio = onUpdateCardio,
                             onStartRest = { _, _ -> },
+                            onToggleNotes = onToggleNotes,
+                            onUpdateNotes = onUpdateNotes,
                             showRestTimer = false,
                         )
                     }

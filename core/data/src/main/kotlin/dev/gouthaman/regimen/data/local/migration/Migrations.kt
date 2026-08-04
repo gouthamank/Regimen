@@ -152,3 +152,11 @@ val MIGRATION_10_11 = Migration(10, 11) { db ->
         """.trimIndent()
     )
 }
+
+/**
+ * v11 -> v12: adds `workout_exercises.notes` (per-exercise note, alongside the workout-wide
+ * note). Plain `ADD COLUMN`, same reasoning as MIGRATION_6_7.
+ */
+val MIGRATION_11_12 = Migration(11, 12) { db ->
+    db.execSQL("ALTER TABLE `workout_exercises` ADD COLUMN `notes` TEXT")
+}

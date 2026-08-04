@@ -40,6 +40,8 @@ class StartWorkoutUseCase @Inject constructor(
         val priorSetsByExercise: Map<String, List<SetEntry>> = prior?.let { p ->
             p.exercises.associate { it.exercise.id to it.sets.sortedBy { s -> s.setNumber } }
         } ?: emptyMap()
+        val priorNotesByExercise: Map<String, String?> = prior?.exercises
+            ?.associate { it.exercise.id to it.workoutExercise.notes }.orEmpty()
 
         // Carries forward a personal note (e.g. "advance bench next time") from the same
         // routine's last session, same idea as the per-set prefill below.
@@ -63,6 +65,7 @@ class StartWorkoutUseCase @Inject constructor(
                             reps = ps?.reps ?: item.routineExercise.targetReps,
                         )
                     },
+                    notes = priorNotesByExercise[item.exercise.id]?.takeIf { it.isNotBlank() },
                 )
             }
         return workoutRepo.startWorkout(now, routineId, note, exercises)
@@ -428,6 +431,15 @@ class ToggleDoneExerciseUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(exercise: WorkoutExercise) {
         workoutRepo.updateExercise(exercise.copy(isDone = !exercise.isDone))
+    }
+}
+
+/** Updates a single exercise's note within a workout. */
+class UpdateWorkoutExerciseNoteUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+) {
+    suspend operator fun invoke(exercise: WorkoutExercise, notes: String) {
+        workoutRepo.updateExercise(exercise.copy(notes = notes.trim().ifBlank { null }))
     }
 }
 

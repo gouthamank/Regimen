@@ -149,6 +149,54 @@ class StartWorkoutUseCaseTest {
     }
 
     @Test
+    fun `routine prefills exercise notes from the most recent session of the same routine`() =
+        runTest {
+            val workoutRepo = FakeWorkoutRepository()
+            val routineRepo = FakeRoutineRepository()
+            routineRepo.seed(
+                routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
+            )
+            workoutRepo.seed(
+                priorSessionFor(
+                    routineId = "1",
+                    exercise = benchPress,
+                    note = null,
+                    exerciseNote = "Elbows tucked",
+                ),
+            )
+            val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
+
+            val id = useCase(routineId = "1")
+
+            assertEquals(
+                "Elbows tucked",
+                workoutRepo.getWorkout(id)!!.exercises[0].workoutExercise.notes,
+            )
+        }
+
+    @Test
+    fun `a blank prior exercise note is not carried forward`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val routineRepo = FakeRoutineRepository()
+        routineRepo.seed(
+            routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
+        )
+        workoutRepo.seed(
+            priorSessionFor(
+                routineId = "1",
+                exercise = benchPress,
+                note = null,
+                exerciseNote = "   "
+            ),
+        )
+        val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
+
+        val id = useCase(routineId = "1")
+
+        assertNull(workoutRepo.getWorkout(id)!!.exercises[0].workoutExercise.notes)
+    }
+
+    @Test
     fun `target sets below one still logs a single set`() = runTest {
         val workoutRepo = FakeWorkoutRepository()
         val routineRepo = FakeRoutineRepository()
@@ -175,7 +223,8 @@ class StartWorkoutUseCaseTest {
     private suspend fun priorSessionFor(
         routineId: String,
         exercise: Exercise,
-        note: String?
+        note: String?,
+        exerciseNote: String? = null,
     ): WorkoutWithDetails {
         val repo = FakeWorkoutRepository()
         val workoutId = repo.createWorkout(startTime = 1_000, routineId = routineId)
@@ -189,6 +238,11 @@ class StartWorkoutUseCaseTest {
         val weId = repo.addExercise(
             WorkoutExercise(workoutId = workoutId, exerciseId = exercise.id, position = 0),
         )
+        if (exerciseNote != null) {
+            val we = repo.getWorkout(workoutId)!!.exercises
+                .first { it.workoutExercise.id == weId }.workoutExercise
+            repo.updateExercise(we.copy(notes = exerciseNote))
+        }
         repo.upsertSet(
             SetEntry(
                 workoutExerciseId = weId,

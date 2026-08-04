@@ -22,16 +22,19 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleDoneExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
+import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutExerciseNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
 import dev.gouthaman.regimen.feature.exercise.WorkoutExerciseRow
 import dev.gouthaman.regimen.navigation.EditWorkoutRoute
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -67,6 +70,7 @@ class EditWorkoutViewModel @Inject constructor(
     private val addExercisesUseCase: AddExercisesToWorkoutUseCase,
     private val upsertCardio: UpsertCardioUseCase,
     private val updateNoteUseCase: UpdateWorkoutNoteUseCase,
+    private val updateExerciseNoteUseCase: UpdateWorkoutExerciseNoteUseCase,
     private val doneEditingWorkoutUseCase: DoneEditingWorkoutUseCase,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
@@ -81,11 +85,16 @@ class EditWorkoutViewModel @Inject constructor(
             emptyList()
         )
 
+    // Which exercises' blank note field is toggled open to type into - UI-only, not persisted;
+    // a non-blank note is always shown regardless of this set (see WorkoutExerciseRow.notes).
+    private val expandedNotes = MutableStateFlow<Set<String>>(emptySet())
+
     val uiState: StateFlow<EditWorkoutUiState> = combine(
         observeWorkout(workoutId),
         observeRoutines(),
         observePreferences(),
-    ) { workout, routines, prefs ->
+        expandedNotes,
+    ) { workout, routines, prefs, expandedIds ->
         if (workout == null) {
             EditWorkoutUiState(loaded = true, notFound = true)
         } else {
@@ -108,6 +117,8 @@ class EditWorkoutViewModel @Inject constructor(
                             isDone = we.workoutExercise.isDone,
                             sets = we.sets.sortedBy { it.setNumber },
                             cardio = we.cardio.firstOrNull(),
+                            notes = we.workoutExercise.notes,
+                            notesToggledOpen = we.workoutExercise.id in expandedIds,
                         )
                     },
                 loaded = true,
@@ -159,6 +170,13 @@ class EditWorkoutViewModel @Inject constructor(
     fun updateCardio(cardio: CardioEntry) = viewModelScope.launch { upsertCardio(cardio) }
 
     fun updateNote(note: String) = viewModelScope.launch { updateNoteUseCase(workoutId, note) }
+
+    fun updateExerciseNote(exercise: WorkoutExercise, notes: String) =
+        viewModelScope.launch { updateExerciseNoteUseCase(exercise, notes) }
+
+    fun toggleExerciseNotes(workoutExerciseId: String) = expandedNotes.update {
+        if (workoutExerciseId in it) it - workoutExerciseId else it + workoutExerciseId
+    }
 
     /** Leaves editing mode (both Done and Cancel-edit call this - editing never touches endTime,
      * so there's nothing different to do between "keep the edits" and "cancel"; Cancel-edit's

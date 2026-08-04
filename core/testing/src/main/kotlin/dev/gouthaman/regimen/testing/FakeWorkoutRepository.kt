@@ -155,7 +155,8 @@ class FakeWorkoutRepository : WorkoutRepository {
                 WorkoutExercise(
                     workoutId = workoutId,
                     exerciseId = ex.exerciseId,
-                    position = ex.position
+                    position = ex.position,
+                    notes = ex.notes,
                 )
             )
             ex.sets.forEach { set ->

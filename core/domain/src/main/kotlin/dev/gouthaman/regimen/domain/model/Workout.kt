@@ -38,6 +38,7 @@ data class WorkoutExercise(
     // whether via checkbox or rest-timer completion) - collapses the card until Edit reopens it.
     val isDone: Boolean = false,
     val supersetGroupId: String? = null,
+    val notes: String? = null,
 )
 
 /** One logged set of a strength exercise. Weight stored canonically in kg. */
@@ -57,6 +58,7 @@ data class NewWorkoutExercise(
     val position: Int,
     val sets: List<NewSetEntry> = emptyList(),
     val cardio: NewCardioEntry? = null,
+    val notes: String? = null,
 )
 
 /** One prefilled set within a [NewWorkoutExercise] - no id/workoutExerciseId yet, those are

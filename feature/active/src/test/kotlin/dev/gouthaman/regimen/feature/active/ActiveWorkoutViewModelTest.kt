@@ -23,6 +23,7 @@ import dev.gouthaman.regimen.domain.usecase.StartRestUseCase
 import dev.gouthaman.regimen.domain.usecase.StopRestUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleDoneExerciseUseCase
 import dev.gouthaman.regimen.domain.usecase.ToggleSkipExerciseUseCase
+import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutExerciseNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpdateWorkoutNoteUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertCardioUseCase
 import dev.gouthaman.regimen.domain.usecase.UpsertSetUseCase
@@ -80,6 +81,7 @@ class ActiveWorkoutViewModelTest {
         addExercisesUseCase = AddExercisesToWorkoutUseCase(workoutRepo, exerciseRepo),
         upsertCardio = UpsertCardioUseCase(workoutRepo),
         updateNoteUseCase = UpdateWorkoutNoteUseCase(workoutRepo),
+        updateExerciseNoteUseCase = UpdateWorkoutExerciseNoteUseCase(workoutRepo),
         finishWorkoutUseCase = FinishWorkoutUseCase(workoutRepo, clock),
         cancelWorkoutUseCase = CancelWorkoutUseCase(workoutRepo),
         pauseWorkoutUseCase = PauseWorkoutUseCase(workoutRepo, clock),
@@ -378,4 +380,44 @@ class ActiveWorkoutViewModelTest {
             assertTrue(updatedExercise.sets.single { it.id == setId }.isComplete)
             assertTrue(updatedExercise.workoutExercise.isDone)
         }
+
+    @Test
+    fun `toggling exercise notes flips notesToggledOpen for just that exercise`() =
+        runTest(dispatcher) {
+            val workoutRepo = FakeWorkoutRepository()
+            workoutRepo.exerciseLookup = { benchPress }
+            val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+            val we = workoutRepo.addExercise(
+                WorkoutExercise(workoutId = workoutId, exerciseId = benchPress.id, position = 0)
+            )
+            val viewModel = viewModel(workoutId, workoutRepo, appScope = this)
+            runCurrent()
+            assertFalse(viewModel.uiState.value.exercises.single().notesToggledOpen)
+
+            viewModel.toggleExerciseNotes(we)
+            runCurrent()
+            assertTrue(viewModel.uiState.value.exercises.single().notesToggledOpen)
+
+            viewModel.toggleExerciseNotes(we)
+            runCurrent()
+            assertFalse(viewModel.uiState.value.exercises.single().notesToggledOpen)
+        }
+
+    @Test
+    fun `updating exercise notes persists and surfaces the trimmed value`() = runTest(dispatcher) {
+        val workoutRepo = FakeWorkoutRepository()
+        workoutRepo.exerciseLookup = { benchPress }
+        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+        val we = workoutRepo.addExercise(
+            WorkoutExercise(workoutId = workoutId, exerciseId = benchPress.id, position = 0)
+        )
+        val viewModel = viewModel(workoutId, workoutRepo, appScope = this)
+        runCurrent()
+        val workoutExercise = viewModel.uiState.value.exercises.single().workoutExercise
+
+        viewModel.updateExerciseNote(workoutExercise, "  go heavier next time  ")
+        runCurrent()
+
+        assertEquals("go heavier next time", viewModel.uiState.value.exercises.single().notes)
+    }
 }

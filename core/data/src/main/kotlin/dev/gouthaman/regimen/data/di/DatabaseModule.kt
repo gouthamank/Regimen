@@ -14,6 +14,7 @@ import dev.gouthaman.regimen.data.local.dao.RoutineDao
 import dev.gouthaman.regimen.data.local.dao.SyncTombstoneDao
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_10_11
+import dev.gouthaman.regimen.data.local.migration.MIGRATION_11_12
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_4_5
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_5_6
 import dev.gouthaman.regimen.data.local.migration.MIGRATION_6_7
@@ -38,6 +39,7 @@ object DatabaseModule {
                 MIGRATION_8_9,
                 MIGRATION_9_10,
                 MIGRATION_10_11,
+                MIGRATION_11_12,
             )
             .build()
 

@@ -44,6 +44,7 @@ data class SessionExercise(
     val isSkipped: Boolean,
     val sets: List<SetEntry>,
     val cardio: List<CardioEntry>,
+    val notes: String? = null,
 )
 
 /** A formatted value + its unit label (e.g. displayValue="1,250", unitLabel=UnitLabel.KG), kept
@@ -149,6 +150,7 @@ class SessionDetailViewModel @Inject constructor(
                             isSkipped = we.workoutExercise.isSkipped,
                             sets = we.sets.sortedBy { it.setNumber },
                             cardio = we.cardio,
+                            notes = we.workoutExercise.notes?.takeIf { it.isNotBlank() },
                         )
                     },
                 loaded = true,

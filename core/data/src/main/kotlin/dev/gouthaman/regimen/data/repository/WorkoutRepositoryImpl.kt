@@ -101,6 +101,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                         workoutId = workoutId,
                         exerciseId = ex.exerciseId,
                         position = ex.position,
+                        notes = ex.notes,
                     ),
                     sets = ex.sets.map { set ->
                         SetEntryEntity(

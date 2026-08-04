@@ -587,6 +587,8 @@ private fun LiveWorkoutContent(
                             onToggleDone = viewModel::toggleDone,
                             onUpdateCardio = viewModel::updateCardio,
                             onStartRest = viewModel::startRest,
+                            onToggleNotes = viewModel::toggleExerciseNotes,
+                            onUpdateNotes = viewModel::updateExerciseNote,
                             enabled = !uiState.isPaused,
                             animateSets = animateSets,
                         )

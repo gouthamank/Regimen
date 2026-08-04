@@ -32,7 +32,7 @@ import dev.gouthaman.regimen.data.local.entity.WorkoutExerciseEntity
         BodyMetricEntity::class,
         SyncTombstoneEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

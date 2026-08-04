@@ -61,6 +61,8 @@
     <string name="workout_skipped_label">Skipped</string>
     <string name="workout_mark_done_description">Mark done</string>
     <string name="workout_edit_exercise_description">Edit</string>
+    <string name="workout_add_notes_description">Add notes</string>
+    <string name="workout_notes_label">Notes</string>
     <string name="workout_add_set_button">Add set</string>
     <string name="workout_rest_label">Rest</string>
     <string name="workout_reps_label">Reps</string>

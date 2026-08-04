@@ -342,4 +342,43 @@ class MigrationTest {
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
+
+    @Test
+    fun migrate11To12_addsWorkoutExerciseNotesColumn() {
+        helper.createDatabase(TEST_DB, 11).apply {
+            execSQL(
+                "INSERT INTO exercises (id, name, type, muscleGroup, equipment, isCustom, isDirty, lastModifiedAt) " +
+                        "VALUES ('e1', 'Bench Press', 'STRENGTH', 'CHEST', 'BARBELL', 0, 1, 1000)"
+            )
+            execSQL(
+                "INSERT INTO workouts (id, startTime, endTime, note, routineId, workoutStatus, endReason, pausedAt, accumulatedPausedMs, restTimeEndAt, restTotalSec, restWorkoutExerciseId, isDirty, lastModifiedAt) " +
+                        "VALUES ('w1', 1000, NULL, NULL, NULL, 'IN_PROGRESS', NULL, NULL, 0, NULL, NULL, NULL, 1, 1000)"
+            )
+            execSQL(
+                "INSERT INTO workout_exercises (id, workoutId, exerciseId, position, isSkipped, isDone, supersetGroupId, isDirty, lastModifiedAt) " +
+                        "VALUES ('we1', 'w1', 'e1', 0, 0, 0, NULL, 1, 1000)"
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 12, true, MIGRATION_11_12)
+        migrated.query("SELECT notes FROM workout_exercises WHERE id = 'we1'").use {
+            it.moveToFirst()
+            assertTrue(it.isNull(0))
+        }
+        migrated.execSQL("UPDATE workout_exercises SET notes = 'go heavier next time' WHERE id = 'we1'")
+        migrated.query("SELECT notes FROM workout_exercises WHERE id = 'we1'").use {
+            it.moveToFirst()
+            assertEquals("go heavier next time", it.getString(0))
+        }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
 }

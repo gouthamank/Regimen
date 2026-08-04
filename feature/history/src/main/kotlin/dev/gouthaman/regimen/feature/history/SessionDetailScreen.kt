@@ -368,12 +368,12 @@ private fun SessionSummaryCard(uiState: SessionDetailUiState) {
                     modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
                 )
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.Notes,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(end = 8.dp, top = 2.dp),
+                        modifier = Modifier.padding(end = 8.dp),
                     )
                     Text(
                         uiState.note,
@@ -476,6 +476,24 @@ private fun ExerciseCard(
                             )
                         }
                     }
+                }
+            }
+            if (exercise.notes != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Notes,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(
+                        exercise.notes,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

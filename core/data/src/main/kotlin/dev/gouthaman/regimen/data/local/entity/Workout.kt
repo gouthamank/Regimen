@@ -107,6 +107,7 @@ data class WorkoutExerciseEntity(
     val isSkipped: Boolean = false,
     val isDone: Boolean = false,
     val supersetGroupId: String? = null,
+    val notes: String? = null,
     val isDirty: Boolean = true,
     val lastModifiedAt: Long = System.currentTimeMillis(),
 )
@@ -119,6 +120,7 @@ fun WorkoutExerciseEntity.toDomain(): WorkoutExercise = WorkoutExercise(
     isSkipped = isSkipped,
     isDone = isDone,
     supersetGroupId = supersetGroupId,
+    notes = notes,
 )
 
 fun WorkoutExercise.toEntity(): WorkoutExerciseEntity = WorkoutExerciseEntity(
@@ -129,6 +131,7 @@ fun WorkoutExercise.toEntity(): WorkoutExerciseEntity = WorkoutExerciseEntity(
     isSkipped = isSkipped,
     isDone = isDone,
     supersetGroupId = supersetGroupId,
+    notes = notes,
 )
 
 /** One logged set of a strength exercise. Weight stored canonically in kg. */
