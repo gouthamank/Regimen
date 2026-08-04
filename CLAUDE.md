@@ -23,8 +23,10 @@ project memory; see also `build.gradle.kts` / `gradle.properties`.
 
 ## Key decisions (see docs/architecture.md for detail)
 
-- **Local-only**: no backend, no auth, no network. Room for persistence. Data export (JSON)
-  is deferred.
+- **Local-first**: Room for persistence; every screen works fully signed-out with no backend,
+  auth, or network required. Optional opt-in cloud backup/multi-device sync (Firebase Auth +
+  Firestore) layers on top - see `docs/architecture.md`'s "Remote sync" section for the
+  primary/secondary device model and sync scope. Data export (JSON) is deferred.
 - **UI**: Jetpack Compose + **Material 3 Expressive**, single-Activity, bottom-tab
   navigation (Home / Routines / History / Progress / Settings).
 - **Architecture**: MVVM + UDF with a **full use-case (domain) layer**
