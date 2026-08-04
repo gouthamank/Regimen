@@ -93,11 +93,16 @@ fun RegimenApp(
 
     // activeWorkoutSheetState is created once for the whole session (not per workout) - reset it
     // to Collapsed the moment a new workout starts being tracked, so it can't inherit whatever
-    // expand/collapse state a *previous* workout left it in. Keyed on the id itself (not just
-    // "non-null") so this fires once per new workout, not on every recomposition while one's
-    // already in progress - which would otherwise undo the user's own drag/tap mid-session.
+    // expand/collapse state a *previous* workout left it in. lastResetWorkoutId is rememberSaveable
+    // (not just a LaunchedEffect key) so a rotation - which restarts this LaunchedEffect from
+    // scratch with the same still-in-progress id - doesn't misread "same workout, fresh
+    // composition" as "a new workout started" and stomp the just-restored sheet state.
+    var lastResetWorkoutId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(inProgressWorkoutId) {
-        if (inProgressWorkoutId != null) activeWorkoutSheetState.resetToCollapsed()
+        if (inProgressWorkoutId != null && inProgressWorkoutId != lastResetWorkoutId) {
+            activeWorkoutSheetState.resetToCollapsed()
+        }
+        lastResetWorkoutId = inProgressWorkoutId
     }
 
     // Tapping the in-progress/rest-complete notification (MainActivity's EXTRA_WORKOUT_ID) lands

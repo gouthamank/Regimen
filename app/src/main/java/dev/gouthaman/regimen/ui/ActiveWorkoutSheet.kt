@@ -91,7 +91,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -168,8 +170,14 @@ class ActiveWorkoutSheetState internal constructor(
 
 @Composable
 fun rememberActiveWorkoutSheetState(): ActiveWorkoutSheetState {
+    // Saved/restored across rotation and process death instead of always starting Collapsed.
+    var savedValue by rememberSaveable { mutableStateOf(WorkoutSheetValue.Collapsed) }
     val draggableState =
-        remember { AnchoredDraggableState(initialValue = WorkoutSheetValue.Collapsed) }
+        remember { AnchoredDraggableState(initialValue = savedValue) }
+    // settledValue, not targetValue - only capture the sheet's actual resting position.
+    LaunchedEffect(draggableState) {
+        snapshotFlow { draggableState.settledValue }.collect { savedValue = it }
+    }
     return remember(draggableState) { ActiveWorkoutSheetState(draggableState) }
 }
 
@@ -232,6 +240,21 @@ fun ActiveWorkoutSheet(
         )
     } else {
         0f
+    }
+
+    // Hoisted (not local to LiveWorkoutContent) and saved, so it survives collapse, rotation,
+    // and process death. keepScreenOnActive below is the derived, actually-applied flag.
+    var keepScreenOnDesired by rememberSaveable { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(uiState.finished, uiState.notFound) {
+        if (uiState.finished || uiState.notFound) keepScreenOnDesired = false
+    }
+    val keepScreenOnActive =
+        keepScreenOnDesired && progress > 0f && !uiState.finished && !uiState.notFound
+    val view = LocalView.current
+    DisposableEffect(keepScreenOnActive) {
+        view.keepScreenOn = keepScreenOnActive
+        onDispose { view.keepScreenOn = false }
     }
 
     Box(
@@ -302,6 +325,8 @@ fun ActiveWorkoutSheet(
                 onDiscarded = onDiscarded,
                 onCreateCustomExercise = { navController.navigate(EditExerciseRoute()) },
                 animateSets = setRowAnimationsEnabled,
+                keepScreenOn = keepScreenOnDesired,
+                onToggleKeepScreenOn = { keepScreenOnDesired = !keepScreenOnDesired },
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
@@ -364,6 +389,8 @@ private fun LiveWorkoutContent(
     onDiscarded: () -> Unit,
     onCreateCustomExercise: () -> Unit,
     animateSets: Boolean,
+    keepScreenOn: Boolean,
+    onToggleKeepScreenOn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -384,14 +411,6 @@ private fun LiveWorkoutContent(
     var showPicker by remember { mutableStateOf(false) }
     val windowInfo = LocalRegimenWindowInfo.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
-    // Ephemeral - resets every time this screen is (re)opened, not a saved preference.
-    var keepScreenOn by remember { mutableStateOf(false) }
-    val view = LocalView.current
-    DisposableEffect(keepScreenOn) {
-        view.keepScreenOn = keepScreenOn
-        onDispose { view.keepScreenOn = false }
-    }
 
     // Elapsed derives from startTime (survives rotation/process death).
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -443,15 +462,15 @@ private fun LiveWorkoutContent(
                     }
                 },
                 actions = {
-                    // Ephemeral - resets every time this screen is (re)opened, not a saved
-                    // preference. Filled + tinted while on, outline + muted while off - same
-                    // glyph (sun) both states so it can't misread as a light/dark theme toggle.
+                    // Filled + tinted while on, outline + muted while off - same glyph (sun) both
+                    // states so it can't misread as a light/dark theme toggle.
                     val keepScreenOnMessage =
                         stringResource(R.string.workout_keep_screen_on_snackbar)
                     IconButton(
                         onClick = {
-                            keepScreenOn = !keepScreenOn
-                            if (keepScreenOn) {
+                            val turningOn = !keepScreenOn
+                            onToggleKeepScreenOn()
+                            if (turningOn) {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(keepScreenOnMessage)
                                 }

@@ -49,7 +49,10 @@ class MainActivity : ComponentActivity() {
                         !prefs.onboarded -> OnboardingScreen()
                         else -> RegimenApp(
                             deepLinkWorkoutId = pendingWorkoutDeepLink,
-                            onDeepLinkConsumed = { pendingWorkoutDeepLink = null },
+                            onDeepLinkConsumed = {
+                                pendingWorkoutDeepLink = null
+                                intent.removeExtra(EXTRA_WORKOUT_ID)
+                            },
                         )
                     }
                 }
