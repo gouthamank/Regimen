@@ -12,6 +12,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.gouthaman.regimen.domain.model.HealthConnectBiometricsSample
 import dev.gouthaman.regimen.domain.model.HealthConnectConnectionState
+import dev.gouthaman.regimen.domain.model.HeartRateSample
 import dev.gouthaman.regimen.domain.repository.HealthConnectRepository
 import java.time.Instant
 import javax.inject.Inject
@@ -110,5 +111,19 @@ class HealthConnectRepositoryImpl @Inject constructor(
             activeCaloriesKcal = activeCaloriesKcal,
             sourcePackageName = sourcePackageName,
         )
+    }
+
+    override suspend fun getHeartRateSeries(startTime: Long, endTime: Long): List<HeartRateSample> {
+        val client = clientOrNull() ?: return emptyList()
+        val range = TimeRangeFilter.between(
+            Instant.ofEpochMilli(startTime),
+            Instant.ofEpochMilli(endTime),
+        )
+        val records = client.readRecords(
+            ReadRecordsRequest(recordType = HeartRateRecord::class, timeRangeFilter = range),
+        ).records
+        return records.flatMap { it.samples }
+            .sortedBy { it.time }
+            .map { HeartRateSample(time = it.time.toEpochMilli(), bpm = it.beatsPerMinute) }
     }
 }

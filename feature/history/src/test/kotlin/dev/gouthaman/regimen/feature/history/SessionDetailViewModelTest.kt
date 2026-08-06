@@ -5,22 +5,32 @@ import app.cash.turbine.test
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.Exercise
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.HealthConnectPrefs
+import dev.gouthaman.regimen.domain.model.HeartRateSample
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.Routine
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
+import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
+import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.EditWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.GetHeartRateSeriesForWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveHealthConnectPrefsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutBiometricsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.RepeatWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.testing.FakeClock
+import dev.gouthaman.regimen.testing.FakeHealthConnectPrefsRepository
+import dev.gouthaman.regimen.testing.FakeHealthConnectRepository
 import dev.gouthaman.regimen.testing.FakePreferencesRepository
 import dev.gouthaman.regimen.testing.FakeRoutineRepository
+import dev.gouthaman.regimen.testing.FakeWorkoutBiometricsRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
 import dev.gouthaman.regimen.testing.MainDispatcherRule
 import dev.gouthaman.regimen.testingandroid.FakeBundleRule
@@ -51,11 +61,18 @@ class SessionDetailViewModelTest {
         workoutRepo: FakeWorkoutRepository,
         routineRepo: FakeRoutineRepository = FakeRoutineRepository(),
         preferencesRepo: FakePreferencesRepository = FakePreferencesRepository(),
+        healthConnectPrefsRepo: FakeHealthConnectPrefsRepository = FakeHealthConnectPrefsRepository(),
+        biometricsRepo: FakeWorkoutBiometricsRepository = FakeWorkoutBiometricsRepository(),
+        healthConnectRepo: FakeHealthConnectRepository = FakeHealthConnectRepository(),
     ) = SessionDetailViewModel(
         savedStateHandle = SavedStateHandle(mapOf("workoutId" to workoutId)),
         observeWorkout = ObserveWorkoutUseCase(workoutRepo),
         observeRoutines = ObserveRoutinesUseCase(routineRepo),
         observePreferences = ObservePreferencesUseCase(preferencesRepo),
+        observeHealthConnectPrefs = ObserveHealthConnectPrefsUseCase(healthConnectPrefsRepo),
+        observeWorkoutBiometrics = ObserveWorkoutBiometricsUseCase(biometricsRepo),
+        getHeartRateSeriesForWorkout =
+            GetHeartRateSeriesForWorkoutUseCase(healthConnectRepo, workoutRepo, biometricsRepo),
         deleteWorkoutUseCase = DeleteWorkoutUseCase(workoutRepo),
         saveAsRoutineUseCase = SaveWorkoutAsRoutineUseCase(workoutRepo, routineRepo),
         getInProgressWorkoutId = GetInProgressWorkoutIdUseCase(workoutRepo),
@@ -212,4 +229,121 @@ class SessionDetailViewModelTest {
 
         assertNull(workoutRepo.getWorkout(workoutId))
     }
+
+    @Test
+    fun `biometrics are hidden while Health Connect is disabled, even with a pulled row`() =
+        runTest {
+            val workoutRepo = FakeWorkoutRepository()
+            val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+            val biometricsRepo = FakeWorkoutBiometricsRepository()
+            biometricsRepo.upsert(
+                WorkoutBiometrics(
+                    id = "",
+                    workoutId = workoutId,
+                    avgBpm = 120,
+                    fetchedAt = 0
+                )
+            )
+            val viewModel = viewModel(workoutId, workoutRepo, biometricsRepo = biometricsRepo)
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertFalse(state.healthConnectEnabled)
+                assertNull(state.biometrics)
+            }
+        }
+
+    @Test
+    fun `biometrics surface once Health Connect is enabled`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+        val biometricsRepo = FakeWorkoutBiometricsRepository()
+        biometricsRepo.upsert(
+            WorkoutBiometrics(
+                id = "",
+                workoutId = workoutId,
+                avgBpm = 120,
+                maxBpm = 150,
+                fetchedAt = 0
+            ),
+        )
+        val healthConnectPrefsRepo =
+            FakeHealthConnectPrefsRepository(HealthConnectPrefs(healthConnectEnabled = true))
+        val viewModel = viewModel(
+            workoutId,
+            workoutRepo,
+            healthConnectPrefsRepo = healthConnectPrefsRepo,
+            biometricsRepo = biometricsRepo,
+        )
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.healthConnectEnabled)
+            assertEquals(120, state.biometrics?.avgBpm)
+            assertEquals(150, state.biometrics?.maxBpm)
+        }
+    }
+
+    @Test
+    fun `showing the heart-rate chart populates points when samples are found`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val workoutId = workoutRepo.createWorkout(startTime = 0, routineId = null)
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                workoutStatus = WorkoutStatus.COMPLETE,
+                endTime = 100,
+            ),
+        )
+        val healthConnectRepo = FakeHealthConnectRepository(
+            heartRateSeriesResult = listOf(HeartRateSample(time = 0, bpm = 100)),
+        )
+        val viewModel = viewModel(
+            workoutId,
+            workoutRepo,
+            healthConnectPrefsRepo = FakeHealthConnectPrefsRepository(
+                HealthConnectPrefs(
+                    healthConnectEnabled = true
+                )
+            ),
+            healthConnectRepo = healthConnectRepo,
+        )
+
+        viewModel.showHeartRateChart()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.heartRateChartPoints == null) state = awaitItem()
+            assertEquals(listOf(100f), state.heartRateChartPoints)
+        }
+    }
+
+    @Test
+    fun `showing the heart-rate chart with nothing found emits a not-found event, not points`() =
+        runTest {
+            val workoutRepo = FakeWorkoutRepository()
+            val workoutId = workoutRepo.createWorkout(startTime = 0, routineId = null)
+            workoutRepo.updateWorkout(
+                workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                    workoutStatus = WorkoutStatus.COMPLETE,
+                    endTime = 100,
+                ),
+            )
+            val healthConnectRepo = FakeHealthConnectRepository(heartRateSeriesResult = emptyList())
+            val viewModel = viewModel(
+                workoutId,
+                workoutRepo,
+                healthConnectPrefsRepo = FakeHealthConnectPrefsRepository(
+                    HealthConnectPrefs(
+                        healthConnectEnabled = true
+                    )
+                ),
+                healthConnectRepo = healthConnectRepo,
+            )
+
+            viewModel.heartRateChartNotFoundEvents.test {
+                viewModel.showHeartRateChart()
+                awaitItem()
+            }
+            assertNull(viewModel.uiState.value.heartRateChartPoints)
+        }
 }

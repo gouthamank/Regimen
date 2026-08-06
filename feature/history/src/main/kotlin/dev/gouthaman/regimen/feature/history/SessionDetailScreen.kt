@@ -27,6 +27,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,12 +64,14 @@ import dev.gouthaman.regimen.common.sessionRowTransitionKey
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
+import dev.gouthaman.regimen.designsystem.chart.LineChart
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
 import dev.gouthaman.regimen.designsystem.dialog.SaveAsRoutineDialog
 import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.feature.exercise.ExerciseIcon
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun SessionDetailScreen(
@@ -91,6 +95,13 @@ fun SessionDetailScreen(
     LaunchedEffect(Unit) {
         viewModel.editWorkout.collect { onEditWorkout(it) }
     }
+    val heartRateChartNotFoundMessage =
+        stringResource(R.string.session_detail_heart_rate_chart_not_found_snackbar)
+    LaunchedEffect(Unit) {
+        viewModel.heartRateChartNotFoundEvents.collect {
+            snackbarHostState.showSnackbar(heartRateChartNotFoundMessage)
+        }
+    }
 
     SessionDetailScreen(
         uiState = uiState,
@@ -106,6 +117,7 @@ fun SessionDetailScreen(
         onSaveAsRoutine = viewModel::saveAsRoutine,
         onRepeat = viewModel::repeat,
         onEdit = viewModel::edit,
+        onShowHeartRateChart = viewModel::showHeartRateChart,
         modifier = modifier,
     )
 }
@@ -123,6 +135,7 @@ fun SessionDetailScreen(
     onSaveAsRoutine: (String) -> Unit,
     onRepeat: () -> Unit,
     onEdit: () -> Unit,
+    onShowHeartRateChart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -243,6 +256,17 @@ fun SessionDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item { SessionSummaryCard(uiState) }
+
+                if (uiState.healthConnectEnabled) {
+                    item {
+                        HeartRateCard(
+                            biometrics = uiState.biometrics,
+                            chartLoading = uiState.heartRateChartLoading,
+                            chartPoints = uiState.heartRateChartPoints,
+                            onShowChart = onShowHeartRateChart,
+                        )
+                    }
+                }
 
                 items(uiState.exercises, key = { it.workoutExerciseId }) { exercise ->
                     ExerciseCard(exercise, uiState.weightUnit, uiState.distanceUnit)
@@ -404,6 +428,84 @@ private fun SessionStat(icon: ImageVector, value: String, label: String) {
                 color = tint.copy(alpha = 0.8f),
             )
         }
+    }
+}
+
+/** Stats are always shown when present (a cheap local read); the chart is on-demand only, since
+ * it's a live Health Connect query with no local persistence. */
+@Composable
+private fun HeartRateCard(
+    biometrics: SessionBiometrics?,
+    chartLoading: Boolean,
+    chartPoints: List<Float>?,
+    onShowChart: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.session_detail_heart_rate_header),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (biometrics != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    biometrics.avgBpm?.let {
+                        HeartRateStat(
+                            it.toString(),
+                            stringResource(R.string.session_detail_avg_bpm_label)
+                        )
+                    }
+                    biometrics.maxBpm?.let {
+                        HeartRateStat(
+                            it.toString(),
+                            stringResource(R.string.session_detail_max_bpm_label)
+                        )
+                    }
+                    biometrics.activeCaloriesKcal?.let {
+                        HeartRateStat(
+                            stringResource(
+                                R.string.session_detail_calories_value_label,
+                                it.roundToInt()
+                            ),
+                            stringResource(R.string.session_detail_calories_label),
+                        )
+                    }
+                }
+            }
+            when {
+                chartPoints != null -> LineChart(
+                    points = chartPoints,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+
+                chartLoading -> Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
+
+                else -> TextButton(onClick = onShowChart, modifier = Modifier.padding(top = 4.dp)) {
+                    Text(stringResource(R.string.session_detail_show_heart_rate_chart_button))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeartRateStat(value: String, label: String) {
+    Column {
+        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

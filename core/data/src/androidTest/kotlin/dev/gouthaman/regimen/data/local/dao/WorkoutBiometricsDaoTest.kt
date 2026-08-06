@@ -8,6 +8,7 @@ import dev.gouthaman.regimen.data.local.RegimenDatabase
 import dev.gouthaman.regimen.data.local.entity.WorkoutBiometricsEntity
 import dev.gouthaman.regimen.data.local.entity.WorkoutEntity
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -149,5 +150,57 @@ class WorkoutBiometricsDaoTest {
     @Test
     fun getMostRecentlyFetched_withNoRows_returnsNull() = runTest {
         assertNull(biometricsDao.getMostRecentlyFetched())
+    }
+
+    @Test
+    fun observe_emitsTheCurrentRowAndUpdatesAfterUpsert() = runTest {
+        val workoutId = insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
+        assertNull(biometricsDao.observe(workoutId).first())
+
+        biometricsDao.upsert(
+            WorkoutBiometricsEntity(
+                id = UUID.randomUUID().toString(),
+                workoutId = workoutId,
+                avgBpm = 100,
+                fetchedAt = 1_000,
+            ),
+        )
+
+        assertEquals(100, biometricsDao.observe(workoutId).first()?.avgBpm)
+    }
+
+    @Test
+    fun getForWorkouts_returnsOnlyTheMatchingRows() = runTest {
+        val w1 = insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
+        val w2 = insertWorkout(startTime = 2_000, workoutStatus = WorkoutStatus.COMPLETE)
+        val w3 = insertWorkout(startTime = 3_000, workoutStatus = WorkoutStatus.COMPLETE)
+        biometricsDao.upsert(
+            WorkoutBiometricsEntity(
+                id = UUID.randomUUID().toString(),
+                workoutId = w1,
+                avgBpm = 100,
+                fetchedAt = 0
+            ),
+        )
+        biometricsDao.upsert(
+            WorkoutBiometricsEntity(
+                id = UUID.randomUUID().toString(),
+                workoutId = w2,
+                avgBpm = 110,
+                fetchedAt = 0
+            ),
+        )
+        biometricsDao.upsert(
+            WorkoutBiometricsEntity(
+                id = UUID.randomUUID().toString(),
+                workoutId = w3,
+                avgBpm = 120,
+                fetchedAt = 0
+            ),
+        )
+
+        val result = biometricsDao.getForWorkouts(listOf(w1, w3))
+
+        assertEquals(setOf(w1, w3), result.map { it.workoutId }.toSet())
     }
 }

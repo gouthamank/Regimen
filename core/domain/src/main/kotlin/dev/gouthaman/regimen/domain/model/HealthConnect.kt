@@ -41,6 +41,9 @@ data class HealthConnectStatus(
     val corePermissions: Set<String>,
 )
 
+/** One raw heart-rate reading from Health Connect's sample series - never persisted. */
+data class HeartRateSample(val time: Long, val bpm: Long)
+
 /** A single backfill sweep's outcome - [candidateCount] is how many workouts were missing
  * biometrics and in range, [pulledCount] is how many of those actually found data. Lets "Pull
  * now" tell a user "nothing needed checking" apart from "checked some, found nothing yet" apart

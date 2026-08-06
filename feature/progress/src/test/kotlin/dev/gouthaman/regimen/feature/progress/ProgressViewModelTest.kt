@@ -14,9 +14,11 @@ import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveHealthConnectPrefsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.util.UnitLabel
 import dev.gouthaman.regimen.testing.FakeExerciseRepository
+import dev.gouthaman.regimen.testing.FakeHealthConnectPrefsRepository
 import dev.gouthaman.regimen.testing.FakePreferencesRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
 import dev.gouthaman.regimen.testing.MainDispatcherRule
@@ -44,11 +46,13 @@ class ProgressViewModelTest {
         exerciseLookup = { id -> listOf(benchPress, inclinePress, pullUp).first { it.id == id } }
     }
     private val preferencesRepo = FakePreferencesRepository()
+    private val healthConnectPrefsRepo = FakeHealthConnectPrefsRepository()
 
     private fun newViewModel() = ProgressViewModel(
         getPersonalRecords = GetPersonalRecordsUseCase(workoutRepo, exerciseRepo),
         getWorkoutFrequency = GetWorkoutFrequencyUseCase(workoutRepo),
         observePreferences = ObservePreferencesUseCase(preferencesRepo),
+        observeHealthConnectPrefs = ObserveHealthConnectPrefsUseCase(healthConnectPrefsRepo),
     )
 
     private suspend fun loggedSet(
@@ -168,6 +172,16 @@ class ProgressViewModelTest {
                 awaitItem()
             assertEquals(HistoryRange.ONE_YEAR, state.range)
             assertEquals(52, state.frequency.size)
+        }
+    }
+
+    @Test
+    fun `healthConnectEnabled mirrors the Health Connect prefs`() = runTest {
+        healthConnectPrefsRepo.setHealthConnectEnabled(true)
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            assertTrue(awaitLoaded().healthConnectEnabled)
         }
     }
 }

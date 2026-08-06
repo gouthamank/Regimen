@@ -11,9 +11,11 @@ of its own.
 Read `HeartRateRecord`, `ActiveCaloriesBurnedRecord`, and `TotalCaloriesBurnedRecord` (and possibly
 `ExerciseSessionRecord` for a clean session boundary) from Health Connect via the
 `androidx.health.connect.client` Jetpack API, scoped to a Regimen session's start/end timestamps,
-and attach a per-session summary (avg/max BPM, calories burned) to the workout - likely a small
-satellite table or a few nullable columns in `:core:data`, surfaced as a chart in Workout Summary
-and/or History reusing `:core:designsystem`'s existing `chart/LineChart.kt`/`Sparkline`.
+and attach a per-session summary (avg/max BPM, calories burned) to the workout in a small satellite
+table in `:core:data`. Surfaced on Session Detail as stats plus an on-demand chart, and as a
+persisted avg-BPM trend (across many workouts, per routine and combined) in its own Progress
+sub-flow - both reusing `:core:designsystem`'s existing `chart/LineChart.kt`/`Sparkline` (see Phase
+1e for the split and why).
 
 ## Why this covers Fitbit (and anything else)
 
@@ -51,10 +53,12 @@ point instead of one per vendor.
   `ActiveCaloriesBurnedRecord` (excludes basal/resting burn, so it's the number actually
   attributable to the workout, unlike `TotalCaloriesBurnedRecord`).
 - New satellite table, e.g. `WorkoutBiometrics(id, workoutId, avgBpm?, maxBpm?, activeCaloriesKcal?,
-  sourcePackageName?, fetchedAt, isDirty, lastModifiedAt)`, following the same shape as
-  `SetEntry`/`CardioEntry` (hangs off `Workout` by foreign key) rather than adding nullable columns
-  onto `Workout` itself. `sourcePackageName` comes from the most recent matching record's
+  sourcePackageName?, fetchedAt, isDirty, lastModifiedAt, heartRateSeries?)`, following the same
+  shape as `SetEntry`/`CardioEntry` (hangs off `Workout` by foreign key) rather than adding nullable
+  columns onto `Workout` itself. `sourcePackageName` comes from the most recent matching record's
   `metadata.dataOrigin.packageName` - also what the Settings status widget displays.
+  `heartRateSeries` (added in `MIGRATION_13_14`) is a comma-separated downsampled BPM cache for the
+  on-demand chart, populated lazily on first view rather than by the backfill job - see Phase 1e.
 - Computed and persisted once at pull time (by the retry job below), not read-through live at
   display time - Workout Summary/History just reads the stored row, same as everything else on
   those screens.
@@ -426,21 +430,64 @@ works regardless of this permission, since it doesn't run in a background execut
   Health Connect, grant permission, tap "Check now", watch the status widget update. Not yet done -
   needs a build/run pass, not something a JVM unit test covers.
 
-### Phase 1e - surfacing in Workout Summary / History
+### Phase 1e - surfacing in Session Detail and a Progress trends sub-flow
 
-- [ ] Workout Summary / History: display the pulled `WorkoutBiometrics` summary (avg/max BPM,
-  calories) when present, reusing `:core:designsystem`'s `chart/LineChart.kt`/`Sparkline` for the
-  heart-rate series. Gated on `HealthConnectPrefs.healthConnectEnabled` - if the feature is
-  switched off, this display must not appear even for a workout that already has a stored
-  `WorkoutBiometrics` row from when it was previously on.
-- [ ] New strings for the above.
+`WorkoutBiometrics` only ever stores `avgBpm`/`maxBpm`/`activeCaloriesKcal` - no raw heart-rate
+sample series (Phase 1a never persisted one). A single workout's summary is therefore three
+numbers, not a chart; a chart only earns its complexity as a trend *across* workouts. Phase 1e
+splits accordingly into two independent pieces, both gated on
+`HealthConnectPrefs.healthConnectEnabled`
+
+- nothing in either renders, not even entry points, while the feature is switched off:
+
+**Session Detail (`:feature:history`)** - a per-workout card, hidden entirely unless Health Connect
+is enabled:
+
+- [x] Persisted avg/max BPM + calories stats, always visible when a `WorkoutBiometrics` row exists
+  - a cheap reactive Room read (`WorkoutBiometricsRepository.observe(workoutId)`), no different from
+    any other stat on the screen.
+- [x] A separate, on-demand "Show heart-rate chart" button. `GetHeartRateSeriesForWorkoutUseCase`
+  checks `WorkoutBiometrics.heartRateSeries` (a cache column added in `MIGRATION_13_14`) first; on a
+  miss it queries Health Connect's raw `HeartRateRecord` samples live for that workout's
+  `[startTime, endTime]`, downsamples to a fixed ~60-point chronological average
+  (`bucketAverages`), and caches the result onto the row - but only if a row already exists (never
+  creates a bare one just for the chart, which would skew `GetHealthConnectStatusUseCase`'s "last
+  pulled" reads). Renders `LineChart`, or a Snackbar ("No heart-rate data found for this workout.")
+  on a miss with nothing live either.
+- [x] Unit tests for the bucketing/caching use case (via fakes) and the migration; ViewModel tests
+  for the enable/disable gating and the found/not-found chart paths.
+
+**Progress - "Heart Rate Trends" sub-flow (`:feature:progress`)** - a dedicated list + detail flow
+using the *persisted* avg BPM across many workouts, reached via its own link row on the Progress
+tab (hidden when the feature is disabled, same as the row above):
+
+- [x] A list screen (`HeartRateTrendsScreen`) showing a synthetic "All routines combined" row plus
+  one row per routine that has at least one completed workout, each with a `Sparkline` preview of
+  its full, unfiltered avg-BPM history (`GetHeartRateTrendRowsUseCase`) - mirrors
+  `:feature:measurements`' list-row-with-sparkline convention. A freeform (no-routine) workout only
+  ever contributes to the combined row.
+- [x] Tapping a row opens a detail screen (`HeartRateTrendDetailScreen`) with a
+  `HistoryRangeSelector`,
+  a range-filtered `LineChart` trend, and the individual contributing workouts below it (date,
+  duration, avg BPM) via `GetHeartRateTrendDetailUseCase`. Only workouts with both a pulled avg BPM
+  and a known end time are included.
+- [x] New strings for both screens; navigation wired into `progressGraph` with container-transform
+  shared-element keys (`heartRateTrendsFromProgressTransitionKey`,
+  `heartRateTrendRowTransitionKey`), matching `AccountNavigation.kt`'s single-entry-point pattern.
+- [x] Unit test for `HeartRateTrendsViewModel`. `HeartRateTrendDetailViewModel` has no test -
+  `:feature:progress` has no `:core:testing-android` dependency for `SavedStateHandle.toRoute`
+  tests, the same gap `MeasurementDetailViewModel` already has for the identical reason.
 - **Checkpoint**: the full feature loop end-to-end - finish a real (or Toolbox-seeded) workout, run
-  a pull, see biometrics show up on Workout Summary/History. This is "done" for phase 1.
+  a pull, see the stats card and on-demand chart on Session Detail, and the trend show up under
+  Progress's Heart Rate Trends. Not yet done - needs a build/run pass, not something a JVM unit
+  test covers. This is "done" for phase 1 once verified.
 
 ## Status
 
 - [x] Phase 1a done (local storage foundation).
 - [x] Phase 1b done (Health Connect read integration), verified end-to-end on-emulator.
 - [x] Phase 1c done (prefs + background backfill job).
-- [~] Phase 1d done except its manual on-device checkpoint (Settings UI).
-- [ ] Phase 1e not started.
+- [~] Phase 1d done except its manual on-device checkpoint (Settings UI) - deliberately deferred to
+  be verified together with Phase 1e below, rather than in isolation on the emulator.
+- [~] Phase 1e implemented (Session Detail stats/chart, Progress Heart Rate Trends sub-flow); its
+  on-device checkpoint (together with Phase 1d's) is not yet done.

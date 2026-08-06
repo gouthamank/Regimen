@@ -5,6 +5,7 @@ import dev.gouthaman.regimen.domain.model.HealthConnectConnectionState
 import dev.gouthaman.regimen.domain.model.HealthConnectPrefs
 import dev.gouthaman.regimen.domain.model.HealthConnectRetryFrequency
 import dev.gouthaman.regimen.domain.model.HealthConnectStatus
+import dev.gouthaman.regimen.domain.model.HeartRateSample
 import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.repository.HealthConnectPrefsRepository
 import dev.gouthaman.regimen.domain.repository.HealthConnectRepository
@@ -15,6 +16,7 @@ import dev.gouthaman.regimen.domain.util.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
 
@@ -116,6 +118,14 @@ class ObserveHealthConnectPrefsUseCase @Inject constructor(
     operator fun invoke(): Flow<HealthConnectPrefs> = prefsRepo.prefs
 }
 
+/** Plain Flow passthrough, same shape as [ObserveHealthConnectPrefsUseCase]. */
+class ObserveWorkoutBiometricsUseCase @Inject constructor(
+    private val workoutBiometricsRepo: WorkoutBiometricsRepository,
+) {
+    operator fun invoke(workoutId: String): Flow<WorkoutBiometrics?> =
+        workoutBiometricsRepo.observe(workoutId)
+}
+
 /** Recomputes whether the periodic backfill job should be running and (re)schedules or cancels
  * it accordingly - the single source of truth, so the schedule can never drift from live
  * permission/connection state (e.g. permission revoked after the feature was left enabled). */
@@ -164,6 +174,56 @@ class SetHealthConnectPrefsUseCase @Inject constructor(
     suspend fun setRetryFrequency(value: HealthConnectRetryFrequency) {
         prefsRepo.setRetryFrequency(value)
         reconcileSchedule()
+    }
+}
+
+private const val HEART_RATE_CHART_BUCKET_COUNT = 60
+
+/** Chart series for one workout, cache-then-live: checks [WorkoutBiometrics.heartRateSeries]
+ * first, else queries Health Connect and caches onto an existing row only (never creates a bare
+ * one, to avoid skewing [GetHealthConnectStatusUseCase]'s "last pulled" reads). */
+class GetHeartRateSeriesForWorkoutUseCase @Inject constructor(
+    private val healthConnectRepo: HealthConnectRepository,
+    private val workoutRepo: WorkoutRepository,
+    private val workoutBiometricsRepo: WorkoutBiometricsRepository,
+) {
+    suspend operator fun invoke(workoutId: String): List<Float> {
+        val existing = workoutBiometricsRepo.get(workoutId)
+        existing?.heartRateSeries?.takeIf { it.isNotEmpty() }?.let { cached ->
+            return cached.map { it.toFloat() }
+        }
+
+        val workout = workoutRepo.getWorkout(workoutId)?.workout ?: return emptyList()
+        val endTime = workout.endTime ?: return emptyList()
+        val samples = healthConnectRepo.getHeartRateSeries(workout.startTime, endTime)
+        val points =
+            bucketAverages(samples, workout.startTime, endTime, HEART_RATE_CHART_BUCKET_COUNT)
+        if (points.isNotEmpty() && existing != null) {
+            workoutBiometricsRepo.upsert(existing.copy(heartRateSeries = points.map { it.roundToInt() }))
+        }
+        return points
+    }
+}
+
+/** Averages samples into [bucketCount] equal-width time buckets; empty buckets are omitted, so the
+ * result can be shorter than [bucketCount]. */
+internal fun bucketAverages(
+    samples: List<HeartRateSample>,
+    startTime: Long,
+    endTime: Long,
+    bucketCount: Int,
+): List<Float> {
+    if (samples.isEmpty() || endTime <= startTime) return emptyList()
+    val bucketWidth = (endTime - startTime).toDouble() / bucketCount
+    val sums = DoubleArray(bucketCount)
+    val counts = IntArray(bucketCount)
+    for (sample in samples) {
+        val index = ((sample.time - startTime) / bucketWidth).toInt().coerceIn(0, bucketCount - 1)
+        sums[index] += sample.bpm
+        counts[index]++
+    }
+    return (0 until bucketCount).mapNotNull { i ->
+        if (counts[i] == 0) null else (sums[i] / counts[i]).toFloat()
     }
 }
 

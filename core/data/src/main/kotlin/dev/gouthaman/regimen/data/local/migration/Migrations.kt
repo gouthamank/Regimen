@@ -186,10 +186,15 @@ val MIGRATION_12_13 = Migration(12, 13) { db ->
     db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_biometrics_workoutId` ON `workout_biometrics` (`workoutId`)")
 }
 
+/** v13 -> v14: adds `heartRateSeries` to `workout_biometrics` - the on-demand chart's cache. */
+val MIGRATION_13_14 = Migration(13, 14) { db ->
+    db.execSQL("ALTER TABLE `workout_biometrics` ADD COLUMN `heartRateSeries` TEXT")
+}
+
 /** Every migration, oldest first - the one place a newly added migration needs to be registered. */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
 )
 
 /** Every migration needed to reach the current version starting from [version] - lets a test

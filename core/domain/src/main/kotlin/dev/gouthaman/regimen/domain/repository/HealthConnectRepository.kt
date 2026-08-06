@@ -2,6 +2,7 @@ package dev.gouthaman.regimen.domain.repository
 
 import dev.gouthaman.regimen.domain.model.HealthConnectBiometricsSample
 import dev.gouthaman.regimen.domain.model.HealthConnectConnectionState
+import dev.gouthaman.regimen.domain.model.HeartRateSample
 
 interface HealthConnectRepository {
     suspend fun getConnectionState(): HealthConnectConnectionState
@@ -27,4 +28,8 @@ interface HealthConnectRepository {
 
     /** Null if nothing was found for either record type in range. */
     suspend fun queryBiometrics(startTime: Long, endTime: Long): HealthConnectBiometricsSample?
+
+    /** Raw heart-rate samples in `[startTime, endTime]`, chronological order, empty if none found -
+     * a live on-demand read, never persisted (unlike [queryBiometrics]). */
+    suspend fun getHeartRateSeries(startTime: Long, endTime: Long): List<HeartRateSample>
 }

@@ -28,6 +28,8 @@ data class WorkoutBiometricsEntity(
     val fetchedAt: Long,
     val isDirty: Boolean = true,
     val lastModifiedAt: Long = System.currentTimeMillis(),
+    /** Comma-separated bpm values. */
+    val heartRateSeries: String? = null,
 )
 
 fun WorkoutBiometricsEntity.toDomain(): WorkoutBiometrics = WorkoutBiometrics(
@@ -38,6 +40,7 @@ fun WorkoutBiometricsEntity.toDomain(): WorkoutBiometrics = WorkoutBiometrics(
     activeCaloriesKcal = activeCaloriesKcal,
     sourcePackageName = sourcePackageName,
     fetchedAt = fetchedAt,
+    heartRateSeries = heartRateSeries?.split(",")?.map { it.toInt() },
 )
 
 fun WorkoutBiometrics.toEntity(): WorkoutBiometricsEntity = WorkoutBiometricsEntity(
@@ -48,4 +51,5 @@ fun WorkoutBiometrics.toEntity(): WorkoutBiometricsEntity = WorkoutBiometricsEnt
     activeCaloriesKcal = activeCaloriesKcal,
     sourcePackageName = sourcePackageName,
     fetchedAt = fetchedAt,
+    heartRateSeries = heartRateSeries?.joinToString(","),
 )

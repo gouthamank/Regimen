@@ -9,6 +9,7 @@ import dev.gouthaman.regimen.domain.model.UnitSystem
 import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.domain.usecase.GetPersonalRecordsUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveHealthConnectPrefsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.util.UnitConverter
 import dev.gouthaman.regimen.domain.util.UnitLabel
@@ -49,6 +50,7 @@ data class ProgressUiState(
     val range: HistoryRange = HistoryRange.THREE_MONTHS,
     /** Non-empty muscle groups only, in [MuscleGroup] declaration order. */
     val personalRecordGroups: List<PersonalRecordGroup> = emptyList(),
+    val healthConnectEnabled: Boolean = false,
     val loaded: Boolean = false,
 ) {
     /** Total workouts across the whole frequency window. */
@@ -68,6 +70,7 @@ class ProgressViewModel @Inject constructor(
     getPersonalRecords: GetPersonalRecordsUseCase,
     getWorkoutFrequency: GetWorkoutFrequencyUseCase,
     observePreferences: ObservePreferencesUseCase,
+    observeHealthConnectPrefs: ObserveHealthConnectPrefsUseCase,
 ) : ViewModel() {
 
     private val _range = MutableStateFlow(HistoryRange.THREE_MONTHS)
@@ -77,7 +80,8 @@ class ProgressViewModel @Inject constructor(
         _range.flatMapLatest { getWorkoutFrequency(it) },
         _range,
         observePreferences(),
-    ) { prs, frequency, range, prefs ->
+        observeHealthConnectPrefs(),
+    ) { prs, frequency, range, prefs, healthConnectPrefs ->
         val system: UnitSystem = prefs.weightUnit
         val itemsByGroup: Map<MuscleGroup, List<PersonalRecordItem>> = prs
             .map { pr ->
@@ -105,6 +109,7 @@ class ProgressViewModel @Inject constructor(
             personalRecordGroups = MuscleGroup.entries.mapNotNull { group ->
                 itemsByGroup[group]?.let { PersonalRecordGroup(group, it) }
             },
+            healthConnectEnabled = healthConnectPrefs.healthConnectEnabled,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProgressUiState())

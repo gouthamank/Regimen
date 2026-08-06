@@ -2,6 +2,7 @@ package dev.gouthaman.regimen.testing
 
 import dev.gouthaman.regimen.domain.model.HealthConnectBiometricsSample
 import dev.gouthaman.regimen.domain.model.HealthConnectConnectionState
+import dev.gouthaman.regimen.domain.model.HeartRateSample
 import dev.gouthaman.regimen.domain.repository.HealthConnectRepository
 
 class FakeHealthConnectRepository(
@@ -11,6 +12,7 @@ class FakeHealthConnectRepository(
     var grantedPermissionsResult: Set<String> = requiredPermissionsResult,
     var corePermissionsResult: Set<String> = requiredPermissionsResult,
     var appLabels: Map<String, String> = emptyMap(),
+    var heartRateSeriesResult: List<HeartRateSample> = emptyList(),
 ) : HealthConnectRepository {
 
     val queriedRanges = mutableListOf<Pair<Long, Long>>()
@@ -32,5 +34,10 @@ class FakeHealthConnectRepository(
     ): HealthConnectBiometricsSample? {
         queriedRanges += startTime to endTime
         return sampleForRange
+    }
+
+    override suspend fun getHeartRateSeries(startTime: Long, endTime: Long): List<HeartRateSample> {
+        queriedRanges += startTime to endTime
+        return heartRateSeriesResult
     }
 }

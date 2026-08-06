@@ -54,3 +54,12 @@ const val measurementsFromProgressTransitionKey = "measurements-from-progress"
  * instead - dialogs run in their own window and can't participate in the shared-element
  * transform, so that path keeps the default transition. */
 fun sessionRowTransitionKey(workoutId: String) = "session-row-$workoutId"
+
+/** Links Progress's "Heart Rate Trends" link row to the Heart Rate Trends screen's root
+ * container - Progress is its only entry point, so this is applied unconditionally. */
+const val heartRateTrendsFromProgressTransitionKey = "heart-rate-trends-from-progress"
+
+/** Links a Heart Rate Trends row (a routine, or the synthetic "combined" row) to the detail
+ * screen's root container for that same trend. */
+fun heartRateTrendRowTransitionKey(routineId: String?) =
+    "heart-rate-trend-row-${routineId ?: "combined"}"

@@ -9,15 +9,22 @@ import dev.gouthaman.regimen.common.SessionFormat
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Equipment
 import dev.gouthaman.regimen.domain.model.ExerciseType
+import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.UnitSystem
+import dev.gouthaman.regimen.domain.model.UserPreferences
+import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutEndReason
+import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.model.loggedVolumeKg
 import dev.gouthaman.regimen.domain.usecase.DeleteWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.EditWorkoutUseCase
+import dev.gouthaman.regimen.domain.usecase.GetHeartRateSeriesForWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveHealthConnectPrefsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObservePreferencesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutBiometricsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.RepeatWorkoutUseCase
 import dev.gouthaman.regimen.domain.usecase.SaveWorkoutAsRoutineUseCase
@@ -26,9 +33,11 @@ import dev.gouthaman.regimen.domain.util.UnitLabel
 import dev.gouthaman.regimen.navigation.SessionDetailRoute
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -51,6 +60,18 @@ data class SessionExercise(
  * structured so the Composable can localize the "value unit" template at render time. */
 data class WeightValue(val displayValue: String, val unitLabel: UnitLabel)
 
+/** Persisted Health Connect summary for this session. Non-null only once a backfill has actually
+ * pulled something - the on-demand chart is separate, see [SessionDetailUiState.heartRateChartPoints]. */
+data class SessionBiometrics(val avgBpm: Int?, val maxBpm: Int?, val activeCaloriesKcal: Double?)
+
+private data class CoreState(
+    val workout: WorkoutWithDetails?,
+    val routines: List<RoutineWithExercises>,
+    val prefs: UserPreferences,
+    val healthConnectEnabled: Boolean,
+    val biometrics: WorkoutBiometrics?,
+)
+
 /** Null routineName means it was a freeform/"Quick workout" session, not that it isn't loaded yet
  * (SessionDetailUiState.loaded distinguishes that) - resolved to display text by the Composable. */
 data class SessionDetailUiState(
@@ -70,6 +91,12 @@ data class SessionDetailUiState(
     val exercises: List<SessionExercise> = emptyList(),
     val weightUnit: UnitSystem = UnitSystem.METRIC,
     val distanceUnit: UnitSystem = UnitSystem.METRIC,
+    /** Null whenever Health Connect isn't enabled - hides the whole biometrics section, not just
+     * a stat within it. */
+    val healthConnectEnabled: Boolean = false,
+    val biometrics: SessionBiometrics? = null,
+    val heartRateChartLoading: Boolean = false,
+    val heartRateChartPoints: List<Float>? = null,
     val loaded: Boolean = false,
     val notFound: Boolean = false,
 ) {
@@ -83,6 +110,9 @@ class SessionDetailViewModel @Inject constructor(
     observeWorkout: ObserveWorkoutUseCase,
     observeRoutines: ObserveRoutinesUseCase,
     observePreferences: ObservePreferencesUseCase,
+    private val observeHealthConnectPrefs: ObserveHealthConnectPrefsUseCase,
+    observeWorkoutBiometrics: ObserveWorkoutBiometricsUseCase,
+    private val getHeartRateSeriesForWorkout: GetHeartRateSeriesForWorkoutUseCase,
     private val deleteWorkoutUseCase: DeleteWorkoutUseCase,
     private val saveAsRoutineUseCase: SaveWorkoutAsRoutineUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
@@ -104,11 +134,28 @@ class SessionDetailViewModel @Inject constructor(
     private val editWorkouts = Channel<String>(Channel.BUFFERED)
     val editWorkout: Flow<String> = editWorkouts.receiveAsFlow()
 
-    val uiState: StateFlow<SessionDetailUiState> = combine(
+    private val heartRateChartLoading = MutableStateFlow(false)
+    private val heartRateChartPoints = MutableStateFlow<List<Float>?>(null)
+
+    private val heartRateChartNotFound = Channel<Unit>(Channel.BUFFERED)
+    val heartRateChartNotFoundEvents: Flow<Unit> = heartRateChartNotFound.receiveAsFlow()
+
+    private val coreState = combine(
         observeWorkout(workoutId),
         observeRoutines(),
         observePreferences(),
-    ) { workout, routines, prefs ->
+        observeHealthConnectPrefs(),
+        observeWorkoutBiometrics(workoutId),
+    ) { workout, routines, prefs, healthConnectPrefs, biometrics ->
+        CoreState(workout, routines, prefs, healthConnectPrefs.healthConnectEnabled, biometrics)
+    }
+
+    val uiState: StateFlow<SessionDetailUiState> = combine(
+        coreState,
+        heartRateChartLoading,
+        heartRateChartPoints,
+    ) { core, chartLoading, chartPoints ->
+        val (workout, routines, prefs, healthConnectEnabled, biometrics) = core
         restDefaultSec = prefs.restDefaultSec
         val weightUnit = prefs.weightUnit
         val distanceUnit = prefs.distanceUnit
@@ -119,6 +166,12 @@ class SessionDetailViewModel @Inject constructor(
                 ?.let { id -> routines.firstOrNull { it.routine.id == id }?.routine.let { it?.name } }
             SessionDetailUiState(
                 routineName = routineName,
+                healthConnectEnabled = healthConnectEnabled,
+                biometrics = biometrics?.takeIf { healthConnectEnabled }?.let {
+                    SessionBiometrics(it.avgBpm, it.maxBpm, it.activeCaloriesKcal)
+                },
+                heartRateChartLoading = chartLoading,
+                heartRateChartPoints = chartPoints,
                 dateLabel = SessionFormat.fullDate(workout.workout.startTime),
                 startTime = workout.workout.startTime,
                 endTime = workout.workout.endTime,
@@ -157,6 +210,17 @@ class SessionDetailViewModel @Inject constructor(
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionDetailUiState())
+
+    fun showHeartRateChart() {
+        viewModelScope.launch {
+            if (!observeHealthConnectPrefs().first().healthConnectEnabled) return@launch
+            heartRateChartLoading.value = true
+            val points = getHeartRateSeriesForWorkout(workoutId)
+            heartRateChartLoading.value = false
+            if (points.isEmpty()) heartRateChartNotFound.send(Unit) else heartRateChartPoints.value =
+                points
+        }
+    }
 
     fun delete() {
         viewModelScope.launch { deleteWorkoutUseCase(workoutId) }

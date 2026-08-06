@@ -2,6 +2,8 @@
     <string name="progress_title">Progress</string>
     <string name="progress_measurements_link_title">Body measurements</string>
     <string name="progress_measurements_link_subtitle">Bodyweight and custom measurement trends</string>
+    <string name="progress_heart_rate_trends_link_title">Heart rate trends</string>
+    <string name="progress_heart_rate_trends_link_subtitle">Avg BPM across your workouts, by routine</string>
     <string name="progress_frequency_header">Workout frequency</string>
     <string name="progress_records_header">Personal records</string>
     <string name="progress_empty_state">Finish a workout to see your personal records and weekly activity here.</string>
@@ -23,4 +25,18 @@
         <item quantity="one">%d rep</item>
         <item quantity="other">%d reps</item>
     </plurals>
+
+    <string name="heart_rate_trends_title">Heart Rate Trends</string>
+    <string name="heart_rate_trends_back_description">Back</string>
+    <string name="heart_rate_trends_empty_state">No workouts with heart-rate data yet.</string>
+    <string name="heart_rate_trends_combined_row_title">All routines combined</string>
+    <string name="heart_rate_trends_no_data_yet">No data yet</string>
+    <string name="heart_rate_trends_latest_avg_bpm">%1$d avg BPM</string>
+
+    <string name="heart_rate_trend_detail_back_description">Back</string>
+    <string name="heart_rate_trend_detail_trend_header">Avg BPM trend</string>
+    <string name="heart_rate_trend_detail_no_entries_in_range">No data in this range</string>
+    <string name="heart_rate_trend_detail_history_header">Workouts</string>
+    <string name="heart_rate_trend_detail_entry_bpm_label">%1$d avg BPM</string>
+    <string name="heart_rate_trend_detail_entry_subtitle">%1$s · %2$s</string>
 </resources>

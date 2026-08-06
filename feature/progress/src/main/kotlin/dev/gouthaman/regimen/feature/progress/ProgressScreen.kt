@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import dev.gouthaman.regimen.common.heartRateTrendsFromProgressTransitionKey
 import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.common.measurementsFromProgressTransitionKey
 import dev.gouthaman.regimen.common.text
@@ -61,6 +63,7 @@ fun ProgressScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenMeasurements: () -> Unit,
+    onOpenHeartRateTrends: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
@@ -70,6 +73,7 @@ fun ProgressScreen(
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
         onOpenMeasurements = onOpenMeasurements,
+        onOpenHeartRateTrends = onOpenHeartRateTrends,
         onRangeChange = viewModel::setRange,
         modifier = modifier,
     )
@@ -82,6 +86,7 @@ fun ProgressScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenMeasurements: () -> Unit,
+    onOpenHeartRateTrends: () -> Unit,
     modifier: Modifier = Modifier,
     onRangeChange: (HistoryRange) -> Unit = {},
 ) {
@@ -137,6 +142,32 @@ fun ProgressScreen(
                         modifier = linkModifier.clickable(onClick = onOpenMeasurements),
                     )
                     HorizontalDivider()
+                }
+
+                if (uiState.healthConnectEnabled) {
+                    item {
+                        val linkModifier = with(sharedTransitionScope) {
+                            Modifier.sharedBounds(
+                                rememberSharedContentState(key = heartRateTrendsFromProgressTransitionKey),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                        }
+                        ListItem(
+                            content = { Text(stringResource(R.string.progress_heart_rate_trends_link_title)) },
+                            supportingContent = { Text(stringResource(R.string.progress_heart_rate_trends_link_subtitle)) },
+                            leadingContent = {
+                                Icon(Icons.Filled.Favorite, contentDescription = null)
+                            },
+                            trailingContent = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null
+                                )
+                            },
+                            modifier = linkModifier.clickable(onClick = onOpenHeartRateTrends),
+                        )
+                        HorizontalDivider()
+                    }
                 }
 
                 if (uiState.loaded && uiState.isEmpty) {

@@ -410,4 +410,35 @@ class MigrationTest {
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
+
+    @Test
+    fun migrate13To14_addsHeartRateSeriesColumn() {
+        helper.createDatabase(TEST_DB, 13).apply {
+            execSQL(
+                "INSERT INTO workouts (id, startTime, endTime, note, routineId, workoutStatus, endReason, pausedAt, accumulatedPausedMs, restTimeEndAt, restTotalSec, restWorkoutExerciseId, isDirty, lastModifiedAt) " +
+                        "VALUES ('w1', 1000, 2000, NULL, NULL, 'COMPLETE', NULL, NULL, 0, NULL, NULL, NULL, 1, 1000)"
+            )
+            execSQL(
+                "INSERT INTO workout_biometrics (id, workoutId, avgBpm, maxBpm, activeCaloriesKcal, sourcePackageName, fetchedAt, isDirty, lastModifiedAt) " +
+                        "VALUES ('b1', 'w1', 120, 150, 300.5, 'com.fitbit.FitbitMobile', 5000, 1, 5000)"
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 14, true, MIGRATION_13_14)
+        migrated.execSQL("UPDATE workout_biometrics SET heartRateSeries = '100,110,120' WHERE id = 'b1'")
+        migrated.query("SELECT heartRateSeries FROM workout_biometrics WHERE id = 'b1'").use {
+            it.moveToFirst()
+            assertEquals("100,110,120", it.getString(0))
+        }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).addMigrations(*migrationsFrom(14)).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
 }
