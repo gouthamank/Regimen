@@ -6,13 +6,11 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.gouthaman.regimen.data.prefs.PreferencesRepositoryImpl
 import dev.gouthaman.regimen.data.repository.ExerciseRepositoryImpl
-import dev.gouthaman.regimen.data.repository.HealthConnectRepositoryImpl
 import dev.gouthaman.regimen.data.repository.MeasurementRepositoryImpl
 import dev.gouthaman.regimen.data.repository.RoutineRepositoryImpl
 import dev.gouthaman.regimen.data.repository.WorkoutBiometricsRepositoryImpl
 import dev.gouthaman.regimen.data.repository.WorkoutRepositoryImpl
 import dev.gouthaman.regimen.domain.repository.ExerciseRepository
-import dev.gouthaman.regimen.domain.repository.HealthConnectRepository
 import dev.gouthaman.regimen.domain.repository.MeasurementRepository
 import dev.gouthaman.regimen.domain.repository.PreferencesRepository
 import dev.gouthaman.regimen.domain.repository.RoutineRepository
@@ -47,8 +45,4 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindWorkoutBiometricsRepository(impl: WorkoutBiometricsRepositoryImpl): WorkoutBiometricsRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindHealthConnectRepository(impl: HealthConnectRepositoryImpl): HealthConnectRepository
 }

@@ -53,6 +53,11 @@ also get a secondary, freeform **Quick workout** entry point.
   (`push/`), the primary/secondary device model and full-replace actions (`replace/`,
   `device/`), and the Room entity ↔ Firestore document mapping layer (`firestore/`). See "Remote
   sync" below for the full picture.
+- **`:core:healthconnect`** - the `HealthConnectClient` wrapper, behind `:core:domain`'s
+  `HealthConnectRepository`/`HealthConnectPrefsRepository`/`HealthConnectScheduleRepository`
+  interfaces; also owns the periodic biometrics-backfill job's DataStore-backed prefs and
+  `WorkManager` scheduler/worker. Depends only on `:core:domain` - unlike `:core:sync`, nothing
+  here needs a `:core:data` DAO directly.
 - **
   `:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active,account}`
   **

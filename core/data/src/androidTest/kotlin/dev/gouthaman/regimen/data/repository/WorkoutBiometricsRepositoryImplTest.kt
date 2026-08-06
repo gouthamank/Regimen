@@ -89,18 +89,4 @@ class WorkoutBiometricsRepositoryImplTest {
 
         assertNull(repository.get(workoutId))
     }
-
-    @Test
-    fun getCompletedWorkoutIdsMissingBiometrics_delegatesToTheDao() = runTest {
-        val missingId = insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
-        val hasBiometricsId =
-            insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
-        repository.upsert(
-            WorkoutBiometrics(id = "", workoutId = hasBiometricsId, fetchedAt = 1_000),
-        )
-
-        val result = repository.getCompletedWorkoutIdsMissingBiometrics(sinceStartTime = 0)
-
-        assertEquals(listOf(missingId), result)
-    }
 }

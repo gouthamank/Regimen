@@ -6,7 +6,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.gouthaman.regimen.data.local.RegimenDatabase
 import dev.gouthaman.regimen.data.local.entity.WorkoutEntity
-import dev.gouthaman.regimen.data.repository.HealthConnectRepositoryImpl
 import dev.gouthaman.regimen.data.repository.WorkoutBiometricsRepositoryImpl
 import dev.gouthaman.regimen.data.repository.WorkoutRepositoryImpl
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
@@ -21,10 +20,10 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
- * Manual Phase 1b checkpoint against the real `HealthConnectClient` - not part of the automated
- * suite. Requires seeding Health Connect with a HeartRateRecord or ActiveCaloriesBurnedRecord via
- * the Health Connect Toolbox app, and granting Regimen its read permissions, both immediately
- * before running this.
+ * Manual verification against the real `HealthConnectClient` - not part of the automated suite.
+ * Requires seeding Health Connect with a HeartRateRecord or ActiveCaloriesBurnedRecord via the
+ * Health Connect Toolbox app, and granting Regimen its read permissions, both immediately before
+ * running this.
  *
  * Lives in `:app`'s androidTest, not `:core:data`'s, deliberately - a library module's
  * instrumented tests run under a synthetic test-only package that was never granted Health

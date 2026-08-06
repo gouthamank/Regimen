@@ -18,3 +18,11 @@ data class HealthConnectBiometricsSample(
     val activeCaloriesKcal: Double?,
     val sourcePackageName: String?,
 )
+
+/** [autoPullEnabled] is off by default (explicit opt-in) and gates whether the backfill job is
+ * scheduled at all - [retryFrequency]/[backfillWindow] are irrelevant while it's off. */
+data class HealthConnectPrefs(
+    val autoPullEnabled: Boolean = false,
+    val retryFrequency: HealthConnectRetryFrequency = HealthConnectRetryFrequency.SIX_HOURS,
+    val backfillWindow: HealthConnectBackfillWindow = HealthConnectBackfillWindow.SEVEN,
+)

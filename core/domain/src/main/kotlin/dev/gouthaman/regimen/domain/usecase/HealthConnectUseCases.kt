@@ -1,11 +1,15 @@
 package dev.gouthaman.regimen.domain.usecase
 
+import dev.gouthaman.regimen.domain.model.HealthConnectBackfillWindow
 import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.repository.HealthConnectRepository
 import dev.gouthaman.regimen.domain.repository.WorkoutBiometricsRepository
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
 import dev.gouthaman.regimen.domain.util.Clock
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+
+private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
 
 /**
  * Queries Health Connect for [workoutId]'s `[startTime, endTime]` and persists whatever's found
@@ -36,5 +40,29 @@ class PullBiometricsForWorkoutUseCase @Inject constructor(
             ),
         )
         return true
+    }
+}
+
+/**
+ * Finds `COMPLETE` workouts started within [backfillWindow] that don't have a [WorkoutBiometrics]
+ * row yet, and calls [PullBiometricsForWorkoutUseCase] for each. Composed from
+ * [WorkoutRepository]/[WorkoutBiometricsRepository] directly rather than a dedicated cross-table
+ * query, so the candidate-selection logic here is exercised by ordinary fakes.
+ */
+class RunBiometricsBackfillUseCase @Inject constructor(
+    private val workoutRepo: WorkoutRepository,
+    private val workoutBiometricsRepo: WorkoutBiometricsRepository,
+    private val pullBiometricsForWorkoutUseCase: PullBiometricsForWorkoutUseCase,
+    private val clock: Clock,
+) {
+    suspend operator fun invoke(backfillWindow: HealthConnectBackfillWindow) {
+        val now = clock.nowMillis()
+        val sinceStartTime = now - backfillWindow.days * DAY_MILLIS
+        val completedIds = workoutRepo.observeCompletedBetween(sinceStartTime, now).first()
+            .map { it.id }
+        val missingIds = completedIds.filter { workoutBiometricsRepo.get(it) == null }
+        for (id in missingIds) {
+            pullBiometricsForWorkoutUseCase(id)
+        }
     }
 }

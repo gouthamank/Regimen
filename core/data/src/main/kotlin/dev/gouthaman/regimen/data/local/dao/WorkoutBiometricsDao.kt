@@ -13,11 +13,4 @@ interface WorkoutBiometricsDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: WorkoutBiometricsEntity)
-
-    @Query(
-        "SELECT w.id FROM workouts w " +
-                "WHERE w.workoutStatus = 'COMPLETE' AND w.startTime >= :sinceStartTime " +
-                "AND w.id NOT IN (SELECT workoutId FROM workout_biometrics)"
-    )
-    suspend fun getCompletedWorkoutIdsMissingBiometrics(sinceStartTime: Long): List<String>
 }

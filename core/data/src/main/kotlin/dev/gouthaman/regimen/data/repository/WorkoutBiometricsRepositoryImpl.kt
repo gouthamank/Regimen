@@ -22,7 +22,4 @@ class WorkoutBiometricsRepositoryImpl @Inject constructor(
 
         return id
     }
-
-    override suspend fun getCompletedWorkoutIdsMissingBiometrics(sinceStartTime: Long): List<String> =
-        dao.getCompletedWorkoutIdsMissingBiometrics(sinceStartTime)
 }

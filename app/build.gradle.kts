@@ -72,6 +72,7 @@ dependencies {
     implementation(project(":core:common-ui"))
     implementation(project(":core:navigation-api"))
     implementation(project(":core:sync"))
+    implementation(project(":core:healthconnect"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:exercise"))

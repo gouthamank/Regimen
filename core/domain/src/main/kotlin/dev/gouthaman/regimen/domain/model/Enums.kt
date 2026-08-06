@@ -49,3 +49,19 @@ private const val MILLIS_PER_WEEK = 7L * 24 * 60 * 60 * 1000
 /** Millis cutoff (entries at/after this are in range), or null for [HistoryRange.ALL]. */
 fun HistoryRange.cutoffMillis(nowMillis: Long = System.currentTimeMillis()): Long? =
     weeks?.let { nowMillis - it * MILLIS_PER_WEEK }
+
+/** How often the Health Connect biometrics backfill job retries. */
+enum class HealthConnectRetryFrequency(val hours: Long) {
+    ONE_HOUR(1),
+    SIX_HOURS(6),
+    DAILY(24),
+}
+
+/** How far back the Health Connect biometrics backfill job keeps looking for a workout still
+ * missing data before giving up on it for good. */
+enum class HealthConnectBackfillWindow(val days: Int) {
+    ONE(1),
+    THREE(3),
+    SEVEN(7),
+    THIRTY(30),
+}

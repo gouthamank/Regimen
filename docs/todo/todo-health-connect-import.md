@@ -129,9 +129,9 @@ at all - accepted here as not worth it for what's ultimately a nice-to-have cros
 
 - **Business logic** (backfill-window matching, retry scheduling, permission-state branching):
   fakes-first, same as everywhere else in the repo (`docs/testing.md`) - a `HealthConnectRepository`
-  interface in `:core:domain`, real implementation in `:core:data`, `FakeHealthConnectRepository`
-  in the shared test-support module for ViewModel/use-case JVM tests. No real Health Connect
-  needed for this tier.
+  interface in `:core:domain`, real implementation in `:core:healthconnect`,
+  `FakeHealthConnectRepository` in the shared test-support module for ViewModel/use-case JVM tests.
+  No real Health Connect needed for this tier.
 - **Real integration (does data actually flow in)** needs an emulator with Health Connect present
     - use an API 34+ Google Play system image (Health Connect is built into the OS from 34 on;
       older API levels need it installed separately from Play Store).
@@ -162,7 +162,9 @@ ones exists.
 - [x] Room: `WorkoutBiometrics` entity + DAO + migration in `:core:data` (bumps database version
   past 12, to 13).
 - [x] `WorkoutBiometricsRepository` interface (`:core:domain`) + impl (`:core:data`) backed by the
-  new DAO: read/write rows, list `COMPLETE` workouts within a given window missing a row.
+  new DAO: read/write rows only - candidate selection for the backfill job is composed in
+  `RunBiometricsBackfillUseCase` from `WorkoutRepository`/`WorkoutBiometricsRepository` directly
+  (see Phase 1c) rather than a dedicated cross-table query, so it's exercised by ordinary fakes.
 - [x] `FakeWorkoutBiometricsRepository` in the shared test-support module + `:core:data`
   `androidTest`
   for the DAO (`WorkoutBiometricsDaoTest`), the repository (`WorkoutBiometricsRepositoryImplTest`),
@@ -177,6 +179,14 @@ ones exists.
 
 `androidx.health.connect:connect-client:1.1.0` has been stable since October 2025 - pin it
 directly, no alpha/RC churn to accept (unlike Material3 Expressive elsewhere in this codebase).
+
+All Health Connect-touching code (the `HealthConnectClient` wrapper, its DataStore-backed prefs,
+and its `WorkManager` scheduler/worker) lives in a new `:core:healthconnect` module, not
+`:core:data` - the same reasoning `:core:sync` already follows for Firebase/its own push job:
+wrapping an external SDK and orchestrating a feature-specific background job aren't "Room
+DAOs/DataStore," which is what `:core:data` is actually scoped to. Depends only on `:core:domain`
+
+- unlike `:core:sync`, nothing here needs a `:core:data` DAO directly.
 
 **Manifest** (`:app`):
 
@@ -216,7 +226,7 @@ directly, no alpha/RC churn to accept (unlike Material3 Expressive elsewhere in 
 - [x] `PullBiometricsForWorkoutUseCase` (single workout) - the one place that turns a Health
   Connect query result into a `WorkoutBiometrics` row via Phase 1a's repository.
 
-**`:core:data`**:
+**`:core:healthconnect`**:
 
 - [x] Add the `androidx.health.connect:connect-client:1.1.0` dependency.
 - [x] `HealthConnectRepositoryImpl` wrapping `HealthConnectClient` - `getSdkStatus()` for
@@ -250,32 +260,39 @@ runs still execute, "Pull now" (foregrounded) still works, and a later run picks
 becomes available once the app's opened again - just worth setting expectations that the
 backfill job's real-world hit rate depends on this optional permission.
 
-- [ ] `HealthConnectPrefs` domain model (`autoPullEnabled: Boolean`, `retryFrequency` enum
-  `ONE_HOUR`/`SIX_HOURS`/`DAILY` default `SIX_HOURS`, `backfillWindowDays` enum
-  `ONE`/`THREE`/`SEVEN`/`THIRTY` default `SEVEN`) in `:core:domain`, + DataStore keys in
-  `:core:data`'s `data/prefs/` alongside the existing unit-system/theme-mode preferences.
-- [ ] `RunBiometricsBackfillUseCase`: find `COMPLETE` workouts in the configured backfill window
-  missing a `WorkoutBiometrics` row, call `PullBiometricsForWorkoutUseCase` for each.
-  - **Open design note from Phase 1a**:
-    `WorkoutBiometricsRepository.getCompletedWorkoutIdsMissingBiometrics`
-    works cleanly in the real DAO (a single SQL join across `workouts`/`workout_biometrics`), but
-    `FakeWorkoutBiometricsRepository` can't replicate that join - it has no access to
-    `FakeWorkoutRepository`'s separate in-memory workout store, so its fake needed a
-    testing-only `completedWorkoutStartTimes` setup hook duplicating workout-completion
-    knowledge into a repository that isn't supposed to own it. Worth reconsidering here: move
-    the candidate-selection logic into this use case itself instead (call
-    `WorkoutRepository.observeCompletedBetween(...)` for completed ids, then filter out ones
-    where `WorkoutBiometricsRepository.get(id) != null`), and drop
-    `getCompletedWorkoutIdsMissingBiometrics` from the repository interface/DAO entirely.
-- [ ] `HealthConnectScheduleRepository` interface (`:core:domain`) + `HealthConnectSchedulerImpl`
-  (`:core:data`) mirroring `SyncSchedulerImpl` - (re)schedules the periodic `WorkManager` request
-  on prefs change (frequency change, or toggling auto-pull on/off cancels/reschedules).
-- [ ] `HealthConnectBiometricsWorker` (`CoroutineWorker`), mirroring `SyncPushWorker`'s shape -
-  runs `RunBiometricsBackfillUseCase`.
-- [ ] Unit tests for the backfill candidate-selection logic.
-- **Checkpoint**: still no UI. Verify with WorkManager's test tooling
-  (`TestListenableWorkerBuilder`/`WorkManagerTestInitHelper`) running the worker synchronously in a
-  test and confirming it pulls for every in-window candidate workout seeded via Toolbox.
+- [x] `HealthConnectPrefs` domain model (`autoPullEnabled: Boolean` default `false`,
+  `retryFrequency: HealthConnectRetryFrequency` default `SIX_HOURS`,
+  `backfillWindow: HealthConnectBackfillWindow` default `SEVEN`) in `:core:domain`'s
+  `HealthConnect.kt`;
+  the two enums (`ONE_HOUR`/`SIX_HOURS`/`DAILY` and `ONE`/`THREE`/`SEVEN`/`THIRTY`) live in
+  `Enums.kt` alongside `MaxWorkoutDuration`/`HistoryRange`.
+- [x] `HealthConnectPrefsRepository` interface (`:core:domain`) + `HealthConnectPrefsRepositoryImpl`
+  (`:core:healthconnect`, its own DataStore file `health_connect_settings` - deliberately separate
+  from `:core:data`'s `PreferencesRepositoryImpl`, which is pushed to Firestore wholesale; these
+  must never end up in that scope).
+- [x] `RunBiometricsBackfillUseCase`: finds `COMPLETE` workouts in the configured backfill window
+  missing a `WorkoutBiometrics` row, calls `PullBiometricsForWorkoutUseCase` for each. Composed
+  directly from `WorkoutRepository.observeCompletedBetween(...)` (completed ids) filtered by
+  `WorkoutBiometricsRepository.get(id) == null` (missing ones) - per Phase 1a's open design note,
+  `getCompletedWorkoutIdsMissingBiometrics` was removed from `WorkoutBiometricsRepository`/its DAO
+  entirely rather than kept as a dedicated cross-table query, since this composed form is
+  exercised by ordinary fakes with no special-case testing hook needed.
+- [x] `HealthConnectScheduleRepository` interface (`:core:domain`) + `HealthConnectSchedulerImpl`
+  (`:core:healthconnect`) mirroring `SyncSchedulerImpl` - schedules/cancels the periodic
+  `WorkManager`
+  request. Uses `REPLACE` (not sync's `KEEP`) since a frequency change must take effect on its
+  next run rather than waiting out whatever interval was already in force.
+- [x] `HealthConnectBiometricsWorker` (`CoroutineWorker`), mirroring `SyncPushWorker`'s shape -
+  reads current prefs, self-cancels if auto-pull has been turned off since this run was queued,
+  otherwise runs `RunBiometricsBackfillUseCase` and retries on failure.
+- [x] `FakeHealthConnectPrefsRepository`/`FakeHealthConnectScheduleRepository` in the shared
+  test-support module + unit tests for `RunBiometricsBackfillUseCase`'s candidate selection.
+  `HealthConnectBiometricsWorker`/`HealthConnectSchedulerImpl` themselves are thin WorkManager glue
+  and aren't separately tested, same as `SyncPushWorker`/`SyncSchedulerImpl` having no tests of
+  their own - the logic they delegate to is what's actually tested.
+- **Checkpoint**: still no UI - nothing to manually verify yet beyond the unit tests above. The
+  worker's actual on-device behavior gets exercised for real once Phase 1d's Settings toggle can
+  schedule it.
 
 ### Phase 1d - Settings UI
 
@@ -337,4 +354,5 @@ backfill job's real-world hit rate depends on this optional permission.
 
 - [x] Phase 1a done (local storage foundation).
 - [x] Phase 1b done (Health Connect read integration), verified end-to-end on-emulator.
-- [ ] Phase 1c-1e not started.
+- [x] Phase 1c done (prefs + background backfill job).
+- [ ] Phase 1d-1e not started.

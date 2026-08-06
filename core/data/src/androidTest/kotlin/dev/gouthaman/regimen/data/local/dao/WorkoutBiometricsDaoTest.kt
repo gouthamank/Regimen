@@ -121,34 +121,4 @@ class WorkoutBiometricsDaoTest {
 
         assertNull(biometricsDao.get(workoutId))
     }
-
-    @Test
-    fun getCompletedWorkoutIdsMissingBiometrics_excludesInProgressAndAlreadyPulledWorkouts() =
-        runTest {
-            val missingId = insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
-            val hasBiometricsId =
-                insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
-            biometricsDao.upsert(
-                WorkoutBiometricsEntity(
-                    id = UUID.randomUUID().toString(),
-                    workoutId = hasBiometricsId,
-                    fetchedAt = 1_000,
-                ),
-            )
-            insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.IN_PROGRESS)
-
-            val result = biometricsDao.getCompletedWorkoutIdsMissingBiometrics(sinceStartTime = 0)
-
-            assertEquals(listOf(missingId), result)
-        }
-
-    @Test
-    fun getCompletedWorkoutIdsMissingBiometrics_excludesWorkoutsBeforeTheCutoff() = runTest {
-        insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
-        val recentId = insertWorkout(startTime = 5_000, workoutStatus = WorkoutStatus.COMPLETE)
-
-        val result = biometricsDao.getCompletedWorkoutIdsMissingBiometrics(sinceStartTime = 2_000)
-
-        assertEquals(listOf(recentId), result)
-    }
 }

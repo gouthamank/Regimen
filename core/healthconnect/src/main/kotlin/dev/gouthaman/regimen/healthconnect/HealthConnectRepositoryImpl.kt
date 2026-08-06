@@ -1,4 +1,4 @@
-package dev.gouthaman.regimen.data.repository
+package dev.gouthaman.regimen.healthconnect
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
@@ -79,7 +79,7 @@ class HealthConnectRepositoryImpl @Inject constructor(
         val calorieRecords = client.readRecords(
             ReadRecordsRequest(
                 recordType = ActiveCaloriesBurnedRecord::class,
-                timeRangeFilter = range
+                timeRangeFilter = range,
             ),
         ).records
 

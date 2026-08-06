@@ -9,8 +9,8 @@ class FakeHealthConnectRepository(
     var sampleForRange: HealthConnectBiometricsSample? = null,
 ) : HealthConnectRepository {
 
-    var lastQueriedRange: Pair<Long, Long>? = null
-        private set
+    val queriedRanges = mutableListOf<Pair<Long, Long>>()
+    val lastQueriedRange: Pair<Long, Long>? get() = queriedRanges.lastOrNull()
 
     override suspend fun getConnectionState(): HealthConnectConnectionState = connectionState
 
@@ -21,7 +21,7 @@ class FakeHealthConnectRepository(
         startTime: Long,
         endTime: Long
     ): HealthConnectBiometricsSample? {
-        lastQueriedRange = startTime to endTime
+        queriedRanges += startTime to endTime
         return sampleForRange
     }
 }
