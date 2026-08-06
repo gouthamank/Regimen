@@ -16,4 +16,11 @@ class FakeWorkoutBiometricsRepository : WorkoutBiometricsRepository {
         biometricsByWorkoutId[biometrics.workoutId] = biometrics.copy(id = id)
         return id
     }
+
+    override suspend fun getMostRecentlyFetched(): WorkoutBiometrics? =
+        biometricsByWorkoutId.values.maxByOrNull { it.fetchedAt }
+
+    override suspend fun deleteAll() {
+        biometricsByWorkoutId.clear()
+    }
 }

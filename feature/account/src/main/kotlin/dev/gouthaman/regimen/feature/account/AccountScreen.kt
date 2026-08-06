@@ -165,7 +165,7 @@ private fun AccountScreen(
             Column(
                 modifier = contentModifier
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
             ) {
                 val account = uiState.account
                 if (account == null) {

@@ -22,4 +22,9 @@ class WorkoutBiometricsRepositoryImpl @Inject constructor(
 
         return id
     }
+
+    override suspend fun getMostRecentlyFetched(): WorkoutBiometrics? =
+        dao.getMostRecentlyFetched()?.toDomain()
+
+    override suspend fun deleteAll() = dao.deleteAll()
 }

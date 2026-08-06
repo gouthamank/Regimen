@@ -23,13 +23,27 @@ class HealthConnectBiometricsWorker @AssistedInject constructor(
         val prefs = healthConnectPrefsRepository.prefs.first()
         // The toggle may have flipped off after this run was already queued - self-cancel rather
         // than running once more on a stale schedule.
-        if (!prefs.autoPullEnabled) {
-            WorkManager.getInstance(applicationContext)
-                .cancelUniqueWork(HealthConnectSchedulerImpl.UNIQUE_WORK_NAME)
+        if (!prefs.healthConnectEnabled) {
+            cancelSelf()
             return Result.success()
         }
 
-        return runCatching { runBiometricsBackfillUseCase(prefs.backfillWindow) }
-            .fold(onSuccess = { Result.success() }, onFailure = { Result.retry() })
+        return try {
+            runBiometricsBackfillUseCase()
+            Result.success()
+        } catch (e: SecurityException) {
+            // Permission was revoked since this job was scheduled - reads will keep throwing
+            // every run with no way to recover until the app itself reconciles the schedule, so
+            // cancel now rather than retry forever in the meantime.
+            cancelSelf()
+            Result.failure()
+        } catch (e: Exception) {
+            Result.retry()
+        }
+    }
+
+    private fun cancelSelf() {
+        WorkManager.getInstance(applicationContext)
+            .cancelUniqueWork(HealthConnectSchedulerImpl.UNIQUE_WORK_NAME)
     }
 }

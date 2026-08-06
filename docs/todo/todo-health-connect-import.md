@@ -63,47 +63,93 @@ point instead of one per vendor.
 
 - A periodic `CoroutineWorker`, following the exact same shape `:core:sync`'s `SyncPushWorker`/
   `SyncSchedulerImpl` already use for the Firestore push job: on each run, find `COMPLETE`
-  workouts within the configured backfill window that don't yet have a `WorkoutBiometrics` row (or
-  have one still missing data), query Health Connect for each one's `[startTime, endTime]`, and
-  write/update the summary for whatever's found.
-- Gated entirely behind the Settings toggle below - the job isn't scheduled at all while the
-  master switch is off.
-- A manual "Pull now" action (same role as Account screen's "Sync now") lets a user force an
-  immediate attempt without waiting for the next scheduled run. Its behavior is state-dependent,
-  mirroring how Account's own primary button does double duty depending on sign-in state:
-    - *Needs permission* → tapping launches the Health Connect permission request flow; nothing is
-      pulled yet, it just tries to reach *Active*.
-    - *Active* → tapping enqueues a one-shot run of the same backfill sweep the periodic job does
-      (global, not scoped to one workout, since this button lives on the Settings page); busy state
-      shown via the same `ButtonProgressIndicator` Account uses, and the status widget's last-pull
-      timestamp/detected-source line updates on completion.
-  - *Unavailable* (not installed, or installed but needs updating) → button isn't shown at all.
+  workouts within a fixed 30-day window that don't yet have a `WorkoutBiometrics` row (or have one
+  still missing data), query Health Connect for each one's `[startTime, endTime]`, and
+  write/update the summary for whatever's found. The window isn't user-configurable - 30 days is
+  generous enough that shrinking it would only narrow the net for no real benefit, since
+  already-fetched workouts are always excluded from candidates regardless of window size.
+- Scheduling is reconciled, not driven by a single stored toggle: the job runs only while all four
+  of the following hold - the feature is enabled, background sync is separately enabled (its own
+  toggle, off by default even once permission is granted), connection state is `ACTIVE` (both core
+  read permissions granted), and the background-read permission is also granted (required for a
+  `WorkManager` job's `readRecords()` calls to succeed at all when the app isn't foregrounded -
+  without it they throw `SecurityException` every cycle). `ReconcileHealthConnectScheduleUseCase`
+  is the single source of truth for this - it's re-run whenever any of those inputs could have
+  changed (enabling/disabling the feature, the background-sync toggle, changing frequency, and
+  every status refresh), so the schedule can never drift from live permission state, e.g. after
+  permission gets revoked via Health Connect's own Settings app while Regimen was backgrounded.
+- Turning the background-sync toggle off only stops scheduling - it can't also revoke just the
+  background permission. `PermissionController` (decompiled from the actual 1.1.0 jar) exposes
+  only `revokeAllPermissions()`, which revokes every permission Regimen holds, not a subset; using
+  it here would also strip heart rate/calories, which this one toggle has no business doing. A
+  user who wants the background permission itself gone has to revoke it manually via Health
+  Connect's own app.
+- A manual "Check now" action lets a user force an immediate attempt without waiting for the next
+  scheduled run. It's only shown once the screen's active-state content is visible (heart rate and
+  calorie permissions granted), runs in the foreground, and so works regardless of whether
+  background-read permission has been granted - unlike the periodic job. It enqueues a one-shot run
+  of the same backfill sweep the periodic job does (global, not scoped to one workout); busy state
+  shown via `ButtonProgressIndicator`, and the status block's last-checked timestamp/detected-source
+  line update on completion.
 
 ## Settings UI
 
 A **new dedicated sub-page**, launched from Settings (not an inline toggle), following
 `feature/account/AccountScreen.kt`'s existing shell/shape (`MediumTopAppBar` + back nav, a status
-block, sections divided by `HorizontalDivider`, a manual action button alongside the status row):
+block, sections divided by `HorizontalDivider`, a manual action button alongside the status row).
 
-- **Status widget**: three-state connection status - *Active* / *Needs permission* / *Unavailable*
-  (Health Connect not installed, or installed but needs updating - a user can also revoke the
-  permission from Health Connect's own settings outside Regimen entirely, so this can't just be a
-  boolean); detected source app (from
-  `WorkoutBiometrics.sourcePackageName` on the most recent successful pull, e.g. "Currently syncing
-  from: Google Health", or "No data seen yet"); last successful pull timestamp.
-- **Master switch**: "Automatically pull biometrics" - off by default (explicit opt-in, per
-  above). Gates every control below and whether the retry job is scheduled at all.
-- **Retry frequency** picker (`SingleChoiceSegmentedButtonRow`, same component
-  `UnitSystemSelector`/`ThemeModeSelector` already use): **1 hour / 6 hours / Daily**, defaulting
-  to **6 hours**. No 15-minute option - Health Connect data usually isn't available that fast
-  anyway, and a tighter floor would just encourage a battery-hungry setting for no real benefit.
-- **Backfill window** picker (same segmented-row component): **1 / 3 / 7 / 30 days**, defaulting to
-  **7 days**, controlling how far back the retry job keeps looking for workouts still missing data
-  before giving up on them for good.
-- **Manual "Pull now" button**, next to the status row.
-- All four settings (toggle, frequency, backfill window, plus derived scheduling state) persisted
-  via DataStore prefs (`:core:data`'s `data/prefs/`), alongside the existing unit-system/theme-mode
-  preferences.
+Three independent things, deliberately kept separate rather than conflated under one boolean:
+opting in to the feature at all, Android permission being granted, and the periodic job actually
+being scheduled (see "Sync mechanism" above for the third). The screen surfaces this as four
+mutually exclusive states, top to bottom:
+
+- **Switch row** ("Enable Health Connect") - always at the top. A plain feature opt-in, unrelated
+  to permission or scheduling. Disabled only when Health Connect isn't installed or the OS/provider
+  is incompatible (`HealthConnectConnectionState.UNAVAILABLE`) - **not** disabled merely for
+  missing permission, since granting permission is a separate, later step.
+- **Unavailable**: an `EmptyState` (`:core:designsystem`) explains Health Connect isn't installed
+  or supported.
+- **Switch off** (and available): an `EmptyState` explains what the feature does and invites
+  opt-in.
+- **Switch on, permission not (fully) granted** (`connectionState != ACTIVE`, i.e. heart rate and
+  calories not both granted - background-only-granted still counts as not-yet-granted for this
+  purpose): an `EmptyState` explains what permission is needed and why, with a "Grant permission"
+  action that launches the permission request for `HealthConnectRepository.coreReadPermissions()`
+  only. Same message/action regardless of *which* permission(s) specifically are missing - no
+  per-combination copy.
+- **Switch on, `ACTIVE`**: the active content block - a status readout (title, detected source
+  app label or "No data yet", last-checked timestamp, a "Check now" button), then a
+  divider-separated **"Background sync"** section that shows exactly one of two things depending
+  on whether the background-read permission is granted:
+  - **Not granted**: an `EmptyState` card explaining background checking can't function at all
+    without it, with a "Turn on" action (requests `requiredPermissions() - coreReadPermissions()`,
+    i.e. just the background permission) - the "Check every" picker doesn't render at all in this
+    state, not merely disabled.
+  - **Granted**: a third, independent toggle - **"Enable background sync"** - plus the **"Check
+    every"** picker (retry frequency; `SingleChoiceSegmentedButtonRow`, same component
+    `UnitSystemSelector`/`ThemeModeSelector` already use): **1 hour / 6 hours / Daily**, defaulting
+    to **6 hours**. Granting the permission doesn't imply this toggle is on - it defaults off, same
+    explicit-opt-in philosophy as the top-level switch. The picker renders but is disabled while
+    the toggle is off, since it configures a job that isn't running. Turning the toggle off stops
+    the periodic job but leaves the Android permission grant itself untouched - see "Sync
+    mechanism" for why a partial revoke isn't possible. No 15-minute frequency option - Health
+    Connect data usually isn't available that fast anyway, and a tighter floor would just encourage
+    a battery-hungry setting for no real benefit.
+- Three settings now (feature enabled, background sync enabled, retry frequency) persisted via
+  `:core:healthconnect`'s own DataStore file, kept separate from `:core:data`'s
+  `PreferencesRepositoryImpl` since these must never enter that repository's Firestore push scope.
+- The core-permission request and the background-permission request are never launched together
+  in one call. If the background permission has previously been denied enough times that Android
+  marks it `USER_FIXED`, Health Connect's permission activity aborts the *entire* request
+  immediately - including permissions that were never denied - rather than prompting for whatever
+  isn't user-fixed. Requesting `coreReadPermissions()` and the background permission separately
+  means a user-fixed background permission can never block granting heart rate/calories.
+- A `USER_FIXED` permission also means the request activity shows no system UI at all - from the
+  user's perspective, tapping "Grant permission"/"Turn on" does nothing. The screen detects this
+  by comparing what was requested against what the launcher's result actually granted (the
+  `PermissionController` contract's result type is the granted-permission `Set<String>`) and shows
+  a Snackbar directing the user to the device's app-settings screen
+  (`Settings.ACTION_APPLICATION_DETAILS_SETTINGS`) instead of leaving the tap looking like a no-op.
 
 ## Cloud sync - not planned
 
@@ -253,26 +299,29 @@ connection state, the same shape `AccountViewModel.refreshOnResume()` already us
 
 ### Phase 1c - prefs + background backfill job
 
-Reliability here depends on `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` (Phase
-1b) - without it granted, this job's periodic runs return nothing while Regimen is backgrounded,
-which is most of the time for a periodic job. It's still a graceful degrade, not a broken state:
-runs still execute, "Pull now" (foregrounded) still works, and a later run picks up anything that
-becomes available once the app's opened again - just worth setting expectations that the
-backfill job's real-world hit rate depends on this optional permission.
+The periodic job's `readRecords()` calls require
+`android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` to succeed at all while Regimen is
+backgrounded (which is most of the time for a periodic job) - without it, calls throw
+`SecurityException`, not degraded results. `ReconcileHealthConnectScheduleUseCase` treats this as
+a hard prerequisite: the job is only scheduled while the feature is enabled, connection state is
+`ACTIVE`, and this permission is also granted - re-evaluated on every prefs change and status
+refresh, so it self-corrects if permission is revoked later. "Check now" (foregrounded) always
+works regardless of this permission, since it doesn't run in a background execution context.
 
-- [x] `HealthConnectPrefs` domain model (`autoPullEnabled: Boolean` default `false`,
-  `retryFrequency: HealthConnectRetryFrequency` default `SIX_HOURS`,
-  `backfillWindow: HealthConnectBackfillWindow` default `SEVEN`) in `:core:domain`'s
-  `HealthConnect.kt`;
-  the two enums (`ONE_HOUR`/`SIX_HOURS`/`DAILY` and `ONE`/`THREE`/`SEVEN`/`THIRTY`) live in
-  `Enums.kt` alongside `MaxWorkoutDuration`/`HistoryRange`.
+- [x] `HealthConnectPrefs` domain model (`healthConnectEnabled: Boolean` default `false`,
+  `backgroundSyncEnabled: Boolean` default `false`, `retryFrequency:
+  HealthConnectRetryFrequency` default `SIX_HOURS`) in `:core:domain`'s `HealthConnect.kt`; the
+  `HealthConnectRetryFrequency` enum (`ONE_HOUR`/`SIX_HOURS`/`DAILY`) lives in `Enums.kt` alongside
+  `MaxWorkoutDuration`/`HistoryRange`. The backfill window is not a stored preference - it's a
+  fixed 30-day constant in `HealthConnectUseCases.kt`, applying uniformly to both the periodic job
+  and "Check now".
 - [x] `HealthConnectPrefsRepository` interface (`:core:domain`) + `HealthConnectPrefsRepositoryImpl`
   (`:core:healthconnect`, its own DataStore file `health_connect_settings` - deliberately separate
   from `:core:data`'s `PreferencesRepositoryImpl`, which is pushed to Firestore wholesale; these
   must never end up in that scope).
-- [x] `RunBiometricsBackfillUseCase`: finds `COMPLETE` workouts in the configured backfill window
-  missing a `WorkoutBiometrics` row, calls `PullBiometricsForWorkoutUseCase` for each. Composed
-  directly from `WorkoutRepository.observeCompletedBetween(...)` (completed ids) filtered by
+- [x] `RunBiometricsBackfillUseCase`: finds `COMPLETE` workouts in the fixed 30-day window missing
+  a `WorkoutBiometrics` row, calls `PullBiometricsForWorkoutUseCase` for each. Composed directly
+  from `WorkoutRepository.observeCompletedBetween(...)` (completed ids) filtered by
   `WorkoutBiometricsRepository.get(id) == null` (missing ones) - per Phase 1a's open design note,
   `getCompletedWorkoutIdsMissingBiometrics` was removed from `WorkoutBiometricsRepository`/its DAO
   entirely rather than kept as a dedicated cross-table query, since this composed form is
@@ -282,11 +331,21 @@ backfill job's real-world hit rate depends on this optional permission.
   `WorkManager`
   request. Uses `REPLACE` (not sync's `KEEP`) since a frequency change must take effect on its
   next run rather than waiting out whatever interval was already in force.
+- [x] `ReconcileHealthConnectScheduleUseCase` (`:core:domain`): the single source of truth for
+  whether the job should be running - computed from `healthConnectEnabled &&
+  connectionState == ACTIVE && getGrantedPermissions().containsAll(requiredPermissions())`, called
+  by `SetHealthConnectPrefsUseCase` after every prefs change and by
+  `HealthConnectSettingsViewModel.refreshStatus()` after every status fetch (init, resume, and
+  after the permission launcher returns).
 - [x] `HealthConnectBiometricsWorker` (`CoroutineWorker`), mirroring `SyncPushWorker`'s shape -
-  reads current prefs, self-cancels if auto-pull has been turned off since this run was queued,
-  otherwise runs `RunBiometricsBackfillUseCase` and retries on failure.
+  reads current prefs, self-cancels if the feature has been turned off since this run was queued,
+  otherwise runs `RunBiometricsBackfillUseCase`. A `SecurityException` (permission revoked since
+  this job was scheduled) self-cancels the recurring job immediately rather than retrying forever
+  with no way to succeed until the app itself reconciles the schedule; any other failure retries
+  normally.
 - [x] `FakeHealthConnectPrefsRepository`/`FakeHealthConnectScheduleRepository` in the shared
-  test-support module + unit tests for `RunBiometricsBackfillUseCase`'s candidate selection.
+  test-support module + unit tests for `RunBiometricsBackfillUseCase`'s candidate selection and
+  `ReconcileHealthConnectScheduleUseCase`'s permission-revocation self-correction.
   `HealthConnectBiometricsWorker`/`HealthConnectSchedulerImpl` themselves are thin WorkManager glue
   and aren't separately tested, same as `SyncPushWorker`/`SyncSchedulerImpl` having no tests of
   their own - the logic they delegate to is what's actually tested.
@@ -296,56 +355,84 @@ backfill job's real-world hit rate depends on this optional permission.
 
 ### Phase 1d - Settings UI
 
-- [ ] New `:feature:healthconnect` module (`regimen.android.feature` convention plugin), mirroring
+- [x] New `:feature:healthconnect` module (`regimen.android.feature` convention plugin), mirroring
   `:feature:account`'s precedent of a pushed settings sub-page getting its own module.
-- [ ] Add `getGrantedPermissions(): Set<String>` to `HealthConnectRepository`/
-  `HealthConnectRepositoryImpl`
-  (the impl already computes this internally for `getConnectionState()` - just needs exposing).
-- [ ] `GetHealthConnectStatusUseCase` / `SetHealthConnectPrefsUseCase` in `:core:domain`, wiring
-  together everything from 1b/1c for the ViewModel to call. No permission-*requesting* use case -
-  per Phase 1b, that launch only happens from the Composable below.
-  - `GetHealthConnectStatusUseCase` also exposes whether an *optional* permission has become
-    available but isn't granted yet (`requiredPermissions() - getGrantedPermissions()` non-empty
-    while `ACTIVE`) - happens when a user granted the core permissions before Health Connect's own
-    app updated to add background-read support. Not part of `HealthConnectConnectionState` itself
-    (still `ACTIVE`, not blocking) - a separate flag the status widget surfaces as a small
-    secondary "Background access available" affordance, with an action that re-launches the same
-    permission-request launcher with the current `requiredPermissions()` set (idempotent for
-    already-granted permissions, so safe to just re-request the full set rather than diffing).
-- [ ] `HealthConnectSettingsViewModel`: status widget state (connection state, detected source,
-  last pull time, the optional-permission-available flag above) + current prefs; exposes the
-  required Health Connect permission set for the screen's launcher to request; handles
-  toggle/frequency/backfill-window changes and "Pull now" (state-dependent: nothing to do itself
-  in the *Needs permission* case - the screen's launcher handles that - vs. triggering a one-shot
-  backfill run when *Active*); re-checks connection state both on the permission launcher's result
-  callback and on resume (permission may have been revoked externally via Health Connect's own
-  Settings UI, or newly available after a Health Connect update), same pattern
-  `AccountViewModel.refreshOnResume` already uses.
-- [ ] `HealthConnectSettingsScreen`: shell/shape copied from `feature/account/AccountScreen.kt`
-  (`MediumTopAppBar` + back, status block, `HorizontalDivider`-separated sections) - status
-  widget, master switch, two `SingleChoiceSegmentedButtonRow` pickers (reusing the same component
-  `UnitSystemSelector`/`ThemeModeSelector` use), "Pull now" button with `ButtonProgressIndicator`
-  busy state. Owns the
+- [x] Added `getGrantedPermissions(): Set<String>` and `resolveAppLabel(packageName): String?` to
+  `HealthConnectRepository`/`HealthConnectRepositoryImpl` (the label resolution is a plain
+  `PackageManager` lookup, used for the "Data from: ..." attribution - falls back to the raw
+  package name if the source app has since been uninstalled and its label can't be resolved).
+- [x] `GetHealthConnectStatusUseCase` / `SetHealthConnectPrefsUseCase` / a plain-passthrough
+  `ObserveHealthConnectPrefsUseCase` in `:core:domain`. No permission-*requesting* use case - that
+  launch only happens from the Composable below. `GetHealthConnectStatusUseCase` bundles
+  everything the status widget needs into one `HealthConnectStatus`, including
+  `requiredPermissions` itself - so the ViewModel/Composable never need to depend on
+  `HealthConnectRepository` directly, matching this codebase's ViewModels-call-use-cases-only rule.
+  - It also exposes whether an *optional* permission has become available but isn't granted yet
+    (`requiredPermissions() - getGrantedPermissions()` non-empty while `ACTIVE`) - happens when a
+    user granted the core permissions before Health Connect's own app updated to add
+    background-read support. Not part of `HealthConnectConnectionState` itself (still `ACTIVE`,
+    not blocking) - a separate flag the status widget surfaces as a small secondary "Background
+    access available" affordance, with an action that re-launches the same permission-request
+    launcher with the current `requiredPermissions()` set (idempotent for already-granted
+    permissions, so safe to just re-request the full set rather than diffing).
+- [x] `HealthConnectSettingsViewModel`: status widget state (connection state, detected source,
+  last-checked time, the background-permission-available flag above) + current prefs; handles
+  enabled/frequency changes and "Check now" (only meaningful while `ACTIVE` - the
+  permission-required and background-permission-nudge cases are handled entirely by the screen's
+  own permission launcher, never routed through the ViewModel); `refreshStatus()` is called on
+  init, after the permission launcher's result callback, and on resume (permission may have been
+  revoked externally via Health Connect's own Settings UI, or newly available after a Health
+  Connect update) - same pattern `AccountViewModel.refreshOnResume` already uses, and also
+  re-runs `ReconcileHealthConnectScheduleUseCase` each time.
+- [x] `HealthConnectSettingsScreen`: shell/shape copied from `feature/account/AccountScreen.kt`
+  (`MediumTopAppBar` + back, status block, `HorizontalDivider`-separated sections) - an
+  always-visible switch row at the top ("Enable Health Connect", disabled only when
+  `UNAVAILABLE`), then exactly one of: an `EmptyState` explaining why when unavailable, an
+  `EmptyState` explaining the feature when the switch is off, an `EmptyState` explaining what
+  permission is needed (with a "Grant permission" action) when the switch is on but
+  `connectionState != ACTIVE`, or - once both the switch is on and `ACTIVE` - the active block: a
+  status readout ("Check now" button with `ButtonProgressIndicator` busy state), then a
+  divider-separated "Background sync" section that shows either an `EmptyState` card (background
+  permission missing, with a "Turn on" action requesting just that permission) or - once granted -
+  an "Enable background sync" toggle (its own opt-in, off by default, independent of the
+  permission grant) alongside the "Check every" `SingleChoiceSegmentedButtonRow` picker (same
+  pattern `UnitSystemSelector`/`ThemeModeSelector` use, as a screen-local private composable rather
+  than a shared one - `HealthConnectRetryFrequency` is specific to this one screen), disabled while
+  the toggle is off since the job it configures isn't running. A failed permission request (e.g. a
+  `USER_FIXED` permission that silently aborts with no system UI) is detected by diffing the
+  launcher's result against what was requested, surfaced via a Snackbar pointing at the device's
+  app-settings screen. Owns the
   `rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract())`
   call - the actual permission-request launch, same shape as `RegimenApp.kt`'s existing
-  `POST_NOTIFICATIONS` request - triggered by "Pull now" when connection state is
-  *Needs permission*, with the result callback telling the ViewModel to re-check status.
-- [ ] `HealthConnectNavigation.kt`: `NavGraphBuilder.healthConnectGraph()` extension, per module
-  convention.
-- [ ] `feature/settings/SettingsScreen.kt`: new `NavRow` entry ("Health Connect") in the
-  library/data section, alongside the existing Exercise Library / Account rows.
-- [ ] `:app`'s `RegimenNavHost.kt`: wire the new destination, update the ASCII navigation-map
-  comment (flip `[ ]` → `[✓]`).
-- [ ] `:feature:healthconnect` ViewModel JVM unit tests. All new strings in
+  `POST_NOTIFICATIONS` request. A completed pull is never silent - a Snackbar reports the outcome
+  (nothing to check / checked N, found nothing / pulled N) every time, driven by
+  `RunBiometricsBackfillUseCase` returning a `BiometricsBackfillResult` rather than `Unit`, and
+  `HealthConnectSettingsViewModel.pullResultEvents` (a `SharedFlow`) carrying it to the screen.
+- [x] `HealthConnectNavigation.kt`: `NavGraphBuilder.healthConnectGraph()` extension, per module
+  convention. Matches `AccountNavigation.kt`'s shared-element container-transform treatment - the
+  Settings row visually grows into the full screen, with the destination's own
+  `enterTransition`/`popExitTransition` suppressed (`EnterTransition.None`/`ExitTransition.None`)
+  so it doesn't fight that growth/shrink animation.
+- [x] `feature/settings/SettingsScreen.kt`: new `NavRow` entry ("Health Connect") in the
+  library/data section, alongside the existing Exercise Library / Account rows, wired with its own
+  shared-transition key (`healthConnectFromSettingsTransitionKey`, alongside `:core:common-ui`'s
+  existing `accountFromSettingsTransitionKey`).
+- [x] `:app`'s `RegimenNavHost.kt`: wired the new destination, updated the ASCII navigation-map
+  comment (also fixed a pre-existing omission - `accountGraph` was missing from the "each feature
+  module owns its own destinations" list even before this).
+- [x] `:feature:healthconnect` ViewModel JVM unit tests. All new strings in
   `res/values/strings.xml`.
-- **Checkpoint**: first fully manual walk-through through the real app UI - open Settings → Health
-  Connect, grant permission, tap "Pull now", watch the status widget update.
+- [ ] **Checkpoint**: first fully manual walk-through through the real app UI - open Settings →
+  Health Connect, grant permission, tap "Check now", watch the status widget update. Not yet done -
+  needs a build/run pass, not something a JVM unit test covers.
 
 ### Phase 1e - surfacing in Workout Summary / History
 
 - [ ] Workout Summary / History: display the pulled `WorkoutBiometrics` summary (avg/max BPM,
   calories) when present, reusing `:core:designsystem`'s `chart/LineChart.kt`/`Sparkline` for the
-  heart-rate series.
+  heart-rate series. Gated on `HealthConnectPrefs.healthConnectEnabled` - if the feature is
+  switched off, this display must not appear even for a workout that already has a stored
+  `WorkoutBiometrics` row from when it was previously on.
 - [ ] New strings for the above.
 - **Checkpoint**: the full feature loop end-to-end - finish a real (or Toolbox-seeded) workout, run
   a pull, see biometrics show up on Workout Summary/History. This is "done" for phase 1.
@@ -355,4 +442,5 @@ backfill job's real-world hit rate depends on this optional permission.
 - [x] Phase 1a done (local storage foundation).
 - [x] Phase 1b done (Health Connect read integration), verified end-to-end on-emulator.
 - [x] Phase 1c done (prefs + background backfill job).
-- [ ] Phase 1d-1e not started.
+- [~] Phase 1d done except its manual on-device checkpoint (Settings UI).
+- [ ] Phase 1e not started.

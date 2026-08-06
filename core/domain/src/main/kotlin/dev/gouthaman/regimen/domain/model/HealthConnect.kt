@@ -19,10 +19,33 @@ data class HealthConnectBiometricsSample(
     val sourcePackageName: String?,
 )
 
-/** [autoPullEnabled] is off by default (explicit opt-in) and gates whether the backfill job is
- * scheduled at all - [retryFrequency]/[backfillWindow] are irrelevant while it's off. */
+/** [healthConnectEnabled] is a plain feature opt-in, off by default - independent of whether
+ * Android permission has been granted. [backgroundSyncEnabled] is a second, separate opt-in -
+ * granting the background-read permission doesn't imply this is on; the periodic job only
+ * schedules while both this and the permission are true (reconciled separately). */
 data class HealthConnectPrefs(
-    val autoPullEnabled: Boolean = false,
+    val healthConnectEnabled: Boolean = false,
+    val backgroundSyncEnabled: Boolean = false,
     val retryFrequency: HealthConnectRetryFrequency = HealthConnectRetryFrequency.SIX_HOURS,
-    val backfillWindow: HealthConnectBackfillWindow = HealthConnectBackfillWindow.SEVEN,
+)
+
+/** Everything the Settings status widget needs. [corePermissions] and [requiredPermissions] are
+ * requested separately by the UI, never combined into one launch - see
+ * [dev.gouthaman.regimen.domain.repository.HealthConnectRepository.coreReadPermissions]. */
+data class HealthConnectStatus(
+    val connectionState: HealthConnectConnectionState,
+    val hasOptionalPermissionAvailable: Boolean,
+    val detectedSourceAppLabel: String?,
+    val lastPulledAt: Long?,
+    val requiredPermissions: Set<String>,
+    val corePermissions: Set<String>,
+)
+
+/** A single backfill sweep's outcome - [candidateCount] is how many workouts were missing
+ * biometrics and in range, [pulledCount] is how many of those actually found data. Lets "Pull
+ * now" tell a user "nothing needed checking" apart from "checked some, found nothing yet" apart
+ * from "found data for N" - a completed pull is never silent. */
+data class BiometricsBackfillResult(
+    val candidateCount: Int,
+    val pulledCount: Int,
 )

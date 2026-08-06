@@ -20,9 +20,8 @@ class HealthConnectSchedulerImpl @Inject constructor(
         val request =
             PeriodicWorkRequestBuilder<HealthConnectBiometricsWorker>(Duration.ofHours(frequency.hours))
                 .build()
-        // REPLACE, not KEEP - a frequency change must take effect on its next run rather than
-        // waiting out whatever interval was already in force (unlike the sync push job, which is
-        // never rescheduled with a different interval after its first schedule call).
+        // REPLACE, not KEEP - a frequency change must take effect on its next run, not the
+        // interval already in force.
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             UNIQUE_WORK_NAME,
             ExistingPeriodicWorkPolicy.REPLACE,

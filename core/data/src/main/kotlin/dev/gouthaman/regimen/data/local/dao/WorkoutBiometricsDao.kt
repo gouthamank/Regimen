@@ -13,4 +13,10 @@ interface WorkoutBiometricsDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: WorkoutBiometricsEntity)
+
+    @Query("SELECT * FROM workout_biometrics ORDER BY fetchedAt DESC LIMIT 1")
+    suspend fun getMostRecentlyFetched(): WorkoutBiometricsEntity?
+
+    @Query("DELETE FROM workout_biometrics")
+    suspend fun deleteAll()
 }

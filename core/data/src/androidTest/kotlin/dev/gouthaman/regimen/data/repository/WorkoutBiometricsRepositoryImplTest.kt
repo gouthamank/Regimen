@@ -89,4 +89,16 @@ class WorkoutBiometricsRepositoryImplTest {
 
         assertNull(repository.get(workoutId))
     }
+
+    @Test
+    fun getMostRecentlyFetched_returnsTheLatestAcrossEveryWorkout() = runTest {
+        val olderWorkoutId =
+            insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
+        val newerWorkoutId =
+            insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
+        repository.upsert(WorkoutBiometrics(id = "", workoutId = olderWorkoutId, fetchedAt = 1_000))
+        repository.upsert(WorkoutBiometrics(id = "", workoutId = newerWorkoutId, fetchedAt = 5_000))
+
+        assertEquals(newerWorkoutId, repository.getMostRecentlyFetched()?.workoutId)
+    }
 }

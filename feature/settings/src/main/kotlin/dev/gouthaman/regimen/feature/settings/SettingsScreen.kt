@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import dev.gouthaman.regimen.common.accountFromSettingsTransitionKey
 import dev.gouthaman.regimen.common.exerciseLibraryFromSettingsTransitionKey
+import dev.gouthaman.regimen.common.healthConnectFromSettingsTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.component.EnumDropdown
@@ -69,6 +71,7 @@ fun SettingsScreen(
     onOpenExerciseLibrary: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
     onOpenAccount: () -> Unit = {},
+    onOpenHealthConnect: () -> Unit = {},
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
@@ -88,6 +91,7 @@ fun SettingsScreen(
         onOpenExerciseLibrary = onOpenExerciseLibrary,
         account = account,
         onOpenAccount = onOpenAccount,
+        onOpenHealthConnect = onOpenHealthConnect,
     )
 }
 
@@ -108,6 +112,7 @@ fun SettingsScreen(
     onOpenExerciseLibrary: () -> Unit = {},
     account: AuthAccount? = null,
     onOpenAccount: () -> Unit = {},
+    onOpenHealthConnect: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val windowInfo = LocalRegimenWindowInfo.current
@@ -245,6 +250,20 @@ fun SettingsScreen(
                     modifier = with(sharedTransitionScope) {
                         Modifier.sharedBounds(
                             rememberSharedContentState(key = accountFromSettingsTransitionKey),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    },
+                )
+
+                NavRow(
+                    headline = stringResource(R.string.settings_health_connect_headline),
+                    supporting = stringResource(R.string.settings_health_connect_description),
+                    icon = Icons.Filled.MonitorHeart,
+                    enabled = true,
+                    onClick = onOpenHealthConnect,
+                    modifier = with(sharedTransitionScope) {
+                        Modifier.sharedBounds(
+                            rememberSharedContentState(key = healthConnectFromSettingsTransitionKey),
                             animatedVisibilityScope = animatedVisibilityScope,
                         )
                     },

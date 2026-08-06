@@ -24,4 +24,6 @@
     <string name="settings_export_data_description">JSON backup - planned</string>
     <string name="settings_account_headline">Account</string>
     <string name="settings_account_signed_out">Signed out</string>
+    <string name="settings_health_connect_headline">Health Connect</string>
+    <string name="settings_health_connect_description">Attach heart rate and calories to your workouts</string>
 </resources>

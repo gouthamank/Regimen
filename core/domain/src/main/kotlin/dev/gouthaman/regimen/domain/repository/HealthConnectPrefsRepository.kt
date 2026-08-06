@@ -1,6 +1,5 @@
 package dev.gouthaman.regimen.domain.repository
 
-import dev.gouthaman.regimen.domain.model.HealthConnectBackfillWindow
 import dev.gouthaman.regimen.domain.model.HealthConnectPrefs
 import dev.gouthaman.regimen.domain.model.HealthConnectRetryFrequency
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 interface HealthConnectPrefsRepository {
     val prefs: Flow<HealthConnectPrefs>
 
-    suspend fun setAutoPullEnabled(value: Boolean)
+    suspend fun setHealthConnectEnabled(value: Boolean)
+    suspend fun setBackgroundSyncEnabled(value: Boolean)
     suspend fun setRetryFrequency(value: HealthConnectRetryFrequency)
-    suspend fun setBackfillWindow(value: HealthConnectBackfillWindow)
 }

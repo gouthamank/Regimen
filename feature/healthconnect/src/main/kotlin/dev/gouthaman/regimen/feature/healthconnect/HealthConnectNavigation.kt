@@ -1,27 +1,29 @@
-package dev.gouthaman.regimen.feature.settings
+package dev.gouthaman.regimen.feature.healthconnect
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import dev.gouthaman.regimen.navigation.AccountRoute
-import dev.gouthaman.regimen.navigation.ExerciseLibraryRoute
 import dev.gouthaman.regimen.navigation.HealthConnectSettingsRoute
-import dev.gouthaman.regimen.navigation.SettingsRoute
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-fun NavGraphBuilder.settingsGraph(
+fun NavGraphBuilder.healthConnectGraph(
     navController: NavHostController,
     sharedTransitionScope: SharedTransitionScope,
 ) {
-    composable<SettingsRoute> {
-        SettingsScreen(
+    composable<HealthConnectSettingsRoute>(
+        // Settings' row container-transform is the only entry point - suppress the default
+        // slide so it doesn't fight that growth/shrink.
+        enterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
+    ) {
+        HealthConnectSettingsScreen(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,
-            onOpenExerciseLibrary = { navController.navigate(ExerciseLibraryRoute) },
-            onOpenAccount = { navController.navigate(AccountRoute) },
-            onOpenHealthConnect = { navController.navigate(HealthConnectSettingsRoute) },
+            onBack = navController::popBackStack,
         )
     }
 }

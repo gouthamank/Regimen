@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import dev.gouthaman.regimen.feature.account.accountGraph
 import dev.gouthaman.regimen.feature.active.activeGraph
 import dev.gouthaman.regimen.feature.exercise.exerciseGraph
+import dev.gouthaman.regimen.feature.healthconnect.healthConnectGraph
 import dev.gouthaman.regimen.feature.history.historyGraph
 import dev.gouthaman.regimen.feature.home.homeGraph
 import dev.gouthaman.regimen.feature.measurements.measurementsGraph
@@ -62,6 +63,8 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *    Home      ──▶ [✓] Routine Editor     RoutineEditorRoute() (empty-state "create first routine")
  *    Settings  ──▶ [✓] Exercise Library   ExerciseLibraryRoute
  *              ──▶ [✓] Account            AccountRoute (sign in/out, sync status)
+ *              ──▶ [✓] Health Connect     HealthConnectSettingsRoute (biometrics auto-pull toggle,
+ *                                            retry frequency, backfill window, manual pull)
  *    Library   ──▶ [✓] Exercise Detail    ExerciseDetailRoute(exerciseId)
  *              ──▶ [✓] Add/Edit Exercise  EditExerciseRoute(exerciseId=0)
  *    Detail    ──▶ [✓] Edit Exercise      EditExerciseRoute(exerciseId)
@@ -97,9 +100,9 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *
  *  Each feature module owns its own destinations via a `NavGraphBuilder.xGraph()` extension
  *  (homeGraph, routinesGraph, historyGraph, activeGraph, progressGraph, settingsGraph,
- *  measurementsGraph, exerciseGraph) - this NavHost only wires them together, it doesn't declare
- *  any `composable<Route>` itself. Onboarding is the one screen NOT routed through here at all
- *  (see MainActivity's first-launch gate).
+ *  accountGraph, healthConnectGraph, measurementsGraph, exerciseGraph) - this NavHost only wires
+ *  them together, it doesn't declare any `composable<Route>` itself. Onboarding is the one screen
+ *  NOT routed through here at all (see MainActivity's first-launch gate).
  * ─────────────────────────────────────────────────────────────────────────
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -219,6 +222,7 @@ fun RegimenNavHost(
             progressGraph(navController, sharedTransitionScope)
             settingsGraph(navController, sharedTransitionScope)
             accountGraph(navController, sharedTransitionScope)
+            healthConnectGraph(navController, sharedTransitionScope)
             measurementsGraph(navController, sharedTransitionScope)
             exerciseGraph(navController, sharedTransitionScope)
         }

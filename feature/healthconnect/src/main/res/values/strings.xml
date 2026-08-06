@@ -1,0 +1,46 @@
+<resources>
+    <string name="health_connect_settings_title">Health Connect</string>
+
+    <string name="health_connect_status_active">Active</string>
+    <string name="health_connect_status_unavailable">Health Connect isn\'t available - install or update it from the Play Store.</string>
+    <string name="health_connect_data_from">Data from: %1$s</string>
+    <string name="health_connect_no_data_yet">No data yet</string>
+    <string name="health_connect_last_checked_at">Last checked %1$s</string>
+
+    <string name="health_connect_background_permission_message">Without this permission, Regimen can\'t check for new heart rate and calorie data while it\'s closed.</string>
+    <string name="health_connect_optional_permission_button">Turn on</string>
+    <string name="health_connect_background_sync_toggle_headline">Enable background sync</string>
+
+    <string name="health_connect_enable_headline">Enable Health Connect</string>
+    <string name="health_connect_intro_message">Regimen can attach heart rate and calorie data from apps like Google Health or Samsung Health to your workouts.</string>
+    <string name="health_connect_permission_required_message">Regimen needs permission to read heart rate and calorie data from Health Connect before it can attach anything to your workouts.</string>
+
+    <string name="health_connect_permission_request_failed_snackbar">Couldn\'t request that permission. Grant it from your device\'s app settings instead.</string>
+    <string name="health_connect_open_settings_button">Open settings</string>
+
+    <string name="health_connect_delete_data_button">Delete Health Connect data</string>
+    <string name="health_connect_delete_data_dialog_title">Delete Health Connect data?</string>
+    <string name="health_connect_delete_data_dialog_text">This removes the heart rate and calorie data Regimen has already pulled from your workouts. If you turn Health Connect back on later, only data still within the check window comes back automatically.</string>
+    <string name="health_connect_delete_data_confirm_button">Delete</string>
+    <string name="health_connect_delete_data_cancel_button">Cancel</string>
+
+    <string name="health_connect_background_sync_section_title">Background sync</string>
+    <string name="health_connect_retry_frequency_headline">Check every</string>
+
+    <string name="health_connect_frequency_one_hour">1 hour</string>
+    <string name="health_connect_frequency_six_hours">6 hours</string>
+    <string name="health_connect_frequency_daily">Daily</string>
+
+    <string name="health_connect_check_now_button">Check now</string>
+    <string name="health_connect_grant_permission_button">Grant permission</string>
+
+    <string name="health_connect_pull_no_candidates_snackbar">Nothing to check right now</string>
+    <plurals name="health_connect_pull_found_nothing_snackbar">
+        <item quantity="one">Checked %1$d workout, no new data yet</item>
+        <item quantity="other">Checked %1$d workouts, no new data yet</item>
+    </plurals>
+    <plurals name="health_connect_pull_found_data_snackbar">
+        <item quantity="one">Added heart rate &amp; calories to %1$d workout</item>
+        <item quantity="other">Added heart rate &amp; calories to %1$d workouts</item>
+    </plurals>
+</resources>

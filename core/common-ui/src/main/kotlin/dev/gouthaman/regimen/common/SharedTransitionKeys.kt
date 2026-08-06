@@ -27,6 +27,10 @@ const val exerciseLibraryFromSettingsTransitionKey = "exercise-library-from-sett
  * only entry point, so this is applied unconditionally. */
 const val accountFromSettingsTransitionKey = "account-from-settings"
 
+/** Links Settings' "Health Connect" row to the Health Connect settings screen's root container -
+ * Settings is its only entry point, so this is applied unconditionally. */
+const val healthConnectFromSettingsTransitionKey = "health-connect-from-settings"
+
 /** Links a Measurements row's card to the Measurement Detail screen's root container for that
  * same measurement type, so Detail expands from the tapped card. */
 fun measurementRowTransitionKey(typeId: String) = "measurement-row-$typeId"

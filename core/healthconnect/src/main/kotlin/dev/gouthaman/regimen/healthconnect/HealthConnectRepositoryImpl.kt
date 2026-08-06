@@ -17,7 +17,7 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Gates HealthConnectConnectionState.ACTIVE - both required for Regimen to be useful at all.
+// Gates ACTIVE - both required for Regimen to be useful at all.
 private val CORE_PERMISSIONS = setOf(
     HealthPermission.getReadPermission(HeartRateRecord::class),
     HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
@@ -28,9 +28,8 @@ class HealthConnectRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : HealthConnectRepository {
 
-    // Deferred rather than a Hilt-provided singleton: HealthConnectClient.getOrCreate() throws
-    // when the SDK isn't available, and that must never crash app startup on a device without
-    // Health Connect - only ever surface as HealthConnectConnectionState.UNAVAILABLE.
+    // Deferred, not a Hilt singleton - getOrCreate() throws when the SDK isn't installed, and
+    // that must surface as UNAVAILABLE, not crash app startup.
     private fun clientOrNull(): HealthConnectClient? =
         if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
             HealthConnectClient.getOrCreate(context)
@@ -38,9 +37,8 @@ class HealthConnectRepositoryImpl @Inject constructor(
             null
         }
 
-    // Background reads (needed for the periodic backfill job to work while the app isn't in the
-    // foreground) aren't supported by every Health Connect version, and the request must not ask
-    // for a permission the current provider can't grant.
+    // Not every Health Connect version supports background reads - never request a permission
+    // the current provider can't grant.
     override fun requiredPermissions(): Set<String> {
         val client = clientOrNull() ?: return CORE_PERMISSIONS
         val backgroundReadAvailable = client.features.getFeatureStatus(
@@ -53,15 +51,25 @@ class HealthConnectRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun coreReadPermissions(): Set<String> = CORE_PERMISSIONS
+
     override suspend fun getConnectionState(): HealthConnectConnectionState {
-        val client = clientOrNull() ?: return HealthConnectConnectionState.UNAVAILABLE
-        val granted = client.permissionController.getGrantedPermissions()
-        return if (granted.containsAll(CORE_PERMISSIONS)) {
+        clientOrNull() ?: return HealthConnectConnectionState.UNAVAILABLE
+        return if (getGrantedPermissions().containsAll(CORE_PERMISSIONS)) {
             HealthConnectConnectionState.ACTIVE
         } else {
             HealthConnectConnectionState.NEEDS_PERMISSION
         }
     }
+
+    override suspend fun getGrantedPermissions(): Set<String> =
+        clientOrNull()?.permissionController?.getGrantedPermissions() ?: emptySet()
+
+    override fun resolveAppLabel(packageName: String): String? = runCatching {
+        val packageManager = context.packageManager
+        val appInfo = packageManager.getApplicationInfo(packageName, 0)
+        packageManager.getApplicationLabel(appInfo).toString()
+    }.getOrNull()
 
     override suspend fun queryBiometrics(
         startTime: Long,
@@ -91,9 +99,7 @@ class HealthConnectRepositoryImpl @Inject constructor(
 
         if (avgBpm == null && activeCaloriesKcal == null) return null
 
-        // Explicitly typed as List<Record> - the inferred common supertype of HeartRateRecord and
-        // ActiveCaloriesBurnedRecord is IntervalRecord, which is internal to the health-connect
-        // library and can't be accessed from here otherwise.
+        // List<Record> forced - the inferred supertype (IntervalRecord) is internal to the library.
         val allRecords: List<Record> = heartRateRecords + calorieRecords
         val sourcePackageName = allRecords.maxByOrNull { it.metadata.lastModifiedTime }
             ?.metadata?.dataOrigin?.packageName

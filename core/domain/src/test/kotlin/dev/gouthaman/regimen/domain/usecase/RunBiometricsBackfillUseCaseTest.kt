@@ -1,6 +1,5 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.domain.model.HealthConnectBackfillWindow
 import dev.gouthaman.regimen.domain.model.HealthConnectBiometricsSample
 import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
@@ -45,7 +44,9 @@ class RunBiometricsBackfillUseCaseTest {
                 sourcePackageName = "com.google.android.apps.healthdata",
             ),
         )
-        val clock = FakeClock(10 * DAY_MILLIS)
+        // Fixed 30-day window - "now" needs to be far enough out that a workout older than 30
+        // days actually falls outside it.
+        val clock = FakeClock(40 * DAY_MILLIS)
         val pullUseCase =
             PullBiometricsForWorkoutUseCase(healthConnectRepo, workoutRepo, biometricsRepo, clock)
         val useCase = RunBiometricsBackfillUseCase(workoutRepo, biometricsRepo, pullUseCase, clock)
@@ -53,14 +54,14 @@ class RunBiometricsBackfillUseCaseTest {
         val missingId =
             completedWorkout(
                 workoutRepo,
-                startTime = 9 * DAY_MILLIS,
-                endTime = 9 * DAY_MILLIS + 1_000
+                startTime = 35 * DAY_MILLIS,
+                endTime = 35 * DAY_MILLIS + 1_000
             )
         val alreadyPulledId =
             completedWorkout(
                 workoutRepo,
-                startTime = 9 * DAY_MILLIS,
-                endTime = 9 * DAY_MILLIS + 1_000
+                startTime = 35 * DAY_MILLIS,
+                endTime = 35 * DAY_MILLIS + 1_000
             )
         biometricsRepo.upsert(
             WorkoutBiometrics(
@@ -72,21 +73,23 @@ class RunBiometricsBackfillUseCaseTest {
         val tooOldId =
             completedWorkout(
                 workoutRepo,
-                startTime = 1 * DAY_MILLIS,
-                endTime = 1 * DAY_MILLIS + 1_000
+                startTime = 5 * DAY_MILLIS,
+                endTime = 5 * DAY_MILLIS + 1_000
             )
-        val inProgressId = workoutRepo.createWorkout(startTime = 9 * DAY_MILLIS, routineId = null)
+        val inProgressId = workoutRepo.createWorkout(startTime = 35 * DAY_MILLIS, routineId = null)
 
-        useCase(HealthConnectBackfillWindow.SEVEN)
+        val result = useCase()
 
         assertNotNull(biometricsRepo.get(missingId))
         assertEquals(1, healthConnectRepo.queriedRanges.size)
         assertNull(biometricsRepo.get(tooOldId))
         assertNull(biometricsRepo.get(inProgressId))
+        assertEquals(1, result.candidateCount)
+        assertEquals(1, result.pulledCount)
     }
 
     @Test
-    fun `nothing to pull is a no-op`() = runTest {
+    fun `nothing to pull is a no-op and reports zero candidates`() = runTest {
         val workoutRepo = FakeWorkoutRepository()
         val biometricsRepo = FakeWorkoutBiometricsRepository()
         val healthConnectRepo = FakeHealthConnectRepository()
@@ -95,8 +98,27 @@ class RunBiometricsBackfillUseCaseTest {
             PullBiometricsForWorkoutUseCase(healthConnectRepo, workoutRepo, biometricsRepo, clock)
         val useCase = RunBiometricsBackfillUseCase(workoutRepo, biometricsRepo, pullUseCase, clock)
 
-        useCase(HealthConnectBackfillWindow.SEVEN)
+        val result = useCase()
 
         assertEquals(0, healthConnectRepo.queriedRanges.size)
+        assertEquals(0, result.candidateCount)
+        assertEquals(0, result.pulledCount)
+    }
+
+    @Test
+    fun `candidates with nothing found are reported as checked but not pulled`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val biometricsRepo = FakeWorkoutBiometricsRepository()
+        val healthConnectRepo = FakeHealthConnectRepository(sampleForRange = null)
+        val clock = FakeClock(10 * DAY_MILLIS)
+        val pullUseCase =
+            PullBiometricsForWorkoutUseCase(healthConnectRepo, workoutRepo, biometricsRepo, clock)
+        val useCase = RunBiometricsBackfillUseCase(workoutRepo, biometricsRepo, pullUseCase, clock)
+        completedWorkout(workoutRepo, startTime = 9 * DAY_MILLIS, endTime = 9 * DAY_MILLIS + 1_000)
+
+        val result = useCase()
+
+        assertEquals(1, result.candidateCount)
+        assertEquals(0, result.pulledCount)
     }
 }

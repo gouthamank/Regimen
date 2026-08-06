@@ -50,3 +50,6 @@ data class MeasurementDetailRoute(val typeId: String)
 
 @Serializable
 data object AccountRoute
+
+@Serializable
+data object HealthConnectSettingsRoute

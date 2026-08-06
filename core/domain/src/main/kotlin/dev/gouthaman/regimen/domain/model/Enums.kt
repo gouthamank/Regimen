@@ -57,11 +57,3 @@ enum class HealthConnectRetryFrequency(val hours: Long) {
     DAILY(24),
 }
 
-/** How far back the Health Connect biometrics backfill job keeps looking for a workout still
- * missing data before giving up on it for good. */
-enum class HealthConnectBackfillWindow(val days: Int) {
-    ONE(1),
-    THREE(3),
-    SEVEN(7),
-    THIRTY(30),
-}

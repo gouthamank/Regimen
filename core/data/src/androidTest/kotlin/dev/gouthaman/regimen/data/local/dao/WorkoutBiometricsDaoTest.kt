@@ -121,4 +121,33 @@ class WorkoutBiometricsDaoTest {
 
         assertNull(biometricsDao.get(workoutId))
     }
+
+    @Test
+    fun getMostRecentlyFetched_returnsTheRowWithTheLatestFetchedAt() = runTest {
+        val firstWorkoutId =
+            insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
+        val secondWorkoutId =
+            insertWorkout(startTime = 1_000, workoutStatus = WorkoutStatus.COMPLETE)
+        biometricsDao.upsert(
+            WorkoutBiometricsEntity(
+                id = UUID.randomUUID().toString(),
+                workoutId = firstWorkoutId,
+                fetchedAt = 1_000,
+            ),
+        )
+        biometricsDao.upsert(
+            WorkoutBiometricsEntity(
+                id = UUID.randomUUID().toString(),
+                workoutId = secondWorkoutId,
+                fetchedAt = 5_000,
+            ),
+        )
+
+        assertEquals(secondWorkoutId, biometricsDao.getMostRecentlyFetched()?.workoutId)
+    }
+
+    @Test
+    fun getMostRecentlyFetched_withNoRows_returnsNull() = runTest {
+        assertNull(biometricsDao.getMostRecentlyFetched())
+    }
 }

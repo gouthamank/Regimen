@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.gouthaman.regimen.domain.model.HealthConnectBackfillWindow
 import dev.gouthaman.regimen.domain.model.HealthConnectPrefs
 import dev.gouthaman.regimen.domain.model.HealthConnectRetryFrequency
 import dev.gouthaman.regimen.domain.repository.HealthConnectPrefsRepository
@@ -28,32 +27,30 @@ class HealthConnectPrefsRepositoryImpl @Inject constructor(
 ) : HealthConnectPrefsRepository {
 
     private object Keys {
-        val AUTO_PULL_ENABLED = booleanPreferencesKey("auto_pull_enabled")
+        val HEALTH_CONNECT_ENABLED = booleanPreferencesKey("auto_pull_enabled")
+        val BACKGROUND_SYNC_ENABLED = booleanPreferencesKey("background_sync_enabled")
         val RETRY_FREQUENCY = stringPreferencesKey("retry_frequency")
-        val BACKFILL_WINDOW = stringPreferencesKey("backfill_window")
     }
 
     override val prefs: Flow<HealthConnectPrefs> = context.healthConnectDataStore.data.map {
         HealthConnectPrefs(
-            autoPullEnabled = it[Keys.AUTO_PULL_ENABLED] ?: false,
+            healthConnectEnabled = it[Keys.HEALTH_CONNECT_ENABLED] ?: false,
+            backgroundSyncEnabled = it[Keys.BACKGROUND_SYNC_ENABLED] ?: false,
             retryFrequency = it[Keys.RETRY_FREQUENCY]
                 ?.let { name -> runCatching { HealthConnectRetryFrequency.valueOf(name) }.getOrNull() }
                 ?: HealthConnectRetryFrequency.SIX_HOURS,
-            backfillWindow = it[Keys.BACKFILL_WINDOW]
-                ?.let { name -> runCatching { HealthConnectBackfillWindow.valueOf(name) }.getOrNull() }
-                ?: HealthConnectBackfillWindow.SEVEN,
         )
     }
 
-    override suspend fun setAutoPullEnabled(value: Boolean) {
-        context.healthConnectDataStore.edit { it[Keys.AUTO_PULL_ENABLED] = value }
+    override suspend fun setHealthConnectEnabled(value: Boolean) {
+        context.healthConnectDataStore.edit { it[Keys.HEALTH_CONNECT_ENABLED] = value }
+    }
+
+    override suspend fun setBackgroundSyncEnabled(value: Boolean) {
+        context.healthConnectDataStore.edit { it[Keys.BACKGROUND_SYNC_ENABLED] = value }
     }
 
     override suspend fun setRetryFrequency(value: HealthConnectRetryFrequency) {
         context.healthConnectDataStore.edit { it[Keys.RETRY_FREQUENCY] = value.name }
-    }
-
-    override suspend fun setBackfillWindow(value: HealthConnectBackfillWindow) {
-        context.healthConnectDataStore.edit { it[Keys.BACKFILL_WINDOW] = value.name }
     }
 }
