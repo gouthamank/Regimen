@@ -19,10 +19,13 @@ and/or History reusing `:core:designsystem`'s existing `chart/LineChart.kt`/`Spa
 
 Fitbit devices can't run a third-party companion app anymore (Fitbit shut down their App
 Gallery/SDK for developers), so there's no way to build a Fitbit-specific integration the way
-there is for Wear OS (see `todo-wearos-companion.md`). But the Fitbit Android app can be configured
-(user-confirmed: a setting exists in the Fitbit app itself) to write its data into Health Connect.
-Regimen reading from Health Connect therefore covers Fitbit, Samsung Health, and any other source
-app that syncs there - one integration point instead of one per vendor.
+there is for Wear OS (see `todo-wearos-companion.md`). The phone-side app a Fitbit device pairs
+with is now called **Google Health**, not Fitbit - Google replaced the Fitbit app outright with
+Google Health on May 19, 2026, with existing Fitbit accounts rolled over automatically. Google
+Health syncs heart rate, calories, and other metrics into Health Connect (permission-gated, same
+as any other source app), so Regimen reading from Health Connect covers Fitbit hardware via
+Google Health, plus Samsung Health and any other source app that syncs there - one integration
+point instead of one per vendor.
 
 ## Constraints
 
@@ -74,7 +77,7 @@ app that syncs there - one integration point instead of one per vendor.
       (global, not scoped to one workout, since this button lives on the Settings page); busy state
       shown via the same `ButtonProgressIndicator` Account uses, and the status widget's last-pull
       timestamp/detected-source line updates on completion.
-    - *Health Connect not installed* → button isn't shown at all.
+  - *Unavailable* (not installed, or installed but needs updating) → button isn't shown at all.
 
 ## Settings UI
 
@@ -82,11 +85,12 @@ A **new dedicated sub-page**, launched from Settings (not an inline toggle), fol
 `feature/account/AccountScreen.kt`'s existing shell/shape (`MediumTopAppBar` + back nav, a status
 block, sections divided by `HorizontalDivider`, a manual action button alongside the status row):
 
-- **Status widget**: three-state connection status - *Active* / *Needs permission* / *Health
-  Connect not installed* (a user can revoke the permission from Health Connect's own settings
-  outside Regimen entirely, so this can't just be a boolean); detected source app (from
+- **Status widget**: three-state connection status - *Active* / *Needs permission* / *Unavailable*
+  (Health Connect not installed, or installed but needs updating - a user can also revoke the
+  permission from Health Connect's own settings outside Regimen entirely, so this can't just be a
+  boolean); detected source app (from
   `WorkoutBiometrics.sourcePackageName` on the most recent successful pull, e.g. "Currently syncing
-  from: Fitbit", or "No data seen yet"); last successful pull timestamp.
+  from: Google Health", or "No data seen yet"); last successful pull timestamp.
 - **Master switch**: "Automatically pull biometrics" - off by default (explicit opt-in, per
   above). Gates every control below and whether the retry job is scheduled at all.
 - **Retry frequency** picker (`SingleChoiceSegmentedButtonRow`, same component
@@ -101,26 +105,25 @@ block, sections divided by `HorizontalDivider`, a manual action button alongside
   via DataStore prefs (`:core:data`'s `data/prefs/`), alongside the existing unit-system/theme-mode
   preferences.
 
-## Cloud sync (phase 2)
+## Cloud sync - not planned
 
-`WorkoutBiometrics` is in scope for Firestore sync (per "Remote sync" in `docs/architecture.md`),
-but sequenced as a fast-follow, not part of the initial build:
+`WorkoutBiometrics` stays local-only, permanently - it is not, and will not be, added to Firestore
+sync scope (per "Remote sync" in `docs/architecture.md`).
 
-- **Why it's in scope at all**: Health Connect itself never syncs across a user's own devices -
-  it's a per-device, on-device store. Without Regimen syncing `WorkoutBiometrics` too, a workout
-  pulled on one device stays permanently invisible on any other device signed into the same
-  account, with no error or indication - just a silent gap. That gap disproportionately hurts the
-  exact users who'd enable this feature at all: people trending heart-rate/calorie data over time
-  in Progress, where a multi-device gap quietly corrupts the aggregate rather than just being a
-  one-off missing number.
-- **Why it's still phase 2, not phase 1**: adding a new synced entity type is real, bounded work -
-  a `SyncPushRunner` write lambda, a Firestore DTO + mapping, tombstone handling for deletions, and
-  the same manual-verification bar `docs/architecture.md`'s schema-evolution section requires for
-  every synced entity - and it's more sensitive data than sets/reps/weight, worth being deliberate
-  about rather than inheriting scope just because the push job already exists. Ship the Health
-  Connect pull itself first (get it correctly working and verified, local-only), then layer sync on
-  top the same additive way `CardioEntry`/per-exercise notes were layered onto the existing push
-  job - a known, bounded pattern, not a redesign.
+Health Connect itself never syncs across a user's own devices - it's a per-device, on-device
+store. Without Regimen syncing `WorkoutBiometrics` too, a workout pulled on one device stays
+invisible on any other device signed into the same account. That gap is real (it disproportionately
+affects anyone trending heart-rate/calorie data over time in Progress across more than one device),
+but it's a narrow, opt-in-feature-specific cost, not one worth taking on the compliance overhead
+for: health data is GDPR "special category data" (Article 9), which raises the bar past what the
+rest of Regimen's synced data needs - specific, granular consent naming this exact data type
+(distinct from the existing sync opt-in), and cloud-deletion coverage extended to this entity.
+None of that requires end-to-end encryption (GDPR's Article 32 asks for measures proportional to
+risk, not literal client-side encryption specifically - Firestore's existing per-user security
+rules plus encryption in transit/at rest already qualify), and the sync mechanism itself would be
+the same bounded, known pattern as any other entity added to the push job. The actual cost is the
+consent/deletion-copy work and the ongoing compliance surface of having health data in the cloud
+at all - accepted here as not worth it for what's ultimately a nice-to-have cross-device view.
 
 ## Testing during development
 
@@ -140,10 +143,11 @@ but sequenced as a fast-follow, not part of the initial build:
       data
       through a real UI rather than hand-editing storage directly.
     - Exercise the *Needs permission* state by denying the permission prompt instead of granting it;
-      exercise *Health Connect not installed* with an API <34 emulator image that skips installing
-      the Health Connect app.
-    - A real device paired with an actual Fitbit/watch is worth one end-to-end pass before shipping,
-      but it's a slow feedback loop - not for iterative development.
+      exercise *Unavailable* with an API <34 emulator image that skips installing the Health
+      Connect app.
+  - A real device paired with an actual Fitbit (via the Google Health app) or Wear OS watch is
+    worth one end-to-end pass before shipping, but it's a slow feedback loop - not for iterative
+    development.
 
 ## Implementation checklist (phase 1 - local pull only, no cloud sync)
 
@@ -171,29 +175,80 @@ ones exists.
 
 ### Phase 1b - Health Connect read integration (no scheduling, no UI)
 
-- [ ] Add the `androidx.health.connect:connect-client` dependency to `:core:data`.
-- [ ] Declare `android.permission.health.READ_HEART_RATE` and
-  `android.permission.health.READ_ACTIVE_CALORIES_BURNED` in `:app`'s manifest, plus the
-  permissions-rationale intent filter Health Connect requires to show Regimen as a connected app
-  in its own Settings UI.
-- [ ] `HealthConnectConnectionState` domain model/enum (`ACTIVE` / `NEEDS_PERMISSION` /
-  `NOT_INSTALLED`) in `:core:domain`.
-- [ ] `HealthConnectRepository` interface (`:core:domain`): connection-state check, permission
-  request trigger, query-and-summarize for a given `[startTime, endTime]`.
-- [ ] `HealthConnectRepositoryImpl` (`:core:data`) wrapping `HealthConnectClient` -
-  `getSdkStatus()` for install/update state, `PermissionController` for granted-permission check
-  and request, record queries (`HeartRateRecord`, `ActiveCaloriesBurnedRecord`) scoped by time
-  range, `metadata.dataOrigin.packageName` extraction for detected source.
-- [ ] `PullBiometricsForWorkoutUseCase` (single workout) - the one place that turns a Health
+`androidx.health.connect:connect-client:1.1.0` has been stable since October 2025 - pin it
+directly, no alpha/RC churn to accept (unlike Material3 Expressive elsewhere in this codebase).
+
+**Manifest** (`:app`):
+
+- [x] `android.permission.health.READ_HEART_RATE` and
+  `android.permission.health.READ_ACTIVE_CALORIES_BURNED` `<uses-permission>` declarations.
+- [x] `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` `<uses-permission>` - without it,
+  the Phase 1c periodic backfill job can only read Health Connect data while Regimen is actually
+  in the foreground; reads attempted while backgrounded silently return nothing. Not every Health
+  Connect version supports background reads, and the app must keep working with whatever subset of
+  permissions is actually granted - see `HealthConnectRepositoryImpl.requiredPermissions()`'s
+  `HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND` availability check, and
+  `getConnectionState()`'s `ACTIVE` gating only on the two core (non-background) permissions.
+- [x] `<queries><package android:name="com.google.android.apps.healthdata" /></queries>` -
+  without this, Android's package-visibility restrictions block Regimen from even detecting
+  whether Health Connect is installed. A second `<queries><intent>` entry for
+  `ACTION_SHOW_PERMISSIONS_RATIONALE` lets Regimen resolve other apps' friendly name/icon for the
+  "currently syncing from: ..." attribution.
+- [x] A real `PermissionsRationaleActivity` that Health Connect launches from its own Settings UI
+  to show why Regimen wants this data. Hands off to Regimen's actual hosted privacy policy
+  (`https://regimen.gouthaman.dev/privacy-policy/`, source in `pages/privacy-policy/`) via a plain
+  `ACTION_VIEW` intent rather than duplicating an explanation in-app. One activity with two intent
+  filters - `ACTION_SHOW_PERMISSIONS_RATIONALE` for pre-Android-14, plus
+  `VIEW_PERMISSION_USAGE`/`HEALTH_PERMISSIONS` for Android 14+ - matching Google's own
+  `health-samples` reference manifest exactly: no `activity-alias`, no `android:permission`
+  attribute on either intent filter.
+
+**`:core:domain`**:
+
+- [x] `HealthConnectConnectionState` enum: `ACTIVE` / `NEEDS_PERMISSION` / `UNAVAILABLE` (the last
+  one covers both `HealthConnectClient.getSdkStatus()`'s `SDK_UNAVAILABLE` - not installed - and
+  `SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED` - installed but needs updating - since both resolve
+  the same way from the user's side: go to the Play Store).
+- [x] `HealthConnectRepository` interface: connection-state check, the required permission set
+  (a plain `Set<String>` the UI layer passes to its launcher - see below, this repository never
+  launches anything itself), a granted-permissions check, and query-and-summarize for a given
+  `[startTime, endTime]`.
+- [x] `PullBiometricsForWorkoutUseCase` (single workout) - the one place that turns a Health
   Connect query result into a `WorkoutBiometrics` row via Phase 1a's repository.
-- [ ] `FakeHealthConnectRepository` + unit test for the use case.
-- **Checkpoint**: the real integration risk gets retired here, before any UI or scheduling exists
-  to obscure whether it's actually working. Verify with an `androidTest` (or a temporary debug-only
-  trigger) that calls `PullBiometricsForWorkoutUseCase` directly against the real
-  `HealthConnectClient` on an emulator seeded via Health Connect Toolbox (see "Testing during
-  development" above), and asserts a `WorkoutBiometrics` row comes out the other end.
+
+**`:core:data`**:
+
+- [x] Add the `androidx.health.connect:connect-client:1.1.0` dependency.
+- [x] `HealthConnectRepositoryImpl` wrapping `HealthConnectClient` - `getSdkStatus()` for
+  install/update state, `PermissionController.getGrantedPermissions()` for the granted-permission
+  check, record queries (`HeartRateRecord`, `ActiveCaloriesBurnedRecord`) scoped by time range,
+  `metadata.dataOrigin.packageName` extraction for detected source.
+
+**No permission-requesting use case.** Requesting Health Connect permissions needs
+`PermissionController.createRequestPermissionResultContract()` launched via
+`rememberLauncherForActivityResult` - an `ActivityResultLauncher`, which only exists at the
+Compose/Activity layer, the same way `:app`'s `RegimenApp.kt:125-134` already requests
+`POST_NOTIFICATIONS` (
+`rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission())`
+from a top-level `LaunchedEffect`). So there's no `RequestHealthConnectPermissionUseCase` - the
+actual `launcher.launch(...)` call lives in `HealthConnectSettingsScreen` (Phase 1d), with the
+launcher's result callback feeding back into `HealthConnectSettingsViewModel` to re-check
+connection state, the same shape `AccountViewModel.refreshOnResume()` already uses.
+
+- [x] `FakeHealthConnectRepository` + unit test for `PullBiometricsForWorkoutUseCase`.
+- [x] **Checkpoint**: verified on-emulator against the real `HealthConnectClient`, seeded via
+  Health Connect Toolbox (see `HealthConnectManualVerificationTest` in `:app`'s androidTest, kept
+  `@Ignore`d since it needs manual setup right before each run) - `PullBiometricsForWorkoutUseCase`
+  correctly pulled avg/max BPM, calories, and source-app attribution matching the seeded data.
 
 ### Phase 1c - prefs + background backfill job
+
+Reliability here depends on `android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND` (Phase
+1b) - without it granted, this job's periodic runs return nothing while Regimen is backgrounded,
+which is most of the time for a periodic job. It's still a graceful degrade, not a broken state:
+runs still execute, "Pull now" (foregrounded) still works, and a later run picks up anything that
+becomes available once the app's opened again - just worth setting expectations that the
+backfill job's real-world hit rate depends on this optional permission.
 
 - [ ] `HealthConnectPrefs` domain model (`autoPullEnabled: Boolean`, `retryFrequency` enum
   `ONE_HOUR`/`SIX_HOURS`/`DAILY` default `SIX_HOURS`, `backfillWindowDays` enum
@@ -226,19 +281,38 @@ ones exists.
 
 - [ ] New `:feature:healthconnect` module (`regimen.android.feature` convention plugin), mirroring
   `:feature:account`'s precedent of a pushed settings sub-page getting its own module.
-- [ ] `GetHealthConnectStatusUseCase` / `SetHealthConnectPrefsUseCase` /
-  `RequestHealthConnectPermissionUseCase` in `:core:domain`, wiring together everything from 1b/1c
-  for the ViewModel to call.
+- [ ] Add `getGrantedPermissions(): Set<String>` to `HealthConnectRepository`/
+  `HealthConnectRepositoryImpl`
+  (the impl already computes this internally for `getConnectionState()` - just needs exposing).
+- [ ] `GetHealthConnectStatusUseCase` / `SetHealthConnectPrefsUseCase` in `:core:domain`, wiring
+  together everything from 1b/1c for the ViewModel to call. No permission-*requesting* use case -
+  per Phase 1b, that launch only happens from the Composable below.
+  - `GetHealthConnectStatusUseCase` also exposes whether an *optional* permission has become
+    available but isn't granted yet (`requiredPermissions() - getGrantedPermissions()` non-empty
+    while `ACTIVE`) - happens when a user granted the core permissions before Health Connect's own
+    app updated to add background-read support. Not part of `HealthConnectConnectionState` itself
+    (still `ACTIVE`, not blocking) - a separate flag the status widget surfaces as a small
+    secondary "Background access available" affordance, with an action that re-launches the same
+    permission-request launcher with the current `requiredPermissions()` set (idempotent for
+    already-granted permissions, so safe to just re-request the full set rather than diffing).
 - [ ] `HealthConnectSettingsViewModel`: status widget state (connection state, detected source,
-  last pull time) + current prefs; handles toggle/frequency/backfill-window changes, "Pull now"
-  (state-dependent: request permission vs. trigger one-shot backfill run), and refresh-on-resume
-  (permission may have been revoked externally, same pattern `AccountViewModel.refreshOnResume`
-  already uses).
+  last pull time, the optional-permission-available flag above) + current prefs; exposes the
+  required Health Connect permission set for the screen's launcher to request; handles
+  toggle/frequency/backfill-window changes and "Pull now" (state-dependent: nothing to do itself
+  in the *Needs permission* case - the screen's launcher handles that - vs. triggering a one-shot
+  backfill run when *Active*); re-checks connection state both on the permission launcher's result
+  callback and on resume (permission may have been revoked externally via Health Connect's own
+  Settings UI, or newly available after a Health Connect update), same pattern
+  `AccountViewModel.refreshOnResume` already uses.
 - [ ] `HealthConnectSettingsScreen`: shell/shape copied from `feature/account/AccountScreen.kt`
   (`MediumTopAppBar` + back, status block, `HorizontalDivider`-separated sections) - status
   widget, master switch, two `SingleChoiceSegmentedButtonRow` pickers (reusing the same component
   `UnitSystemSelector`/`ThemeModeSelector` use), "Pull now" button with `ButtonProgressIndicator`
-  busy state.
+  busy state. Owns the
+  `rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract())`
+  call - the actual permission-request launch, same shape as `RegimenApp.kt`'s existing
+  `POST_NOTIFICATIONS` request - triggered by "Pull now" when connection state is
+  *Needs permission*, with the result callback telling the ViewModel to re-check status.
 - [ ] `HealthConnectNavigation.kt`: `NavGraphBuilder.healthConnectGraph()` extension, per module
   convention.
 - [ ] `feature/settings/SettingsScreen.kt`: new `NavRow` entry ("Health Connect") in the
@@ -262,4 +336,5 @@ ones exists.
 ## Status
 
 - [x] Phase 1a done (local storage foundation).
-- [ ] Phase 1b-1e not started.
+- [x] Phase 1b done (Health Connect read integration), verified end-to-end on-emulator.
+- [ ] Phase 1c-1e not started.

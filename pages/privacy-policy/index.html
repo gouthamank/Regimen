@@ -12,7 +12,7 @@
     <div class="card">
         <div class="eyebrow"><span class="dot"></span>Regimen</div>
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: July 30, 2026</p>
+        <p class="updated">Last updated: August 5, 2026</p>
 
         <h2>What the app collects</h2>
         <ul>
@@ -25,6 +25,15 @@
                 (units, theme). This is the same data the app stores locally on your device; it is
                 copied to the cloud only so it can sync across your own devices.
             </li>
+            <li><strong>Heart rate and active calorie data from Health Connect</strong> &mdash;
+                optional, and off by default. If you turn this on in the app's Health Connect
+                settings, Regimen reads heart rate and calorie records that another app on your
+                device (e.g. Google Health, Samsung Health) has already written to Android's
+                on-device Health Connect store, and attaches a summary to the matching workout in
+                your history. Regimen never talks to those other apps or their services directly,
+                and this data stays on your device &mdash; it is not uploaded anywhere, even if
+                you're signed in and syncing your other workout data to the cloud.
+            </li>
         </ul>
 
         <h2>How it's used</h2>
@@ -35,13 +44,20 @@
             any
             purpose other than making the app work for you.
         </p>
+        <p>
+            Health Connect data is used solely to show heart rate/calorie numbers alongside the
+            matching workout in your history - nothing more.
+        </p>
 
         <h2>Where it's stored</h2>
         <p>
-            Data is stored in Google Firebase (Firestore), scoped so that only your own signed-in
-            account can read or write it. No other user of the app can see your data, and the
-            developer
-            does not access it except as needed to fix bugs.
+            Workout data you sync is stored in Google Firebase (Firestore), scoped so that only
+            your own signed-in account can read or write it. No other user of the app can see your
+            data, and the developer does not access it except as needed to fix bugs.
+        </p>
+        <p>
+            Health Connect data (heart rate/calories) is stored only in the app's local database on
+            your device, never in Firestore or any other cloud service.
         </p>
 
         <h2>Sharing</h2>
@@ -65,7 +81,10 @@
             cloud data in the app for that.
         </p>
         <p>
-            Uninstalling the app removes all data stored locally on your device.
+            Uninstalling the app removes all data stored locally on your device, including any
+            Health Connect data. You can also turn off Health Connect access at any time in the
+            app's Health Connect settings, or revoke Regimen's access entirely from Health
+            Connect's own permissions screen.
         </p>
 
         <h2>Contact</h2>

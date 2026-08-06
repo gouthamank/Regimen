@@ -11,6 +11,8 @@ import dev.gouthaman.regimen.data.local.RegimenDatabase
 import dev.gouthaman.regimen.data.local.dao.ExerciseDao
 import dev.gouthaman.regimen.data.local.dao.MeasurementDao
 import dev.gouthaman.regimen.data.local.dao.RoutineDao
+import dev.gouthaman.regimen.data.local.dao.SyncTombstoneDao
+import dev.gouthaman.regimen.data.local.dao.WorkoutBiometricsDao
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
 import javax.inject.Singleton
 
@@ -38,4 +40,11 @@ object TestDatabaseModule {
 
     @Provides
     fun provideMeasurementDao(db: RegimenDatabase): MeasurementDao = db.measurementDao()
+
+    @Provides
+    fun provideSyncTombstoneDao(db: RegimenDatabase): SyncTombstoneDao = db.syncTombstoneDao()
+
+    @Provides
+    fun provideWorkoutBiometricsDao(db: RegimenDatabase): WorkoutBiometricsDao =
+        db.workoutBiometricsDao()
 }
