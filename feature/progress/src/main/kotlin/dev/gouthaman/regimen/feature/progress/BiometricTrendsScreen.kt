@@ -37,26 +37,26 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.common.heartRateTrendRowTransitionKey
-import dev.gouthaman.regimen.common.heartRateTrendsFromProgressTransitionKey
+import dev.gouthaman.regimen.common.biometricTrendRowTransitionKey
+import dev.gouthaman.regimen.common.biometricTrendsFromProgressTransitionKey
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.chart.Sparkline
 import dev.gouthaman.regimen.designsystem.component.EmptyState
-import dev.gouthaman.regimen.domain.model.HeartRateTrendRow
+import dev.gouthaman.regimen.domain.model.BiometricTrendRow
 import kotlin.math.roundToInt
 
 @Composable
-fun HeartRateTrendsScreen(
+fun BiometricTrendsScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
     onOpenTrend: (String?) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HeartRateTrendsViewModel = hiltViewModel(),
+    viewModel: BiometricTrendsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    HeartRateTrendsScreen(
+    BiometricTrendsScreen(
         rows = uiState.rows,
         loaded = uiState.loaded,
         sharedTransitionScope = sharedTransitionScope,
@@ -69,8 +69,8 @@ fun HeartRateTrendsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun HeartRateTrendsScreen(
-    rows: List<HeartRateTrendRow>,
+fun BiometricTrendsScreen(
+    rows: List<BiometricTrendRow>,
     loaded: Boolean,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -85,7 +85,7 @@ fun HeartRateTrendsScreen(
         modifier
             .fillMaxSize()
             .sharedBounds(
-                rememberSharedContentState(key = heartRateTrendsFromProgressTransitionKey),
+                rememberSharedContentState(key = biometricTrendsFromProgressTransitionKey),
                 animatedVisibilityScope = animatedVisibilityScope,
             )
             .nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -95,12 +95,12 @@ fun HeartRateTrendsScreen(
         modifier = rootModifier,
         topBar = {
             MediumTopAppBar(
-                title = { Text(stringResource(R.string.heart_rate_trends_title)) },
+                title = { Text(stringResource(R.string.biometric_trends_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.heart_rate_trends_back_description),
+                            contentDescription = stringResource(R.string.biometric_trends_back_description),
                         )
                     }
                 },
@@ -116,7 +116,7 @@ fun HeartRateTrendsScreen(
         ) {
             if (loaded && rows.isEmpty()) {
                 EmptyState(
-                    message = stringResource(R.string.heart_rate_trends_empty_state),
+                    message = stringResource(R.string.biometric_trends_empty_state),
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -133,7 +133,7 @@ fun HeartRateTrendsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(rows, key = { it.routineId ?: "combined" }) { row ->
-                        HeartRateTrendCard(
+                        BiometricTrendCard(
                             row = row,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
@@ -148,8 +148,8 @@ fun HeartRateTrendsScreen(
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun HeartRateTrendCard(
-    row: HeartRateTrendRow,
+private fun BiometricTrendCard(
+    row: BiometricTrendRow,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onClick: () -> Unit,
@@ -158,7 +158,7 @@ private fun HeartRateTrendCard(
         Modifier
             .fillMaxWidth()
             .sharedBounds(
-                rememberSharedContentState(key = heartRateTrendRowTransitionKey(row.routineId)),
+                rememberSharedContentState(key = biometricTrendRowTransitionKey(row.routineId)),
                 animatedVisibilityScope = animatedVisibilityScope,
             )
     }
@@ -172,20 +172,20 @@ private fun HeartRateTrendCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     row.routineName
-                        ?: stringResource(R.string.heart_rate_trends_combined_row_title),
+                        ?: stringResource(R.string.biometric_trends_combined_row_title),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = row.trend.lastOrNull()?.let {
-                        stringResource(R.string.heart_rate_trends_latest_avg_bpm, it.roundToInt())
-                    } ?: stringResource(R.string.heart_rate_trends_no_data_yet),
+                    text = row.avgBpmTrend.lastOrNull()?.let {
+                        stringResource(R.string.biometric_trends_latest_avg_bpm, it.roundToInt())
+                    } ?: stringResource(R.string.biometric_trends_no_data_yet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (row.trend.size >= 2) {
+            if (row.avgBpmTrend.size >= 2) {
                 Sparkline(
-                    points = row.trend,
+                    points = row.avgBpmTrend,
                     modifier = Modifier
                         .width(88.dp)
                         .padding(start = 12.dp),

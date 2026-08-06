@@ -3,7 +3,7 @@ package dev.gouthaman.regimen.feature.progress
 import app.cash.turbine.test
 import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
-import dev.gouthaman.regimen.domain.usecase.GetHeartRateTrendRowsUseCase
+import dev.gouthaman.regimen.domain.usecase.GetBiometricTrendRowsUseCase
 import dev.gouthaman.regimen.testing.FakeRoutineRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutBiometricsRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
@@ -13,7 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
-class HeartRateTrendsViewModelTest {
+class BiometricTrendsViewModelTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -22,8 +22,8 @@ class HeartRateTrendsViewModelTest {
     private val routineRepo = FakeRoutineRepository()
     private val biometricsRepo = FakeWorkoutBiometricsRepository()
 
-    private fun newViewModel() = HeartRateTrendsViewModel(
-        getHeartRateTrendRows = GetHeartRateTrendRowsUseCase(
+    private fun newViewModel() = BiometricTrendsViewModel(
+        getBiometricTrendRows = GetBiometricTrendRowsUseCase(
             workoutRepo,
             routineRepo,
             biometricsRepo
@@ -50,8 +50,9 @@ class HeartRateTrendsViewModelTest {
                 id = "",
                 workoutId = w1,
                 avgBpm = 100,
+                activeCaloriesKcal = 300.0,
                 fetchedAt = 0
-            )
+            ),
         )
         val viewModel = newViewModel()
 
@@ -60,7 +61,8 @@ class HeartRateTrendsViewModelTest {
             while (!state.loaded) state = awaitItem()
             assertEquals(2, state.rows.size)
             assertEquals(listOf(null, routineId), state.rows.map { it.routineId })
-            assertEquals(listOf(100f), state.rows[1].trend)
+            assertEquals(listOf(100f), state.rows[1].avgBpmTrend)
+            assertEquals(listOf(300f), state.rows[1].caloriesTrend)
         }
     }
 }

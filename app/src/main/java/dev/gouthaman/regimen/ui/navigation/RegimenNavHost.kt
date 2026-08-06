@@ -79,9 +79,10 @@ private fun isTopLevelDestination(destination: NavDestination): Boolean =
  *                                            for editing - sets/cardio/note only, no timer)
  *    Progress  ──▶ [✓] Body Measurements  MeasurementsRoute (PR list + frequency chart live on the tab root)
  *    Measure.  ──▶ [✓] Measurement Detail MeasurementDetailRoute(typeId)  (trend + entries)
- *    Progress  ──▶ [✓] Heart Rate Trends  HeartRateTrendsRoute (per-routine + combined rows, Health
- *                                            Connect-gated)
- *    HR Trends ──▶ [✓] Heart Rate Detail  HeartRateTrendDetailRoute(routineId?)  (trend + entries)
+ *    Progress  ──▶ [✓] Biometric Trends  BiometricTrendsRoute (per-routine + combined rows, Health
+ *                                           Connect-gated)
+ *    Bio Trends──▶ [✓] Biometric Detail  BiometricTrendDetailRoute(routineId?)  (heart rate/calories
+ *                                           toggle, trend + entries)
  *    Active    ──▶ [✓] Workout Summary    WorkoutSummaryRoute(workoutId)  (recap + PRs + save-as-routine)
  *    Workout   ──▶ [✓] Rest Timer (sheet, within the live ActiveWorkoutSheet; manual, adjustable, vibrate+chime)
  *

@@ -298,62 +298,127 @@ private fun WeekSummarySection(uiState: HomeUiState) {
             stringResource(R.string.home_this_week_header),
             style = MaterialTheme.typography.titleMedium
         )
+        StatTileGrid(
+            buildList {
+                add {
+                    val displayedWorkouts =
+                        animatedInt(uiState.workoutsThisWeek, durationMillis = 550)
+                    val scale = rememberPopScale(displayedWorkouts)
+                    Stat(
+                        stringResource(R.string.home_stat_workouts_label),
+                        displayedWorkouts.toString(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+                    )
+                }
+                add {
+                    val scale =
+                        rememberPopScale(uiState.volumeThisWeek.displayValue, delayMillis = 90)
+                    Stat(
+                        stringResource(R.string.home_stat_volume_label),
+                        weightValueLabel(
+                            uiState.volumeThisWeek.copy(
+                                displayValue = animatedNumericLabel(
+                                    uiState.volumeThisWeek.displayValue,
+                                    durationMillis = 900,
+                                    delayMillis = 90,
+                                ),
+                            ),
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+                    )
+                }
+                add {
+                    val scale = rememberPopScale(uiState.durationMillisThisWeek, delayMillis = 180)
+                    Stat(
+                        stringResource(R.string.home_stat_time_label),
+                        SessionFormat.duration(
+                            0L,
+                            animatedMillis(
+                                uiState.durationMillisThisWeek,
+                                durationMillis = 750,
+                                delayMillis = 180
+                            ),
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+                    )
+                }
+                if (uiState.healthConnectEnabled) {
+                    add {
+                        CaloriesStat(
+                            uiState.caloriesThisWeek,
+                            durationMillis = 850,
+                            delayMillis = 270
+                        )
+                    }
+                }
+            },
+        )
+        if (uiState.weekStreak > 0) {
+            StreakTile(uiState.weekStreak)
+        }
+    }
+}
+
+/** Renders the Calories tile: an animated count-up once a value is known, or a muted placeholder
+ * (no count-up, nothing to animate towards) while [caloriesKcal] is null - Health Connect is
+ * enabled but hasn't attached calorie data to any workout in this period yet. */
+@Composable
+private fun CaloriesStat(caloriesKcal: Int?, durationMillis: Int, delayMillis: Int) {
+    if (caloriesKcal == null) {
+        Stat(
+            stringResource(R.string.home_stat_calories_label),
+            stringResource(R.string.home_stat_calories_no_data_value),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+        )
+        return
+    }
+    val displayedCalories =
+        animatedInt(caloriesKcal, durationMillis = durationMillis, delayMillis = delayMillis)
+    val scale = rememberPopScale(displayedCalories, delayMillis = delayMillis)
+    Stat(
+        stringResource(R.string.home_stat_calories_label),
+        stringResource(R.string.home_stat_calories_value_label, displayedCalories),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+    )
+}
+
+/** Lays tiles out as a single row when there are <=3 (matching the original design), or as a
+ * 2-column grid once a 4th (Calories) tile is enabled - avoids squeezing 4 tiles into one row at
+ * narrower widths (a foldable's half-open/closed states share the same single-column layout as a
+ * regular phone here, so this has to hold up at phone width regardless of posture). */
+@Composable
+private fun StatTileGrid(tiles: List<@Composable () -> Unit>) {
+    if (tiles.size <= 3) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Card(modifier = Modifier.weight(1f)) {
-                val displayedWorkouts = animatedInt(uiState.workoutsThisWeek, durationMillis = 550)
-                val scale = rememberPopScale(displayedWorkouts)
-                Stat(
-                    stringResource(R.string.home_stat_workouts_label),
-                    displayedWorkouts.toString(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-                )
-            }
-            Card(modifier = Modifier.weight(1f)) {
-                val scale = rememberPopScale(uiState.volumeThisWeek.displayValue, delayMillis = 90)
-                Stat(
-                    stringResource(R.string.home_stat_volume_label),
-                    weightValueLabel(
-                        uiState.volumeThisWeek.copy(
-                            displayValue = animatedNumericLabel(
-                                uiState.volumeThisWeek.displayValue,
-                                durationMillis = 900,
-                                delayMillis = 90,
-                            ),
-                        ),
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-                )
-            }
-            Card(modifier = Modifier.weight(1f)) {
-                val scale = rememberPopScale(uiState.durationMillisThisWeek, delayMillis = 180)
-                Stat(
-                    stringResource(R.string.home_stat_time_label),
-                    SessionFormat.duration(
-                        0L,
-                        animatedMillis(
-                            uiState.durationMillisThisWeek,
-                            durationMillis = 750,
-                            delayMillis = 180
-                        ),
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-                )
-            }
+            tiles.forEach { tile -> Card(modifier = Modifier.weight(1f)) { tile() } }
         }
-        if (uiState.weekStreak > 0) {
-            StreakTile(uiState.weekStreak)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            tiles.chunked(2).forEach { rowTiles ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    rowTiles.forEach { tile -> Card(modifier = Modifier.weight(1f)) { tile() } }
+                }
+            }
         }
     }
 }
@@ -367,65 +432,73 @@ private fun MonthSummarySection(uiState: HomeUiState) {
             stringResource(R.string.home_this_month_header),
             style = MaterialTheme.typography.titleMedium
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Card(modifier = Modifier.weight(1f)) {
-                val displayedWorkouts = animatedInt(
-                    uiState.workoutsThisMonth,
-                    durationMillis = 650,
-                    delayMillis = 40
-                )
-                val scale = rememberPopScale(displayedWorkouts, delayMillis = 40)
-                Stat(
-                    stringResource(R.string.home_stat_workouts_label),
-                    displayedWorkouts.toString(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-                )
-            }
-            Card(modifier = Modifier.weight(1f)) {
-                val scale =
-                    rememberPopScale(uiState.volumeThisMonth.displayValue, delayMillis = 140)
-                Stat(
-                    stringResource(R.string.home_stat_volume_label),
-                    weightValueLabel(
-                        uiState.volumeThisMonth.copy(
-                            displayValue = animatedNumericLabel(
-                                uiState.volumeThisMonth.displayValue,
-                                durationMillis = 1050,
-                                delayMillis = 140,
+        StatTileGrid(
+            buildList {
+                add {
+                    val displayedWorkouts = animatedInt(
+                        uiState.workoutsThisMonth,
+                        durationMillis = 650,
+                        delayMillis = 40
+                    )
+                    val scale = rememberPopScale(displayedWorkouts, delayMillis = 40)
+                    Stat(
+                        stringResource(R.string.home_stat_workouts_label),
+                        displayedWorkouts.toString(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+                    )
+                }
+                add {
+                    val scale =
+                        rememberPopScale(uiState.volumeThisMonth.displayValue, delayMillis = 140)
+                    Stat(
+                        stringResource(R.string.home_stat_volume_label),
+                        weightValueLabel(
+                            uiState.volumeThisMonth.copy(
+                                displayValue = animatedNumericLabel(
+                                    uiState.volumeThisMonth.displayValue,
+                                    durationMillis = 1050,
+                                    delayMillis = 140,
+                                ),
                             ),
                         ),
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-                )
-            }
-            Card(modifier = Modifier.weight(1f)) {
-                val scale = rememberPopScale(uiState.durationMillisThisMonth, delayMillis = 220)
-                Stat(
-                    stringResource(R.string.home_stat_time_label),
-                    SessionFormat.duration(
-                        0L,
-                        animatedMillis(
-                            uiState.durationMillisThisMonth,
-                            durationMillis = 900,
-                            delayMillis = 220
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+                    )
+                }
+                add {
+                    val scale = rememberPopScale(uiState.durationMillisThisMonth, delayMillis = 220)
+                    Stat(
+                        stringResource(R.string.home_stat_time_label),
+                        SessionFormat.duration(
+                            0L,
+                            animatedMillis(
+                                uiState.durationMillisThisMonth,
+                                durationMillis = 900,
+                                delayMillis = 220
+                            ),
                         ),
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-                )
-            }
-        }
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        valueModifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
+                    )
+                }
+                if (uiState.healthConnectEnabled) {
+                    add {
+                        CaloriesStat(
+                            uiState.caloriesThisMonth,
+                            durationMillis = 1000,
+                            delayMillis = 300
+                        )
+                    }
+                }
+            },
+        )
     }
 }
 

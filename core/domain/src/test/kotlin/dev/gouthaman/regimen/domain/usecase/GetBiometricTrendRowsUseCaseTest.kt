@@ -10,7 +10,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class GetHeartRateTrendRowsUseCaseTest {
+class GetBiometricTrendRowsUseCaseTest {
 
     private suspend fun completedWorkout(
         workoutRepo: FakeWorkoutRepository,
@@ -51,16 +51,18 @@ class GetHeartRateTrendRowsUseCaseTest {
                 id = "",
                 workoutId = w1,
                 avgBpm = 100,
+                activeCaloriesKcal = 200.0,
                 fetchedAt = 0
-            )
+            ),
         )
         biometricsRepo.upsert(
             WorkoutBiometrics(
                 id = "",
                 workoutId = w2,
                 avgBpm = 110,
+                activeCaloriesKcal = 210.0,
                 fetchedAt = 0
-            )
+            ),
         )
         biometricsRepo.upsert(
             WorkoutBiometrics(
@@ -71,20 +73,21 @@ class GetHeartRateTrendRowsUseCaseTest {
             )
         )
 
-        val rows = GetHeartRateTrendRowsUseCase(workoutRepo, routineRepo, biometricsRepo)().first()
+        val rows = GetBiometricTrendRowsUseCase(workoutRepo, routineRepo, biometricsRepo)().first()
 
         assertEquals(3, rows.size)
         val combined = rows.first { it.routineId == null }
-        assertEquals(listOf(100f, 110f, 90f), combined.trend)
-        assertEquals(3, combined.entryCount)
+        assertEquals(listOf(100f, 110f, 90f), combined.avgBpmTrend)
+        assertEquals(listOf(200f, 210f), combined.caloriesTrend)
 
         val row1 = rows.first { it.routineId == r1 }
         assertEquals("Push Day", row1.routineName)
-        assertEquals(listOf(100f, 110f), row1.trend)
+        assertEquals(listOf(100f, 110f), row1.avgBpmTrend)
+        assertEquals(listOf(200f, 210f), row1.caloriesTrend)
 
         val row2 = rows.first { it.routineId == r2 }
         assertEquals("Legs", row2.routineName)
-        assertEquals(emptyList<Float>(), row2.trend)
-        assertEquals(0, row2.entryCount)
+        assertEquals(emptyList<Float>(), row2.avgBpmTrend)
+        assertEquals(emptyList<Float>(), row2.caloriesTrend)
     }
 }

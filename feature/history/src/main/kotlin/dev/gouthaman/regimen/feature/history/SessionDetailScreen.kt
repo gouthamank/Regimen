@@ -18,7 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notes
@@ -31,6 +34,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,7 +44,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -263,6 +266,7 @@ fun SessionDetailScreen(
                             biometrics = uiState.biometrics,
                             chartLoading = uiState.heartRateChartLoading,
                             chartPoints = uiState.heartRateChartPoints,
+                            chartDurationMs = uiState.endTime?.let { it - uiState.startTime },
                             onShowChart = onShowHeartRateChart,
                         )
                     }
@@ -432,18 +436,20 @@ private fun SessionStat(icon: ImageVector, value: String, label: String) {
 }
 
 /** Stats are always shown when present (a cheap local read); the chart is on-demand only, since
- * it's a live Health Connect query with no local persistence. */
+ * it's a live Health Connect query with no local persistence. [chartDurationMs] is the workout's
+ * own span (what the chart was bucketed across), needed for the elapsed-time x-axis. */
 @Composable
 private fun HeartRateCard(
     biometrics: SessionBiometrics?,
     chartLoading: Boolean,
     chartPoints: List<Float>?,
+    chartDurationMs: Long?,
     onShowChart: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                stringResource(R.string.session_detail_heart_rate_header),
+                stringResource(R.string.session_detail_biometrics_header),
                 style = MaterialTheme.typography.titleMedium,
             )
             if (biometrics != null) {
@@ -455,32 +461,43 @@ private fun HeartRateCard(
                 ) {
                     biometrics.avgBpm?.let {
                         HeartRateStat(
-                            it.toString(),
-                            stringResource(R.string.session_detail_avg_bpm_label)
+                            icon = Icons.Filled.Favorite,
+                            value = it.toString(),
+                            label = stringResource(R.string.session_detail_avg_bpm_label),
                         )
                     }
                     biometrics.maxBpm?.let {
                         HeartRateStat(
-                            it.toString(),
-                            stringResource(R.string.session_detail_max_bpm_label)
+                            icon = Icons.Filled.FavoriteBorder,
+                            value = it.toString(),
+                            label = stringResource(R.string.session_detail_max_bpm_label),
                         )
                     }
                     biometrics.activeCaloriesKcal?.let {
                         HeartRateStat(
-                            stringResource(
+                            icon = Icons.Filled.LocalFireDepartment,
+                            value = stringResource(
                                 R.string.session_detail_calories_value_label,
-                                it.roundToInt()
+                                it.roundToInt(),
                             ),
-                            stringResource(R.string.session_detail_calories_label),
+                            label = stringResource(R.string.session_detail_calories_label),
                         )
                     }
                 }
             }
             when {
-                chartPoints != null -> LineChart(
-                    points = chartPoints,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
+                chartPoints != null -> {
+                    Text(
+                        stringResource(R.string.session_detail_heart_rate_chart_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                    LineChart(points = chartPoints, modifier = Modifier.padding(top = 8.dp))
+                    if (chartDurationMs != null) {
+                        ElapsedTimeAxis(chartDurationMs)
+                    }
+                }
 
                 chartLoading -> Box(
                     modifier = Modifier
@@ -489,7 +506,10 @@ private fun HeartRateCard(
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
 
-                else -> TextButton(onClick = onShowChart, modifier = Modifier.padding(top = 4.dp)) {
+                else -> FilledTonalButton(
+                    onClick = onShowChart,
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
                     Text(stringResource(R.string.session_detail_show_heart_rate_chart_button))
                 }
             }
@@ -498,14 +518,46 @@ private fun HeartRateCard(
 }
 
 @Composable
-private fun HeartRateStat(value: String, label: String) {
-    Column {
-        Text(value, style = MaterialTheme.typography.titleMedium)
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+private fun HeartRateStat(icon: ImageVector, value: String, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 8.dp),
         )
+        Column {
+            Text(value, style = MaterialTheme.typography.titleMedium)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Elapsed-time labels roughly every 15 minutes, evenly spaced to line up with [LineChart]'s own
+ * even point spacing - exact 15-minute multiples would drift out of alignment for a workout whose
+ * duration isn't a clean multiple of 15. */
+@Composable
+private fun ElapsedTimeAxis(durationMs: Long) {
+    val totalMinutes = (durationMs / 60_000L).toInt().coerceAtLeast(1)
+    val tickCount = (totalMinutes / 15 + 1).coerceIn(2, 6)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        for (tick in 0 until tickCount) {
+            val minutes = (totalMinutes * tick) / (tickCount - 1)
+            Text(
+                stringResource(R.string.session_detail_heart_rate_chart_elapsed_minutes, minutes),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

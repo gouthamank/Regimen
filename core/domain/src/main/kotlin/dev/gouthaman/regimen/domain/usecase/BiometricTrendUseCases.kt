@@ -1,7 +1,7 @@
 package dev.gouthaman.regimen.domain.usecase
 
-import dev.gouthaman.regimen.domain.model.HeartRateTrendEntry
-import dev.gouthaman.regimen.domain.model.HeartRateTrendRow
+import dev.gouthaman.regimen.domain.model.BiometricTrendEntry
+import dev.gouthaman.regimen.domain.model.BiometricTrendRow
 import dev.gouthaman.regimen.domain.model.HistoryRange
 import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.repository.RoutineRepository
@@ -9,31 +9,32 @@ import dev.gouthaman.regimen.domain.repository.WorkoutBiometricsRepository
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /** One row per routine with a completed workout, plus a synthetic "combined" row. Full unfiltered
  * history - range filtering happens only in the detail screen. */
-class GetHeartRateTrendRowsUseCase @Inject constructor(
+class GetBiometricTrendRowsUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
     private val routineRepo: RoutineRepository,
     private val biometricsRepo: WorkoutBiometricsRepository,
 ) {
-    operator fun invoke(): Flow<List<HeartRateTrendRow>> =
+    operator fun invoke(): Flow<List<BiometricTrendRow>> =
         combine(workoutRepo.observeCompleted(), routineRepo.observeAll()) { workouts, routines ->
             val sorted = workouts.sortedBy { it.workout.startTime }
             val biometricsByWorkoutId = biometricsRepo.getForWorkouts(sorted.map { it.workout.id })
                 .associateBy { it.workoutId }
 
-            fun rowFor(routineId: String?, routineName: String?): HeartRateTrendRow {
+            fun rowFor(routineId: String?, routineName: String?): BiometricTrendRow {
                 val matching =
                     sorted.filter { routineId == null || it.workout.routineId == routineId }
                 val avgBpms = matching.mapNotNull { biometricsByWorkoutId[it.workout.id]?.avgBpm }
-                return HeartRateTrendRow(
+                val calories = matching
+                    .mapNotNull { biometricsByWorkoutId[it.workout.id]?.activeCaloriesKcal }
+                return BiometricTrendRow(
                     routineId = routineId,
                     routineName = routineName,
-                    trend = avgBpms.map { it.toFloat() },
-                    entryCount = avgBpms.size,
+                    avgBpmTrend = avgBpms.map { it.toFloat() },
+                    caloriesTrend = calories.map { it.toFloat() },
                 )
             }
 
@@ -45,14 +46,15 @@ class GetHeartRateTrendRowsUseCase @Inject constructor(
         }
 }
 
-/** [routineId] null = combined. Range-filtered; only workouts with a pulled avg BPM and known end
- * time are included. */
-class GetHeartRateTrendDetailUseCase @Inject constructor(
+/** [routineId] null = combined. Range-filtered; a workout is included if it has at least one of
+ * avg BPM or calories. */
+class GetBiometricTrendDetailUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val routineRepo: RoutineRepository,
     private val biometricsRepo: WorkoutBiometricsRepository,
 ) {
-    operator fun invoke(routineId: String?, range: HistoryRange): Flow<List<HeartRateTrendEntry>> =
-        workoutRepo.observeCompleted().map { workouts ->
+    operator fun invoke(routineId: String?, range: HistoryRange): Flow<List<BiometricTrendEntry>> =
+        combine(workoutRepo.observeCompleted(), routineRepo.observeAll()) { workouts, routines ->
             val cutoff = range.cutoffMillis()
             val matching = workouts
                 .filter { routineId == null || it.workout.routineId == routineId }
@@ -62,13 +64,19 @@ class GetHeartRateTrendDetailUseCase @Inject constructor(
                 biometricsRepo.getForWorkouts(matching.map { it.workout.id })
                     .associateBy { it.workoutId }
             matching.mapNotNull { w ->
-                val avgBpm = biometricsByWorkoutId[w.workout.id]?.avgBpm ?: return@mapNotNull null
+                val biometrics = biometricsByWorkoutId[w.workout.id]
+                val avgBpm = biometrics?.avgBpm
+                val calories = biometrics?.activeCaloriesKcal
+                if (avgBpm == null && calories == null) return@mapNotNull null
                 val endTime = w.workout.endTime ?: return@mapNotNull null
-                HeartRateTrendEntry(
+                BiometricTrendEntry(
                     workoutId = w.workout.id,
                     startTime = w.workout.startTime,
                     durationMillis = endTime - w.workout.startTime - w.workout.accumulatedPausedMs,
                     avgBpm = avgBpm,
+                    activeCaloriesKcal = calories,
+                    routineName = w.workout.routineId
+                        ?.let { id -> routines.firstOrNull { it.routine.id == id }?.routine?.name },
                 )
             }
         }

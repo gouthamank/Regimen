@@ -313,7 +313,9 @@ class SessionDetailViewModelTest {
         viewModel.uiState.test {
             var state = awaitItem()
             while (state.heartRateChartPoints == null) state = awaitItem()
-            assertEquals(listOf(100f), state.heartRateChartPoints)
+            // bucketAverages always emits a fixed 60-point series (see HealthConnectUseCases.kt) -
+            // a single sample forward/back-fills across every bucket, not a 1-point series.
+            assertEquals(List(60) { 100f }, state.heartRateChartPoints)
         }
     }
 

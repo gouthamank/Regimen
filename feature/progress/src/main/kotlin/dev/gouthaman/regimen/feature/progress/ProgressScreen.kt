@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import dev.gouthaman.regimen.common.heartRateTrendsFromProgressTransitionKey
+import dev.gouthaman.regimen.common.biometricTrendsFromProgressTransitionKey
 import dev.gouthaman.regimen.common.label
 import dev.gouthaman.regimen.common.measurementsFromProgressTransitionKey
 import dev.gouthaman.regimen.common.text
@@ -63,7 +63,7 @@ fun ProgressScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenMeasurements: () -> Unit,
-    onOpenHeartRateTrends: () -> Unit,
+    onOpenBiometricTrends: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
@@ -73,7 +73,7 @@ fun ProgressScreen(
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
         onOpenMeasurements = onOpenMeasurements,
-        onOpenHeartRateTrends = onOpenHeartRateTrends,
+        onOpenBiometricTrends = onOpenBiometricTrends,
         onRangeChange = viewModel::setRange,
         modifier = modifier,
     )
@@ -86,7 +86,7 @@ fun ProgressScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onOpenMeasurements: () -> Unit,
-    onOpenHeartRateTrends: () -> Unit,
+    onOpenBiometricTrends: () -> Unit,
     modifier: Modifier = Modifier,
     onRangeChange: (HistoryRange) -> Unit = {},
 ) {
@@ -148,13 +148,13 @@ fun ProgressScreen(
                     item {
                         val linkModifier = with(sharedTransitionScope) {
                             Modifier.sharedBounds(
-                                rememberSharedContentState(key = heartRateTrendsFromProgressTransitionKey),
+                                rememberSharedContentState(key = biometricTrendsFromProgressTransitionKey),
                                 animatedVisibilityScope = animatedVisibilityScope,
                             )
                         }
                         ListItem(
-                            content = { Text(stringResource(R.string.progress_heart_rate_trends_link_title)) },
-                            supportingContent = { Text(stringResource(R.string.progress_heart_rate_trends_link_subtitle)) },
+                            content = { Text(stringResource(R.string.progress_biometric_trends_link_title)) },
+                            supportingContent = { Text(stringResource(R.string.progress_biometric_trends_link_subtitle)) },
                             leadingContent = {
                                 Icon(Icons.Filled.Favorite, contentDescription = null)
                             },
@@ -164,7 +164,7 @@ fun ProgressScreen(
                                     contentDescription = null
                                 )
                             },
-                            modifier = linkModifier.clickable(onClick = onOpenHeartRateTrends),
+                            modifier = linkModifier.clickable(onClick = onOpenBiometricTrends),
                         )
                         HorizontalDivider()
                     }

@@ -6,11 +6,13 @@ import dev.gouthaman.regimen.domain.model.ExerciseType
 import dev.gouthaman.regimen.domain.model.MuscleGroup
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.Workout
+import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutExerciseWithDetails
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
+import dev.gouthaman.regimen.testing.FakeWorkoutBiometricsRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -71,7 +73,7 @@ class GetHomeSummaryUseCaseTest {
     @Test
     fun `no completed workouts yields a zeroed summary`() = runTest {
         val repo = FakeWorkoutRepository()
-        val summary = GetHomeSummaryUseCase(repo)().first()
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
 
         assertEquals(0, summary.workoutsThisWeek)
         assertEquals(0.0, summary.volumeKgThisWeek, 0.0)
@@ -93,7 +95,7 @@ class GetHomeSummaryUseCaseTest {
             }
         repo.seed(inProgress)
 
-        val summary = GetHomeSummaryUseCase(repo)().first()
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
 
         assertEquals(0, summary.workoutsThisWeek)
     }
@@ -127,7 +129,7 @@ class GetHomeSummaryUseCaseTest {
         )
         repo.seed(workout)
 
-        val summary = GetHomeSummaryUseCase(repo)().first()
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
 
         assertEquals(500.0, summary.volumeKgThisWeek, 0.0)
         assertEquals(1, summary.workoutsThisWeek)
@@ -143,7 +145,7 @@ class GetHomeSummaryUseCaseTest {
             completedWorkout("2", monday.minusWeeks(2), 60_000, emptyList()),
         )
 
-        val summary = GetHomeSummaryUseCase(repo)().first()
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
 
         assertEquals(0, summary.workoutsThisWeek)
         assertEquals(2, summary.weekStreak)
@@ -158,7 +160,7 @@ class GetHomeSummaryUseCaseTest {
             completedWorkout("2", monday.minusWeeks(2), 60_000, emptyList()),
         )
 
-        val summary = GetHomeSummaryUseCase(repo)().first()
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
 
         assertEquals(1, summary.weekStreak)
     }
@@ -173,9 +175,47 @@ class GetHomeSummaryUseCaseTest {
             completedWorkout("2", lastMonth, 90_000, emptyList()),
         )
 
-        val summary = GetHomeSummaryUseCase(repo)().first()
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
 
         assertEquals(1, summary.workoutsThisMonth)
         assertEquals(60_000L, summary.durationMillisThisMonth)
+    }
+
+    @Test
+    fun `calories sum only pulled workouts, missing biometrics contribute zero`() = runTest {
+        val repo = FakeWorkoutRepository()
+        val biometricsRepo = FakeWorkoutBiometricsRepository()
+        val monday = thisWeekMonday()
+        repo.seed(
+            completedWorkout("1", monday, 60_000, emptyList()),
+            completedWorkout("2", monday, 60_000, emptyList()), // never pulled
+        )
+        biometricsRepo.upsert(
+            WorkoutBiometrics(id = "", workoutId = "1", activeCaloriesKcal = 250.0, fetchedAt = 0),
+        )
+
+        val summary = GetHomeSummaryUseCase(repo, biometricsRepo)().first()
+
+        assertEquals(250.0, summary.caloriesKcalThisWeek ?: 0, 0.0)
+    }
+
+    @Test
+    fun `calories is null when no workout in the period has been pulled yet`() = runTest {
+        val repo = FakeWorkoutRepository()
+        val monday = thisWeekMonday()
+        repo.seed(completedWorkout("1", monday, 60_000, emptyList()))
+
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
+
+        assertEquals(null, summary.caloriesKcalThisWeek)
+    }
+
+    @Test
+    fun `calories is zero, not null, when the period has no workouts at all`() = runTest {
+        val repo = FakeWorkoutRepository()
+
+        val summary = GetHomeSummaryUseCase(repo, FakeWorkoutBiometricsRepository())().first()
+
+        assertEquals(0.0, summary.caloriesKcalThisWeek ?: 250.0, 0.0)
     }
 }

@@ -7,8 +7,8 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import dev.gouthaman.regimen.navigation.HeartRateTrendDetailRoute
-import dev.gouthaman.regimen.navigation.HeartRateTrendsRoute
+import dev.gouthaman.regimen.navigation.BiometricTrendDetailRoute
+import dev.gouthaman.regimen.navigation.BiometricTrendsRoute
 import dev.gouthaman.regimen.navigation.MeasurementsRoute
 import dev.gouthaman.regimen.navigation.ProgressRoute
 
@@ -22,29 +22,29 @@ fun NavGraphBuilder.progressGraph(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,
             onOpenMeasurements = { navController.navigate(MeasurementsRoute) },
-            onOpenHeartRateTrends = { navController.navigate(HeartRateTrendsRoute) },
+            onOpenBiometricTrends = { navController.navigate(BiometricTrendsRoute) },
         )
     }
 
     // Progress is the only entry point for both, so their entrance/exit slide is unconditionally
     // suppressed in favor of the row's container-transform (matches AccountNavigation.kt).
-    composable<HeartRateTrendsRoute>(
+    composable<BiometricTrendsRoute>(
         enterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None },
     ) {
-        HeartRateTrendsScreen(
+        BiometricTrendsScreen(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,
             onBack = navController::popBackStack,
-            onOpenTrend = { routineId -> navController.navigate(HeartRateTrendDetailRoute(routineId)) },
+            onOpenTrend = { routineId -> navController.navigate(BiometricTrendDetailRoute(routineId)) },
         )
     }
 
-    composable<HeartRateTrendDetailRoute>(
+    composable<BiometricTrendDetailRoute>(
         enterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None },
     ) {
-        HeartRateTrendDetailScreen(
+        BiometricTrendDetailScreen(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = this,
             onBack = navController::popBackStack,

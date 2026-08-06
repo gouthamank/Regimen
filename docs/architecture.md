@@ -59,7 +59,7 @@ also get a secondary, freeform **Quick workout** entry point.
   `WorkManager` scheduler/worker. Depends only on `:core:domain` - unlike `:core:sync`, nothing
   here needs a `:core:data` DAO directly.
 - **
-  `:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active,account}`
+  `:feature:{settings,onboarding,exercise,measurements,progress,routines,history,home,active,account,healthconnect}`
   **
     - one module per bottom-tab/major screen. Each exposes a `NavGraphBuilder.xGraph()` extension
   that `RegimenNavHost` wires together, except Onboarding, which `MainActivity` shows directly as
@@ -146,7 +146,12 @@ A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in
   tapping one begins a session immediately), a **this-week** summary (workouts / volume / time)
   with a weekly **streak** indicator, a **this-month** summary, a workout-frequency chart (last 4
   weeks), and a bodyweight trend chart (last 4 weeks, with a "Log bodyweight" CTA into Body
-  Measurements when no entries exist yet).
+  Measurements when no entries exist yet). Each summary also gets a **Calories** tile once Health
+  Connect is enabled (see "Health Connect" below) - hidden entirely otherwise. A period with
+  workouts but no calorie data pulled yet shows a muted "–" placeholder rather than a fake `0`,
+  distinct from a period with no workouts at all (which genuinely is 0). Four tiles lay out as a
+  2x2 grid instead of one row, same at every posture (a foldable's half-open/closed states share
+  Compact's narrow width here).
   - **Empty state (no routines yet):** a short line of text and a **Create your first routine**
     CTA (switches to the Routines tab). This is the sole cold-start path; no seeded routines or
     demo data are provided.
@@ -169,13 +174,18 @@ A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in
   notes). Actions: **Repeat workout** (starts the same workout again, resuming an in-progress one
   if there already is one), **Edit** (reopens the session in **Edit Workout** - sets/cardio/note
   only, no timer - without touching its original timestamps), **Save as routine** (strength
-  exercises only), **Delete**.
+  exercises only), **Delete**. When Health Connect is enabled and a `WorkoutBiometrics` row exists
+  for this workout, also shows avg/max BPM and active-calorie stats, plus a separate on-demand
+  "Show heart-rate chart" button (see "Health Connect" below) - hidden entirely otherwise.
 
 ### Tab 4 - Progress
 
 - **Progress** - a **personal-records list** (heaviest weight per exercise, or best reps for
   bodyweight-only exercises) and a **workout-frequency chart** with a selectable range (4 weeks /
-  3 months / 1 year / all time). A Body Measurements entry point sits at the top of this tab.
+  3 months / 1 year / all time). A Body Measurements entry point sits at the top of this tab. A
+  **Biometric Trends** entry point (link row) also sits here once Health Connect is enabled -
+  hidden entirely otherwise - opening a list + detail sub-flow over persisted avg BPM/active
+  calories across many workouts (see "Health Connect" below).
 - **Body Measurements** - **bodyweight** (built-in) plus **user-defined custom measurement types**
   (e.g. waist, arm, body-fat %), each with a trend chart (same selectable-range control as
   Progress's frequency chart). No fixed preset list beyond bodyweight.
@@ -188,8 +198,10 @@ Per-exercise progress (history and PRs) lives on Exercise Detail, not on a separ
 - **Settings** - units (metric/imperial: kg/lb + km/mi, weight and distance selected
   independently), theme (light/dark/system plus a dynamic-color toggle), rest-timer default
   duration, a rest-alert sound toggle, custom measurement type management, and entry points to the
-  Exercise Library and the Account screen (a compact row showing the signed-in account's email, or
-  "Signed out"). Data export to JSON is not implemented.
+  Exercise Library, the Account screen (a compact row showing the signed-in account's email, or
+  "Signed out"), and the Health Connect screen. Data export to JSON is not implemented.
+- **Health Connect** (`:feature:healthconnect`) - see "Health Connect" below for the full spec;
+  this row is the only entry point (always visible, regardless of enabled state).
 - **Account** (`:feature:account`) - sign in with Google (Credential Manager; the sign-in button is
   disabled with an explanatory caption if Google Play Services isn't available). Once signed in:
   the account's name/email; a sync status row ("Synced at ...", "Backing up...", "Sync failed," or
@@ -415,13 +427,13 @@ The core loop; users spend the majority of session time here.
 - **`SectionHeader`**, **`UnitSystemSelector`**, **`ThemeModeSelector`** - shared section-label
   text and unit/theme segmented-button pickers (the latter two used by both Onboarding and
   Settings).
-- **`LineChart`/`Sparkline`** - a self-contained Canvas-based chart, used by Progress (frequency),
-  Body Measurements (bodyweight and custom-measurement trends), and Home (frequency +
-  bodyweight). Draws on left-to-right (an animated reveal, not a static one-shot draw) whenever the
-  underlying points list changes - including first appearance, a range-selector switch, or new data
-  landing.
+- **`LineChart`/`Sparkline`** - a self-contained Canvas-based chart, used by Progress (frequency,
+  and Biometric Trends' list/detail screens), Body Measurements (bodyweight and custom-measurement
+  trends), Home (frequency + bodyweight), and Session Detail's on-demand heart-rate chart. Draws on
+  left-to-right (an animated reveal, not a static one-shot draw) whenever the underlying points
+  list changes - including first appearance, a range-selector switch, or new data landing.
 - **`HistoryRangeSelector`** - the 4w/3m/1y/All segmented range selector, shared by the Progress
-  frequency chart and the Measurement trend chart.
+  frequency chart, the Measurement trend chart, and Biometric Trends' detail screen.
 - **`ReorderableList`** - drag-to-reorder gesture/state helpers (`DragDropState`,
   `rememberDragDropState`, `Modifier.dragHandle`), used by the Routines list and Routine Editor's
   exercise list.
@@ -542,6 +554,13 @@ CardioEntry(id, workoutExerciseId, durationSec, distanceMeters?, isDirty, lastMo
 MeasurementType(id, name, unit, isBuiltIn, isDirty, lastModifiedAt)   -- "Bodyweight" is built-in
 BodyMetric(id, measurementTypeId, date, value, isDirty, lastModifiedAt)
 
+WorkoutBiometrics(id, workoutId, avgBpm?, maxBpm?, activeCaloriesKcal?, sourcePackageName?,
+                   fetchedAt, isDirty, lastModifiedAt, heartRateSeries?)
+    One row per workout (unique on workoutId), populated by the Health Connect backfill job - see
+    "Health Connect" below. heartRateSeries is a downsampled BPM cache for Session Detail's
+    on-demand chart, populated lazily on first view. Local-only - never in sync scope (see "Health
+    Connect"'s "Cloud sync" note).
+
 SyncTombstone(entityType, entityId, parentId?, grandparentId?, deletedAt)
     One row per locally-deleted synced entity, until the primary device's push job confirms the
     matching Firestore document is deleted too, then this row is cleared. parentId/grandparentId
@@ -561,7 +580,7 @@ boundary, so `:core:domain` has zero dependency on Room.
   stored.
 - `supersetGroupId` on `RoutineExercise`/`WorkoutExercise` is reserved for future superset
   grouping; currently always null.
-- Database version 12.
+- Database version 14.
 
 ---
 
@@ -697,6 +716,105 @@ one up pay for itself.
 
 ---
 
+## Health Connect
+
+Optional, opt-in local read integration with Android's on-device **Health Connect** store, via
+`androidx.health.connect:connect-client:1.1.0`. Wearables and companion apps that already track
+heart rate/calories (Google Health for Fitbit, Samsung Health, Wear OS, etc.) write into Health
+Connect once they sync; Regimen reads it back out to attach per-workout biometrics and build
+trends, with no account linking or network calls of its own. Read-only - Regimen never writes to
+Health Connect and there's no live device/control channel, only whatever's already landed in the
+store by the time a pull runs.
+
+### Storage and the backfill job
+
+`WorkoutBiometrics` (see "Data model" above) is computed and persisted once at pull time, not
+read-through live at display time. A periodic `HealthConnectBiometricsWorker` (`CoroutineWorker`,
+mirroring `:core:sync`'s `SyncPushWorker`) finds `COMPLETE` workouts within a fixed,
+non-configurable
+30-day window that don't yet have a row, queries Health Connect for each one's
+`[startTime, endTime]`, and writes whatever's found - a single query at Finish time would usually
+find nothing, since Health Connect sync lag can run from seconds to hours (or never). A manual
+"Check now" action (Settings) runs the same sweep immediately in the foreground, working regardless
+of whether background-read permission is granted.
+
+`ReconcileHealthConnectScheduleUseCase` is the single source of truth for whether the periodic job
+should be running - re-evaluated on every prefs change and status refresh so it can never drift from
+live permission state (e.g. after a permission is revoked via Health Connect's own Settings app
+while Regimen was backgrounded). It requires four things to all hold: the feature enabled, a
+separate "background sync" toggle enabled (off by default even once permission is granted), core
+read permission granted (`HealthConnectConnectionState.ACTIVE`), and the background-read permission
+also granted - required for a `WorkManager` job's reads to succeed at all while the app isn't
+foregrounded.
+
+### Settings UI (`:feature:healthconnect`)
+
+A dedicated sub-page from Settings (not an inline toggle), shell/shape matching
+`feature/account/AccountScreen.kt`. Three independent things are deliberately kept separate rather
+than conflated under one boolean - opting in to the feature, the Android permission being granted,
+and the periodic job being scheduled - surfaced as one of four mutually exclusive states:
+
+- **Switch off** - an `EmptyState` explains the feature and invites opt-in. The top switch itself
+  is disabled only when Health Connect isn't installed/supported (`UNAVAILABLE`), never merely for
+  missing permission.
+- **Unavailable** - an `EmptyState` explains Health Connect isn't installed or needs updating.
+- **Switch on, permission not granted** (`connectionState != ACTIVE`) - an `EmptyState` with a
+  "Grant permission" action requesting only the two core (non-background) read permissions.
+- **Switch on, `ACTIVE`** - a status readout (detected source app, last-checked time, "Check now"),
+  then a **Background sync** section showing either an `EmptyState` (background permission missing,
+  "Turn on" action requesting just that permission) or, once granted, its own **"Enable background
+  sync"** toggle plus a **"Check every"** picker (1 hour / 6 hours / Daily, defaulting to 6 hours) -
+  disabled while that toggle is off. Turning background sync off only stops scheduling; it can't
+  revoke just the background permission (`PermissionController.revokeAllPermissions()` is all-or-
+  nothing), so a user who wants that permission gone has to revoke it manually via Health Connect's
+  own app. A **Delete Health Connect data** action wipes every local `WorkoutBiometrics` row (not
+  Health Connect's own store) - re-enabling later only backfills workouts still within the 30-day
+  window, so older workouts don't come back.
+- The core-permission request and the background-permission request are always launched
+  separately, never together - a `USER_FIXED` background permission would otherwise abort the
+  entire request (including permissions never denied). A `USER_FIXED` permission also shows no
+  system UI at all on request, detected by diffing the launcher's granted-set result against what
+  was requested, surfaced via a Snackbar pointing at the device's app-settings screen.
+
+### Session Detail and Progress surfacing
+
+Both gated on the feature being enabled - nothing renders, not even entry points, while switched
+off:
+
+- **Session Detail** (`:feature:history`) - persisted avg/max BPM and calorie stats (a reactive
+  Room read), plus a separate on-demand "Show heart-rate chart" button. A miss falls back to a
+  live Health Connect query for that workout's raw `HeartRateRecord` samples, downsampled to a
+  fixed ~60-point chronological average and cached onto the row - but only if a row already exists,
+  so an on-demand chart request never creates a bare row that would skew the status widget's "last
+  pulled" reads.
+- **Progress - "Biometric Trends"** (`:feature:progress`) - a list screen (a synthetic "All
+  routines combined" row plus one per routine with a completed workout, each with a BPM-only
+  `Sparkline` preview) and a detail screen (a Heart rate/Calories toggle, a `HistoryRangeSelector`,
+  a range-filtered `LineChart`, and the individual contributing workouts below it).
+
+### Cloud sync - not planned
+
+`WorkoutBiometrics` stays local-only, permanently - never added to Firestore sync scope (see
+"Remote sync" above). Health Connect itself is a per-device, on-device store with no cross-device
+sync of its own, so a workout pulled on one device stays invisible on any other device signed into
+the same account; accepted as a narrow, opt-in-feature-specific gap rather than taking on health
+data's heavier compliance bar (GDPR Article 9 "special category data") for what's ultimately a
+nice-to-have cross-device view.
+
+### Testing
+
+Business logic (backfill-window matching, retry scheduling, permission-state branching) is
+fakes-first like everywhere else (`docs/testing.md`) - a `HealthConnectRepository` interface in
+`:core:domain`, real implementation in `:core:healthconnect`, `FakeHealthConnectRepository` for
+ViewModel/use-case JVM tests. Real Health Connect integration is verified manually on an emulator
+(API 34+ system image, Health Connect built into the OS) using Google's **Health Connect Toolbox**
+sample app to seed arbitrary records, since Health Connect's own Settings UI can only manage
+permissions, not insert test data. A real device paired with an actual wearable or Fitbit-via-
+Google-Health source gets one end-to-end pass before shipping, but it's a slow feedback loop, not
+for iterative development.
+
+---
+
 ## Tech stack
 
 | Area                            | Choice                                                                                                                                                  |
@@ -715,7 +833,8 @@ one up pay for itself.
 Compose BOM `2026.02.01` · AGP `9.2.1` · Kotlin `2.2.10` · KSP `2.2.10-2.0.2` · Hilt `2.60.1` ·
 Room `2.8.4` · Navigation Compose `2.9.8` · Coroutines `1.11.0` · `androidx.window` `1.5.1` ·
 `androidx.compose.material3.adaptive` `1.2.0` ·
-`androidx.compose.material3:material3-adaptive-navigation-suite` `1.5.0-alpha23`.
+`androidx.compose.material3:material3-adaptive-navigation-suite` `1.5.0-alpha23` ·
+`androidx.health.connect:connect-client` `1.1.0`.
 
 ### Material 3 Expressive
 

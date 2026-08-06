@@ -1,8 +1,10 @@
 package dev.gouthaman.regimen.domain.usecase
 
 import dev.gouthaman.regimen.domain.model.HomeSummary
+import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.model.loggedVolumeKg
+import dev.gouthaman.regimen.domain.repository.WorkoutBiometricsRepository
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,6 +20,18 @@ private fun WorkoutWithDetails.durationMillis(): Long {
     return (end - workout.startTime - workout.accumulatedPausedMs).coerceAtLeast(0)
 }
 
+/** Null iff [workouts] is non-empty but none of them has a calories value yet - the Home tile
+ * reads that as "no data yet" rather than a genuine 0. */
+private fun totalCaloriesOrNull(
+    workouts: List<WorkoutWithDetails>,
+    biometricsById: Map<String, WorkoutBiometrics>,
+): Double? {
+    if (workouts.isEmpty()) return 0.0
+    val calories = workouts.map { biometricsById[it.workout.id]?.activeCaloriesKcal }
+    if (calories.all { it == null }) return null
+    return calories.sumOf { it ?: 0.0 }
+}
+
 /**
  * This-week/this-month totals plus a weekly streak, derived from completed workouts. Weeks start
  * on Monday, matching [GetWorkoutFrequencyUseCase]. Volume counts only completed sets (same
@@ -25,6 +39,7 @@ private fun WorkoutWithDetails.durationMillis(): Long {
  */
 class GetHomeSummaryUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
+    private val workoutBiometricsRepo: WorkoutBiometricsRepository,
 ) {
     operator fun invoke(): Flow<HomeSummary> = workoutRepo.observeCompleted().map { workouts ->
         val zone = ZoneId.systemDefault()
@@ -47,6 +62,12 @@ class GetHomeSummaryUseCase @Inject constructor(
         val volumeMonth = thisMonthWorkouts.sumOf { w -> w.loggedVolumeKg() }
         val durationMonth = thisMonthWorkouts.sumOf { w -> w.durationMillis() }
 
+        val biometricsById = workoutBiometricsRepo
+            .getForWorkouts((thisWeekWorkouts + thisMonthWorkouts).map { it.workout.id }.distinct())
+            .associateBy { it.workoutId }
+        val caloriesWeek = totalCaloriesOrNull(thisWeekWorkouts, biometricsById)
+        val caloriesMonth = totalCaloriesOrNull(thisMonthWorkouts, biometricsById)
+
         // Consecutive weeks with >=1 workout, ending at the current week; the current
         // (in-progress) week may be empty without breaking the streak.
         var streak = 0
@@ -65,6 +86,8 @@ class GetHomeSummaryUseCase @Inject constructor(
             workoutsThisMonth = thisMonthWorkouts.size,
             volumeKgThisMonth = volumeMonth,
             durationMillisThisMonth = durationMonth,
+            caloriesKcalThisWeek = caloriesWeek,
+            caloriesKcalThisMonth = caloriesMonth,
         )
     }
 }

@@ -205,8 +205,9 @@ class GetHeartRateSeriesForWorkoutUseCase @Inject constructor(
     }
 }
 
-/** Averages samples into [bucketCount] equal-width time buckets; empty buckets are omitted, so the
- * result can be shorter than [bucketCount]. */
+/** Averages samples into [bucketCount] equal-width time buckets, linearly interpolating any empty
+ * ones (edges carry forward/back from the nearest filled bucket) - always [bucketCount] points, so
+ * a point's index reliably maps to a fixed elapsed time for the chart's x-axis. */
 internal fun bucketAverages(
     samples: List<HeartRateSample>,
     startTime: Long,
@@ -222,9 +223,35 @@ internal fun bucketAverages(
         sums[index] += sample.bpm
         counts[index]++
     }
-    return (0 until bucketCount).mapNotNull { i ->
-        if (counts[i] == 0) null else (sums[i] / counts[i]).toFloat()
+    val raw =
+        DoubleArray(bucketCount) { if (counts[it] == 0) Double.NaN else sums[it] / counts[it] }
+    return fillGaps(raw).map { it.toFloat() }
+}
+
+/** Forward/back-fills leading/trailing NaN runs from the nearest real value, linearly interpolates
+ * interior runs between their two neighbors. */
+private fun fillGaps(values: DoubleArray): DoubleArray {
+    val result = values.copyOf()
+    var i = 0
+    while (i < result.size) {
+        if (!result[i].isNaN()) {
+            i++
+            continue
+        }
+        var j = i
+        while (j < result.size && result[j].isNaN()) j++
+        val left = if (i == 0) null else result[i - 1]
+        val right = if (j == result.size) null else result[j]
+        for (k in i until j) {
+            result[k] = when {
+                left == null -> right!!
+                right == null -> left
+                else -> left + (right - left) * (k - i + 1).toDouble() / (j - i + 1)
+            }
+        }
+        i = j
     }
+    return result
 }
 
 /** Wipes every pulled `WorkoutBiometrics` row - a hard delete, not a tombstone, since this data

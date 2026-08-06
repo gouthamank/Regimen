@@ -55,8 +55,8 @@ data object AccountRoute
 data object HealthConnectSettingsRoute
 
 @Serializable
-data object HeartRateTrendsRoute
+data object BiometricTrendsRoute
 
 /** [routineId] null = "all routines combined". */
 @Serializable
-data class HeartRateTrendDetailRoute(val routineId: String? = null)
+data class BiometricTrendDetailRoute(val routineId: String? = null)

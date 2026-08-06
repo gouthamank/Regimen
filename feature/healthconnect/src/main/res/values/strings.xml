@@ -20,7 +20,7 @@
 
     <string name="health_connect_delete_data_button">Delete Health Connect data</string>
     <string name="health_connect_delete_data_dialog_title">Delete Health Connect data?</string>
-    <string name="health_connect_delete_data_dialog_text">This removes the heart rate and calorie data Regimen has already pulled from your workouts. If you turn Health Connect back on later, only data still within the check window comes back automatically.</string>
+    <string name="health_connect_delete_data_dialog_text">This removes the heart rate and calorie data Regimen has attached to your workouts. Your data in Health Connect itself isn\'t touched.\n\nIf you turn this back on later, only workouts from the last 30 days get their data pulled back automatically. Older workouts won\'t get it back.</string>
     <string name="health_connect_delete_data_confirm_button">Delete</string>
     <string name="health_connect_delete_data_cancel_button">Cancel</string>
 

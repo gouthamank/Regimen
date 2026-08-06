@@ -5,6 +5,7 @@ import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.Routine
 import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.SetEntry
+import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
@@ -12,6 +13,7 @@ import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveHealthConnectPrefsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
@@ -20,9 +22,11 @@ import dev.gouthaman.regimen.domain.usecase.ObserveRoutinesUseCase
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.testing.FakeAuthRepository
 import dev.gouthaman.regimen.testing.FakeClock
+import dev.gouthaman.regimen.testing.FakeHealthConnectPrefsRepository
 import dev.gouthaman.regimen.testing.FakeMeasurementRepository
 import dev.gouthaman.regimen.testing.FakePreferencesRepository
 import dev.gouthaman.regimen.testing.FakeRoutineRepository
+import dev.gouthaman.regimen.testing.FakeWorkoutBiometricsRepository
 import dev.gouthaman.regimen.testing.FakeWorkoutRepository
 import dev.gouthaman.regimen.testing.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
@@ -42,10 +46,12 @@ class HomeViewModelTest {
     private val preferencesRepo = FakePreferencesRepository()
     private val measurementRepo = FakeMeasurementRepository()
     private val authRepo = FakeAuthRepository()
+    private val biometricsRepo = FakeWorkoutBiometricsRepository()
+    private val healthConnectPrefsRepo = FakeHealthConnectPrefsRepository()
     private val clock = FakeClock(1_000L)
 
     private fun newViewModel() = HomeViewModel(
-        getHomeSummary = GetHomeSummaryUseCase(workoutRepo),
+        getHomeSummary = GetHomeSummaryUseCase(workoutRepo, biometricsRepo),
         observeRoutines = ObserveRoutinesUseCase(routineRepo),
         observeHistory = ObserveHistoryUseCase(workoutRepo),
         observePreferences = ObservePreferencesUseCase(preferencesRepo),
@@ -54,6 +60,7 @@ class HomeViewModelTest {
         observeMeasurements = ObserveMeasurementsUseCase(measurementRepo),
         observeActiveWorkoutId = ObserveActiveWorkoutIdUseCase(workoutRepo),
         observeAccountStatus = ObserveAccountStatusUseCase(authRepo),
+        observeHealthConnectPrefs = ObserveHealthConnectPrefsUseCase(healthConnectPrefsRepo),
         startWorkoutUseCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock),
         getInProgressWorkoutId = GetInProgressWorkoutIdUseCase(workoutRepo),
     )
@@ -188,6 +195,64 @@ class HomeViewModelTest {
             var state = awaitItem()
             while (!state.loaded) state = awaitItem()
             assertEquals(null, state.firstName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `calories are hidden while Health Connect is disabled, even with pulled data`() = runTest {
+        val workoutId = completedWorkoutFor(routineId = "1", startTime = System.currentTimeMillis())
+        biometricsRepo.upsert(
+            WorkoutBiometrics(
+                id = "",
+                workoutId = workoutId,
+                activeCaloriesKcal = 300.0,
+                fetchedAt = 0
+            ),
+        )
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.loaded) state = awaitItem()
+            assertFalse(state.healthConnectEnabled)
+            assertEquals(0, state.caloriesThisWeek)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `calories surface once Health Connect is enabled`() = runTest {
+        val workoutId = completedWorkoutFor(routineId = "1", startTime = System.currentTimeMillis())
+        biometricsRepo.upsert(
+            WorkoutBiometrics(
+                id = "",
+                workoutId = workoutId,
+                activeCaloriesKcal = 300.0,
+                fetchedAt = 0
+            ),
+        )
+        healthConnectPrefsRepo.setHealthConnectEnabled(true)
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.healthConnectEnabled) state = awaitItem()
+            assertEquals(300, state.caloriesThisWeek)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `calories is null when enabled but no workout has pulled data yet`() = runTest {
+        completedWorkoutFor(routineId = "1", startTime = System.currentTimeMillis())
+        healthConnectPrefsRepo.setHealthConnectEnabled(true)
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (!state.healthConnectEnabled) state = awaitItem()
+            assertEquals(null, state.caloriesThisWeek)
             cancelAndIgnoreRemainingEvents()
         }
     }

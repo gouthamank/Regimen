@@ -7,6 +7,9 @@
     <string name="home_stat_workouts_label">Workouts</string>
     <string name="home_stat_volume_label">Volume</string>
     <string name="home_stat_time_label">Time</string>
+    <string name="home_stat_calories_label">Calories</string>
+    <string name="home_stat_calories_value_label">%1$d kcal</string>
+    <string name="home_stat_calories_no_data_value">–</string>
     <string name="home_this_week_header">This week</string>
     <string name="home_this_month_header">This month</string>
     <string name="home_frequency_header">Workout frequency</string>

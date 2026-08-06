@@ -55,11 +55,11 @@ const val measurementsFromProgressTransitionKey = "measurements-from-progress"
  * transform, so that path keeps the default transition. */
 fun sessionRowTransitionKey(workoutId: String) = "session-row-$workoutId"
 
-/** Links Progress's "Heart Rate Trends" link row to the Heart Rate Trends screen's root
+/** Links Progress's "Biometric Trends" link row to the Biometric Trends screen's root
  * container - Progress is its only entry point, so this is applied unconditionally. */
-const val heartRateTrendsFromProgressTransitionKey = "heart-rate-trends-from-progress"
+const val biometricTrendsFromProgressTransitionKey = "biometric-trends-from-progress"
 
-/** Links a Heart Rate Trends row (a routine, or the synthetic "combined" row) to the detail
+/** Links a Biometric Trends row (a routine, or the synthetic "combined" row) to the detail
  * screen's root container for that same trend. */
-fun heartRateTrendRowTransitionKey(routineId: String?) =
-    "heart-rate-trend-row-${routineId ?: "combined"}"
+fun biometricTrendRowTransitionKey(routineId: String?) =
+    "biometric-trend-row-${routineId ?: "combined"}"

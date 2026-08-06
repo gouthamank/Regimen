@@ -13,6 +13,7 @@ import dev.gouthaman.regimen.domain.usecase.GetInProgressWorkoutIdUseCase
 import dev.gouthaman.regimen.domain.usecase.GetWorkoutFrequencyUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveActiveWorkoutIdUseCase
+import dev.gouthaman.regimen.domain.usecase.ObserveHealthConnectPrefsUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveHistoryUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementTypesUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveMeasurementsUseCase
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 /** A routine offered as a quick-start chip. */
 data class QuickStartRoutine(
@@ -55,6 +57,7 @@ private data class SecondaryFlows(
     val trend: List<Float>,
     val activeWorkoutId: String?,
     val displayName: String?,
+    val healthConnectEnabled: Boolean,
 )
 
 data class HomeUiState(
@@ -72,6 +75,11 @@ data class HomeUiState(
     val workoutsThisMonth: Int = 0,
     val volumeThisMonth: WeightValue = WeightValue("0", UnitLabel.KG),
     val durationMillisThisMonth: Long = 0L,
+    /** Hides the Calories tile entirely when false. */
+    val healthConnectEnabled: Boolean = false,
+    /** Null renders the tile's "no data yet" placeholder - see [dev.gouthaman.regimen.domain.model.HomeSummary]. */
+    val caloriesThisWeek: Int? = null,
+    val caloriesThisMonth: Int? = null,
     /** All routines (recency-ordered) for the "Start a workout" chooser. */
     val routines: List<QuickStartRoutine> = emptyList(),
     /** Workouts per week, oldest first - fixed to the last 4 weeks. */
@@ -97,6 +105,7 @@ class HomeViewModel @Inject constructor(
     observeMeasurements: ObserveMeasurementsUseCase,
     observeActiveWorkoutId: ObserveActiveWorkoutIdUseCase,
     observeAccountStatus: ObserveAccountStatusUseCase,
+    observeHealthConnectPrefs: ObserveHealthConnectPrefsUseCase,
     private val startWorkoutUseCase: StartWorkoutUseCase,
     private val getInProgressWorkoutId: GetInProgressWorkoutIdUseCase,
 ) : ViewModel() {
@@ -147,14 +156,26 @@ class HomeViewModel @Inject constructor(
         observeHistory(),
         observePreferences(),
         combine(
-            getWorkoutFrequency(HistoryRange.FOUR_WEEKS),
-            bodyweightTrend,
-            observeActiveWorkoutId(),
-            observeAccountStatus(),
-        ) { frequency, trend, activeWorkoutId, account ->
-            SecondaryFlows(frequency, trend, activeWorkoutId, account?.displayName)
+            combine(
+                getWorkoutFrequency(HistoryRange.FOUR_WEEKS),
+                bodyweightTrend,
+                observeActiveWorkoutId(),
+                observeAccountStatus(),
+            ) { frequency, trend, activeWorkoutId, account ->
+                Triple(frequency, trend, activeWorkoutId to account?.displayName)
+            },
+            observeHealthConnectPrefs(),
+        ) { (frequency, trend, activeWorkoutIdAndName), healthConnectPrefs ->
+            val (activeWorkoutId, displayName) = activeWorkoutIdAndName
+            SecondaryFlows(
+                frequency,
+                trend,
+                activeWorkoutId,
+                displayName,
+                healthConnectPrefs.healthConnectEnabled
+            )
         },
-    ) { summary, routines, history, prefs, (frequency, weightTrend, activeWorkoutId, displayName) ->
+    ) { summary, routines, history, prefs, (frequency, weightTrend, activeWorkoutId, displayName, healthConnectEnabled) ->
         val system = prefs.weightUnit
 
         // Order quick-start chips by most-recently-used routine, then by manual position.
@@ -192,6 +213,12 @@ class HomeViewModel @Inject constructor(
                 unitLabel = UnitConverter.weightLabel(system),
             ),
             durationMillisThisMonth = summary.durationMillisThisMonth,
+            healthConnectEnabled = healthConnectEnabled,
+            // Zeroed rather than passed through while disabled, since the tile itself is hidden
+            // then and the underlying value is moot - keeps state deterministic regardless of
+            // whatever was pulled before the feature got switched off.
+            caloriesThisWeek = if (healthConnectEnabled) summary.caloriesKcalThisWeek?.roundToInt() else 0,
+            caloriesThisMonth = if (healthConnectEnabled) summary.caloriesKcalThisMonth?.roundToInt() else 0,
             routines = orderedRoutines,
             workoutFrequency = frequency.map { it.count },
             bodyweightTrend = weightTrend,
