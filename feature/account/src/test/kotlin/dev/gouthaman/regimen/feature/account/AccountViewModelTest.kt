@@ -381,7 +381,7 @@ class AccountViewModelTest {
                 FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
             val syncReplaceRepo = FakeSyncReplaceRepository()
             val viewModel = viewModel(repo, syncDeviceRepo, syncReplaceRepo = syncReplaceRepo)
-
+            syncDeviceRepo.secondaryDeviceReasonResult = null
             viewModel.confirmClaimPrimary()
 
             assertTrue(syncReplaceRepo.claimCalled)

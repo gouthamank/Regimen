@@ -61,10 +61,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(
-            MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-            MIGRATION_10_11,
-        ).build()
+        ).addMigrations(*migrationsFrom(6)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -100,9 +97,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(
-            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
-        ).build()
+        ).addMigrations(*migrationsFrom(7)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -130,7 +125,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build()
+        ).addMigrations(*migrationsFrom(8)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -273,7 +268,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_9_10, MIGRATION_10_11).build()
+        ).addMigrations(*migrationsFrom(9)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -311,7 +306,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).addMigrations(MIGRATION_10_11).build()
+        ).addMigrations(*migrationsFrom(10)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -338,7 +333,7 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).build()
+        ).addMigrations(*migrationsFrom(11)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }
@@ -377,7 +372,41 @@ class MigrationTest {
             ApplicationProvider.getApplicationContext(),
             RegimenDatabase::class.java,
             TEST_DB,
-        ).build()
+        ).addMigrations(*migrationsFrom(12)).build()
+        helper.closeWhenFinished(db)
+        db.openHelper.writableDatabase
+    }
+
+    @Test
+    fun migrate12To13_addsWorkoutBiometricsTable() {
+        helper.createDatabase(TEST_DB, 12).apply {
+            execSQL(
+                "INSERT INTO workouts (id, startTime, endTime, note, routineId, workoutStatus, endReason, pausedAt, accumulatedPausedMs, restTimeEndAt, restTotalSec, restWorkoutExerciseId, isDirty, lastModifiedAt) " +
+                        "VALUES ('w1', 1000, 2000, NULL, NULL, 'COMPLETE', NULL, NULL, 0, NULL, NULL, NULL, 1, 1000)"
+            )
+            close()
+        }
+
+        // validateDroppedTables = true also validates the new table's columns/types/nullability/
+        // foreign keys/indices against what WorkoutBiometricsEntity actually declares.
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 13, true, MIGRATION_12_13)
+        migrated.execSQL(
+            "INSERT INTO workout_biometrics (id, workoutId, avgBpm, maxBpm, activeCaloriesKcal, sourcePackageName, fetchedAt, isDirty, lastModifiedAt) " +
+                    "VALUES ('b1', 'w1', 120, 150, 300.5, 'com.fitbit.FitbitMobile', 5000, 1, 5000)"
+        )
+        migrated.query("SELECT avgBpm, activeCaloriesKcal FROM workout_biometrics WHERE id = 'b1'")
+            .use {
+                it.moveToFirst()
+                assertEquals(120, it.getInt(0))
+                assertEquals(300.5, it.getDouble(1), 0.0)
+            }
+
+        migrated.close()
+        val db = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            RegimenDatabase::class.java,
+            TEST_DB,
+        ).addMigrations(*migrationsFrom(13)).build()
         helper.closeWhenFinished(db)
         db.openHelper.writableDatabase
     }

@@ -556,7 +556,7 @@ boundary, so `:core:domain` has zero dependency on Room.
   stored.
 - `supersetGroupId` on `RoutineExercise`/`WorkoutExercise` is reserved for future superset
   grouping; currently always null.
-- Database version 11.
+- Database version 12.
 
 ---
 

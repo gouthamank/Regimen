@@ -12,15 +12,9 @@ import dev.gouthaman.regimen.data.local.dao.ExerciseDao
 import dev.gouthaman.regimen.data.local.dao.MeasurementDao
 import dev.gouthaman.regimen.data.local.dao.RoutineDao
 import dev.gouthaman.regimen.data.local.dao.SyncTombstoneDao
+import dev.gouthaman.regimen.data.local.dao.WorkoutBiometricsDao
 import dev.gouthaman.regimen.data.local.dao.WorkoutDao
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_10_11
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_11_12
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_4_5
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_5_6
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_6_7
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_7_8
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_8_9
-import dev.gouthaman.regimen.data.local.migration.MIGRATION_9_10
+import dev.gouthaman.regimen.data.local.migration.ALL_MIGRATIONS
 import javax.inject.Singleton
 
 @Module
@@ -31,16 +25,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): RegimenDatabase =
         Room.databaseBuilder(context, RegimenDatabase::class.java, RegimenDatabase.NAME)
-            .addMigrations(
-                MIGRATION_4_5,
-                MIGRATION_5_6,
-                MIGRATION_6_7,
-                MIGRATION_7_8,
-                MIGRATION_8_9,
-                MIGRATION_9_10,
-                MIGRATION_10_11,
-                MIGRATION_11_12,
-            )
+            .addMigrations(*ALL_MIGRATIONS.toTypedArray())
             .build()
 
     @Provides
@@ -57,4 +42,8 @@ object DatabaseModule {
 
     @Provides
     fun provideSyncTombstoneDao(db: RegimenDatabase): SyncTombstoneDao = db.syncTombstoneDao()
+
+    @Provides
+    fun provideWorkoutBiometricsDao(db: RegimenDatabase): WorkoutBiometricsDao =
+        db.workoutBiometricsDao()
 }

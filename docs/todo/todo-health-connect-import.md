@@ -1,4 +1,4 @@
-# Health Connect: attach heart-rate/calorie data to sessions (not started)
+# Health Connect: attach heart-rate/calorie data to sessions (in progress)
 
 Regimen's Active Workout logs sets, reps, weight, and cardio, but has no biometric data at all -
 no heart rate, no calories burned. Wearables that already track this (Fitbit, Samsung Galaxy
@@ -147,64 +147,93 @@ but sequenced as a fast-follow, not part of the initial build:
 
 ## Implementation checklist (phase 1 - local pull only, no cloud sync)
 
-Roughly dependency-ordered - each layer below assumes the previous one exists.
+Broken into checkpointed sub-phases - each one builds on its own, ends in something concretely
+verifiable, and is a natural commit/PR boundary. Later sub-phases assume everything in the earlier
+ones exists.
 
-**Module**
+### Phase 1a - local storage foundation (no Health Connect dependency yet)
 
-- [ ] New `:feature:healthconnect` module (`regimen.android.feature` convention plugin), mirroring
-  `:feature:account`'s precedent of a pushed settings sub-page getting its own module rather than
-  living inside `:feature:settings` itself.
+- [x] `WorkoutBiometrics` domain model (`avgBpm?`, `maxBpm?`, `activeCaloriesKcal?`,
+  `sourcePackageName?`, `fetchedAt`) in `:core:domain`.
+- [x] Room: `WorkoutBiometrics` entity + DAO + migration in `:core:data` (bumps database version
+  past 12, to 13).
+- [x] `WorkoutBiometricsRepository` interface (`:core:domain`) + impl (`:core:data`) backed by the
+  new DAO: read/write rows, list `COMPLETE` workouts within a given window missing a row.
+- [x] `FakeWorkoutBiometricsRepository` in the shared test-support module + `:core:data`
+  `androidTest`
+  for the DAO (`WorkoutBiometricsDaoTest`), the repository (`WorkoutBiometricsRepositoryImplTest`),
+  and the migration itself (`MigrationTest.migrate12To13_addsWorkoutBiometricsTable`, which is the
+  one that actually re-validates `MIGRATION_12_13`'s SQL against Room's expected schema - the
+  DAO/repo tests use a fresh in-memory schema and never execute the migration's SQL at all).
+- **Checkpoint**: builds and runs completely unmodified from the user's perspective - the new
+  table exists and is only exercised by tests (an `androidTest` inserting/reading a row). Nothing
+  user-visible yet; this just proves the storage layer in isolation before anything depends on it.
 
-**`:core:domain`**
+### Phase 1b - Health Connect read integration (no scheduling, no UI)
 
-- [ ] `WorkoutBiometrics` domain model (`avgBpm?`, `maxBpm?`, `activeCaloriesKcal?`,
-  `sourcePackageName?`, `fetchedAt`).
-- [ ] `HealthConnectConnectionState` domain model/enum: `ACTIVE` / `NEEDS_PERMISSION` /
-  `NOT_INSTALLED`.
-- [ ] `HealthConnectPrefs` domain model: `autoPullEnabled: Boolean`, `retryFrequency` enum
-  (`ONE_HOUR` / `SIX_HOURS` / `DAILY`, default `SIX_HOURS`), `backfillWindowDays` enum (`ONE` /
-  `THREE` / `SEVEN` / `THIRTY`, default `SEVEN`).
-- [ ] `HealthConnectRepository` interface: connection-state check, permission request trigger,
-  query-and-summarize for a given `[startTime, endTime]`, read/write `HealthConnectPrefs`, read
-  latest pulled summary/status for the widget (detected source, last pull time).
-- [ ] `WorkoutBiometricsRepository` interface (or fold into `WorkoutRepository` - decide at
-  implementation time): read/write `WorkoutBiometrics` rows, list `COMPLETE` workouts within the
-  backfill window missing a row.
-- [ ] Use cases: `GetHealthConnectStatusUseCase`, `SetHealthConnectPrefsUseCase`,
-  `RequestHealthConnectPermissionUseCase`, `PullBiometricsForWorkoutUseCase` (single workout - the
-  unit the backfill sweep and "Pull now" both call), `RunBiometricsBackfillUseCase` (the sweep
-  itself: find candidates in-window, call the single-workout use case for each).
-
-**`:core:data`**
-
-- [ ] Room: `WorkoutBiometrics` entity + DAO + migration (bumps database version past 11).
-- [ ] `HealthConnectRepositoryImpl` wrapping `androidx.health.connect.client.HealthConnectClient` -
+- [ ] Add the `androidx.health.connect:connect-client` dependency to `:core:data`.
+- [ ] Declare `android.permission.health.READ_HEART_RATE` and
+  `android.permission.health.READ_ACTIVE_CALORIES_BURNED` in `:app`'s manifest, plus the
+  permissions-rationale intent filter Health Connect requires to show Regimen as a connected app
+  in its own Settings UI.
+- [ ] `HealthConnectConnectionState` domain model/enum (`ACTIVE` / `NEEDS_PERMISSION` /
+  `NOT_INSTALLED`) in `:core:domain`.
+- [ ] `HealthConnectRepository` interface (`:core:domain`): connection-state check, permission
+  request trigger, query-and-summarize for a given `[startTime, endTime]`.
+- [ ] `HealthConnectRepositoryImpl` (`:core:data`) wrapping `HealthConnectClient` -
   `getSdkStatus()` for install/update state, `PermissionController` for granted-permission check
   and request, record queries (`HeartRateRecord`, `ActiveCaloriesBurnedRecord`) scoped by time
   range, `metadata.dataOrigin.packageName` extraction for detected source.
-- [ ] `WorkoutBiometricsRepositoryImpl` backed by the new DAO.
-- [ ] DataStore: `HealthConnectPrefs` keys alongside the existing unit-system/theme-mode
-  preferences in `data/prefs/`.
+- [ ] `PullBiometricsForWorkoutUseCase` (single workout) - the one place that turns a Health
+  Connect query result into a `WorkoutBiometrics` row via Phase 1a's repository.
+- [ ] `FakeHealthConnectRepository` + unit test for the use case.
+- **Checkpoint**: the real integration risk gets retired here, before any UI or scheduling exists
+  to obscure whether it's actually working. Verify with an `androidTest` (or a temporary debug-only
+  trigger) that calls `PullBiometricsForWorkoutUseCase` directly against the real
+  `HealthConnectClient` on an emulator seeded via Health Connect Toolbox (see "Testing during
+  development" above), and asserts a `WorkoutBiometrics` row comes out the other end.
+
+### Phase 1c - prefs + background backfill job
+
+- [ ] `HealthConnectPrefs` domain model (`autoPullEnabled: Boolean`, `retryFrequency` enum
+  `ONE_HOUR`/`SIX_HOURS`/`DAILY` default `SIX_HOURS`, `backfillWindowDays` enum
+  `ONE`/`THREE`/`SEVEN`/`THIRTY` default `SEVEN`) in `:core:domain`, + DataStore keys in
+  `:core:data`'s `data/prefs/` alongside the existing unit-system/theme-mode preferences.
+- [ ] `RunBiometricsBackfillUseCase`: find `COMPLETE` workouts in the configured backfill window
+  missing a `WorkoutBiometrics` row, call `PullBiometricsForWorkoutUseCase` for each.
+  - **Open design note from Phase 1a**:
+    `WorkoutBiometricsRepository.getCompletedWorkoutIdsMissingBiometrics`
+    works cleanly in the real DAO (a single SQL join across `workouts`/`workout_biometrics`), but
+    `FakeWorkoutBiometricsRepository` can't replicate that join - it has no access to
+    `FakeWorkoutRepository`'s separate in-memory workout store, so its fake needed a
+    testing-only `completedWorkoutStartTimes` setup hook duplicating workout-completion
+    knowledge into a repository that isn't supposed to own it. Worth reconsidering here: move
+    the candidate-selection logic into this use case itself instead (call
+    `WorkoutRepository.observeCompletedBetween(...)` for completed ids, then filter out ones
+    where `WorkoutBiometricsRepository.get(id) != null`), and drop
+    `getCompletedWorkoutIdsMissingBiometrics` from the repository interface/DAO entirely.
+- [ ] `HealthConnectScheduleRepository` interface (`:core:domain`) + `HealthConnectSchedulerImpl`
+  (`:core:data`) mirroring `SyncSchedulerImpl` - (re)schedules the periodic `WorkManager` request
+  on prefs change (frequency change, or toggling auto-pull on/off cancels/reschedules).
 - [ ] `HealthConnectBiometricsWorker` (`CoroutineWorker`), mirroring `SyncPushWorker`'s shape -
   runs `RunBiometricsBackfillUseCase`.
-- [ ] `HealthConnectSchedulerImpl` mirroring `SyncSchedulerImpl` - (re)schedules the periodic
-  `WorkManager` request on prefs change (frequency change, or toggling auto-pull on/off cancels/
-  reschedules), exposed via a `HealthConnectScheduleRepository` interface in `:core:domain`.
+- [ ] Unit tests for the backfill candidate-selection logic.
+- **Checkpoint**: still no UI. Verify with WorkManager's test tooling
+  (`TestListenableWorkerBuilder`/`WorkManagerTestInitHelper`) running the worker synchronously in a
+  test and confirming it pulls for every in-window candidate workout seeded via Toolbox.
 
-**Manifest / permissions**
+### Phase 1d - Settings UI
 
-- [ ] Declare `android.permission.health.READ_HEART_RATE` and
-  `android.permission.health.READ_ACTIVE_CALORIES_BURNED` in `:app`'s manifest, plus the
-  permissions-rationale intent filter Health Connect requires for the app to show up as a
-  connected app in its own Settings UI.
-
-**`:feature:healthconnect`**
-
-- [ ] `HealthConnectSettingsViewModel`: exposes status widget state (connection state, detected
-  source, last pull time) + current prefs; handles toggle/frequency/backfill-window changes,
-  "Pull now" (state-dependent: request permission vs. trigger one-shot backfill run), and
-  refresh-on-resume (permission may have been revoked externally, same pattern
-  `AccountViewModel.refreshOnResume` already uses).
+- [ ] New `:feature:healthconnect` module (`regimen.android.feature` convention plugin), mirroring
+  `:feature:account`'s precedent of a pushed settings sub-page getting its own module.
+- [ ] `GetHealthConnectStatusUseCase` / `SetHealthConnectPrefsUseCase` /
+  `RequestHealthConnectPermissionUseCase` in `:core:domain`, wiring together everything from 1b/1c
+  for the ViewModel to call.
+- [ ] `HealthConnectSettingsViewModel`: status widget state (connection state, detected source,
+  last pull time) + current prefs; handles toggle/frequency/backfill-window changes, "Pull now"
+  (state-dependent: request permission vs. trigger one-shot backfill run), and refresh-on-resume
+  (permission may have been revoked externally, same pattern `AccountViewModel.refreshOnResume`
+  already uses).
 - [ ] `HealthConnectSettingsScreen`: shell/shape copied from `feature/account/AccountScreen.kt`
   (`MediumTopAppBar` + back, status block, `HorizontalDivider`-separated sections) - status
   widget, master switch, two `SingleChoiceSegmentedButtonRow` pickers (reusing the same component
@@ -212,31 +241,25 @@ Roughly dependency-ordered - each layer below assumes the previous one exists.
   busy state.
 - [ ] `HealthConnectNavigation.kt`: `NavGraphBuilder.healthConnectGraph()` extension, per module
   convention.
-
-**Wiring**
-
 - [ ] `feature/settings/SettingsScreen.kt`: new `NavRow` entry ("Health Connect") in the
   library/data section, alongside the existing Exercise Library / Account rows.
 - [ ] `:app`'s `RegimenNavHost.kt`: wire the new destination, update the ASCII navigation-map
   comment (flip `[ ]` → `[✓]`).
+- [ ] `:feature:healthconnect` ViewModel JVM unit tests. All new strings in
+  `res/values/strings.xml`.
+- **Checkpoint**: first fully manual walk-through through the real app UI - open Settings → Health
+  Connect, grant permission, tap "Pull now", watch the status widget update.
+
+### Phase 1e - surfacing in Workout Summary / History
+
 - [ ] Workout Summary / History: display the pulled `WorkoutBiometrics` summary (avg/max BPM,
   calories) when present, reusing `:core:designsystem`'s `chart/LineChart.kt`/`Sparkline` for the
   heart-rate series.
-- [ ] All new user-facing strings added to `res/values/strings.xml` (never hardcoded), per
-  `docs/conventions.md`.
-
-**Tests** (per `docs/testing.md`'s fakes-first approach)
-
-- [ ] `FakeHealthConnectRepository` / `FakeWorkoutBiometricsRepository` in the shared test-support
-  module.
-- [ ] `:core:domain` JVM unit tests for each new use case (especially the backfill-window
-  candidate-selection logic and the "Pull now" state-dependent branching).
-- [ ] `:feature:healthconnect` ViewModel JVM unit tests.
-- [ ] `:core:data` `androidTest` for the `WorkoutBiometrics` DAO/migration.
-- [ ] Manual verification pass per the "Testing during development" section above (Health Connect
-  Toolbox-seeded data on an emulator) - real `HealthConnectClient` wiring isn't covered by any
-  automated test tier.
+- [ ] New strings for the above.
+- **Checkpoint**: the full feature loop end-to-end - finish a real (or Toolbox-seeded) workout, run
+  a pull, see biometrics show up on Workout Summary/History. This is "done" for phase 1.
 
 ## Status
 
-- [ ] Not started.
+- [x] Phase 1a done (local storage foundation).
+- [ ] Phase 1b-1e not started.

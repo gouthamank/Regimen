@@ -160,3 +160,39 @@ val MIGRATION_10_11 = Migration(10, 11) { db ->
 val MIGRATION_11_12 = Migration(11, 12) { db ->
     db.execSQL("ALTER TABLE `workout_exercises` ADD COLUMN `notes` TEXT")
 }
+
+/**
+ * v12 -> v13: adds `workout_biometrics`, biometric data associated with each workout
+ * Pulled in from Health Connect, not populated by the user or the app
+ */
+val MIGRATION_12_13 = Migration(12, 13) { db ->
+    val now = System.currentTimeMillis()
+    db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS `workout_biometrics` (
+            `id` TEXT PRIMARY KEY NOT NULL,
+            `workoutId` TEXT NOT NULL,
+            `avgBpm` INTEGER,
+            `maxBpm` INTEGER,
+            `activeCaloriesKcal` REAL,
+            `sourcePackageName` TEXT,
+            `fetchedAt` INTEGER NOT NULL,
+            `isDirty` INTEGER NOT NULL DEFAULT 1,
+            `lastModifiedAt` INTEGER NOT NULL DEFAULT $now,
+            FOREIGN KEY(`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+        ) 
+        """.trimIndent()
+    )
+    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_biometrics_workoutId` ON `workout_biometrics` (`workoutId`)")
+}
+
+/** Every migration, oldest first - the one place a newly added migration needs to be registered. */
+val ALL_MIGRATIONS: List<Migration> = listOf(
+    MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+)
+
+/** Every migration needed to reach the current version starting from [version] - lets a test
+ * validate a fully-migrated file without hardcoding which later migrations to add on top. */
+fun migrationsFrom(version: Int): Array<Migration> =
+    ALL_MIGRATIONS.filter { it.startVersion >= version }.toTypedArray()

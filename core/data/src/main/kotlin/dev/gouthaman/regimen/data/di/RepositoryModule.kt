@@ -8,11 +8,13 @@ import dev.gouthaman.regimen.data.prefs.PreferencesRepositoryImpl
 import dev.gouthaman.regimen.data.repository.ExerciseRepositoryImpl
 import dev.gouthaman.regimen.data.repository.MeasurementRepositoryImpl
 import dev.gouthaman.regimen.data.repository.RoutineRepositoryImpl
+import dev.gouthaman.regimen.data.repository.WorkoutBiometricsRepositoryImpl
 import dev.gouthaman.regimen.data.repository.WorkoutRepositoryImpl
 import dev.gouthaman.regimen.domain.repository.ExerciseRepository
 import dev.gouthaman.regimen.domain.repository.MeasurementRepository
 import dev.gouthaman.regimen.domain.repository.PreferencesRepository
 import dev.gouthaman.regimen.domain.repository.RoutineRepository
+import dev.gouthaman.regimen.domain.repository.WorkoutBiometricsRepository
 import dev.gouthaman.regimen.domain.repository.WorkoutRepository
 import javax.inject.Singleton
 
@@ -39,4 +41,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPreferencesRepository(impl: PreferencesRepositoryImpl): PreferencesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWorkoutBiometricsRepository(impl: WorkoutBiometricsRepositoryImpl): WorkoutBiometricsRepository
 }
