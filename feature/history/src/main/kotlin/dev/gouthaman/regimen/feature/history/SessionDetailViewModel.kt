@@ -37,7 +37,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -148,6 +150,17 @@ class SessionDetailViewModel @Inject constructor(
         observeWorkoutBiometrics(workoutId),
     ) { workout, routines, prefs, healthConnectPrefs, biometrics ->
         CoreState(workout, routines, prefs, healthConnectPrefs.healthConnectEnabled, biometrics)
+    }
+
+    init {
+        // The on-demand chart is cached in-memory, separate from the persisted row (see
+        // showHeartRateChart below) - it doesn't otherwise notice the row being wiped by
+        // "Delete Health Connect data", so it'd keep showing stale points after re-enabling.
+        viewModelScope.launch {
+            coreState.map { it.biometrics }.distinctUntilChanged().collect { biometrics ->
+                if (biometrics == null) heartRateChartPoints.value = null
+            }
+        }
     }
 
     val uiState: StateFlow<SessionDetailUiState> = combine(

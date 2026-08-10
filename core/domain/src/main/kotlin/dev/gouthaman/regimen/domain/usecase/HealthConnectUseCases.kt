@@ -27,9 +27,8 @@ private const val BACKFILL_WINDOW_DAYS = 30L
 
 /**
  * Queries Health Connect for [workoutId]'s `[startTime, endTime]` and persists whatever's found
- * as a [WorkoutBiometrics] row. Returns whether anything was actually found - lets a retry/backfill
- * job tell "pulled" apart from "still nothing there yet, try again later". No-op (returns false)
- * for a workout that's missing, or hasn't finished yet.
+ * as a [WorkoutBiometrics] row, overwriting any existing one but preserving its
+ * [WorkoutBiometrics.heartRateSeries]. Returns whether anything was found.
  */
 class PullBiometricsForWorkoutUseCase @Inject constructor(
     private val healthConnectRepo: HealthConnectRepository,
@@ -41,16 +40,18 @@ class PullBiometricsForWorkoutUseCase @Inject constructor(
         val workout = workoutRepo.getWorkout(workoutId)?.workout ?: return false
         val endTime = workout.endTime ?: return false
         val sample = healthConnectRepo.queryBiometrics(workout.startTime, endTime) ?: return false
+        val existing = workoutBiometricsRepo.get(workoutId)
 
         workoutBiometricsRepo.upsert(
             WorkoutBiometrics(
-                id = "",
+                id = existing?.id.orEmpty(),
                 workoutId = workoutId,
                 avgBpm = sample.avgBpm,
                 maxBpm = sample.maxBpm,
                 activeCaloriesKcal = sample.activeCaloriesKcal,
                 sourcePackageName = sample.sourcePackageName,
                 fetchedAt = clock.nowMillis(),
+                heartRateSeries = existing?.heartRateSeries,
             ),
         )
         return true
@@ -58,27 +59,23 @@ class PullBiometricsForWorkoutUseCase @Inject constructor(
 }
 
 /**
- * Finds `COMPLETE` workouts started within the fixed [BACKFILL_WINDOW_DAYS] window that don't
- * have a [WorkoutBiometrics] row yet, and calls [PullBiometricsForWorkoutUseCase] for each.
- * Composed from [WorkoutRepository]/[WorkoutBiometricsRepository] directly rather than a
- * dedicated cross-table query, so the candidate-selection logic here is exercised by ordinary
- * fakes.
+ * Re-pulls every `COMPLETE` workout in the fixed [BACKFILL_WINDOW_DAYS] window, including ones
+ * already pulled - Health Connect sync can fill in more data later, and this is a cheap on-device
+ * read, not a network call.
  */
 class RunBiometricsBackfillUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
-    private val workoutBiometricsRepo: WorkoutBiometricsRepository,
     private val pullBiometricsForWorkoutUseCase: PullBiometricsForWorkoutUseCase,
     private val clock: Clock,
 ) {
     suspend operator fun invoke(): BiometricsBackfillResult {
         val now = clock.nowMillis()
         val sinceStartTime = now - BACKFILL_WINDOW_DAYS * DAY_MILLIS
-        val completedIds = workoutRepo.observeCompletedBetween(sinceStartTime, now).first()
+        val candidateIds = workoutRepo.observeCompletedBetween(sinceStartTime, now).first()
             .map { it.id }
-        val missingIds = completedIds.filter { workoutBiometricsRepo.get(it) == null }
-        val pulledCount = missingIds.count { pullBiometricsForWorkoutUseCase(it) }
+        val pulledCount = candidateIds.count { pullBiometricsForWorkoutUseCase(it) }
         return BiometricsBackfillResult(
-            candidateCount = missingIds.size,
+            candidateCount = candidateIds.size,
             pulledCount = pulledCount,
         )
     }
@@ -177,31 +174,38 @@ class SetHealthConnectPrefsUseCase @Inject constructor(
     }
 }
 
-private const val HEART_RATE_CHART_BUCKET_COUNT = 60
+/** Fixed point resolution for the heart-rate chart, regardless of workout length. */
+private const val HEART_RATE_CHART_BUCKET_WIDTH_MILLIS = 10_000L
 
-/** Chart series for one workout, cache-then-live: checks [WorkoutBiometrics.heartRateSeries]
- * first, else queries Health Connect and caches onto an existing row only (never creates a bare
- * one, to avoid skewing [GetHealthConnectStatusUseCase]'s "last pulled" reads). */
+/** Chart series for one workout - queries Health Connect live first, so a re-check can pick up
+ * newly-synced data, falling back to the cached [WorkoutBiometrics.heartRateSeries] only if
+ * nothing's found live. Caches onto an existing row only, never creates a bare one. */
 class GetHeartRateSeriesForWorkoutUseCase @Inject constructor(
     private val healthConnectRepo: HealthConnectRepository,
     private val workoutRepo: WorkoutRepository,
     private val workoutBiometricsRepo: WorkoutBiometricsRepository,
 ) {
     suspend operator fun invoke(workoutId: String): List<Float> {
-        val existing = workoutBiometricsRepo.get(workoutId)
-        existing?.heartRateSeries?.takeIf { it.isNotEmpty() }?.let { cached ->
-            return cached.map { it.toFloat() }
-        }
-
         val workout = workoutRepo.getWorkout(workoutId)?.workout ?: return emptyList()
         val endTime = workout.endTime ?: return emptyList()
+        val existing = workoutBiometricsRepo.get(workoutId)
+
         val samples = healthConnectRepo.getHeartRateSeries(workout.startTime, endTime)
-        val points =
-            bucketAverages(samples, workout.startTime, endTime, HEART_RATE_CHART_BUCKET_COUNT)
-        if (points.isNotEmpty() && existing != null) {
-            workoutBiometricsRepo.upsert(existing.copy(heartRateSeries = points.map { it.roundToInt() }))
+        val bucketCount =
+            ((endTime - workout.startTime) / HEART_RATE_CHART_BUCKET_WIDTH_MILLIS).toInt()
+                .coerceAtLeast(1)
+        val livePoints = bucketAverages(samples, workout.startTime, endTime, bucketCount)
+        if (livePoints.isNotEmpty()) {
+            if (existing != null) {
+                workoutBiometricsRepo.upsert(
+                    existing.copy(heartRateSeries = livePoints.map { it.roundToInt() }),
+                )
+            }
+            return livePoints
         }
-        return points
+
+        return existing?.heartRateSeries?.takeIf { it.isNotEmpty() }?.map { it.toFloat() }
+            ?: emptyList()
     }
 }
 

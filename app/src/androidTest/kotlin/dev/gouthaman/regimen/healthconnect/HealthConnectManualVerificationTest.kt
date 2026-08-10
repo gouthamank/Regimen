@@ -21,9 +21,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Manual verification against the real `HealthConnectClient` - not part of the automated suite.
- * Requires seeding Health Connect with a HeartRateRecord or ActiveCaloriesBurnedRecord via the
- * Health Connect Toolbox app, and granting Regimen its read permissions, both immediately before
- * running this.
+ * Requires seeding Health Connect with a HeartRateRecord, ActiveCaloriesBurnedRecord, or
+ * TotalCaloriesBurnedRecord via the Health Connect Toolbox app, and granting Regimen its read
+ * permissions, both immediately before running this.
  *
  * Lives in `:app`'s androidTest, not `:core:data`'s, deliberately - a library module's
  * instrumented tests run under a synthetic test-only package that was never granted Health

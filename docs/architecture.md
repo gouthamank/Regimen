@@ -41,7 +41,7 @@ also get a secondary, freeform **Quick workout** entry point.
   `UnitLabel.text()`.
 - **`:core:designsystem`** - themed visual building blocks and adaptive-layout infrastructure, in
   subpackages: `theme/` (`RegimenTheme`, `Color`, `Type`), `dialog/` (`ConfirmDialog`,
-  `SaveAsRoutineDialog`, `ExercisePickerSheet`), `chart/` (`LineChart`/`Sparkline`,
+  `SaveAsRoutineDialog`, `ExercisePickerSheet`), `chart/` (`LineChart`/`Sparkline`/`CurveChart`,
   `HistoryRangeSelector`), `component/` (`Stat`, `EmptyState`, `SectionHeader`,
   `UnitSystemSelector`, `ThemeModeSelector`), `adaptive/`
   (`WindowAdaptive.kt`), `dragdrop/` (`ReorderableList.kt`'s drag-to-reorder state/gesture
@@ -429,9 +429,14 @@ The core loop; users spend the majority of session time here.
   Settings).
 - **`LineChart`/`Sparkline`** - a self-contained Canvas-based chart, used by Progress (frequency,
   and Biometric Trends' list/detail screens), Body Measurements (bodyweight and custom-measurement
-  trends), Home (frequency + bodyweight), and Session Detail's on-demand heart-rate chart. Draws on
-  left-to-right (an animated reveal, not a static one-shot draw) whenever the underlying points
-  list changes - including first appearance, a range-selector switch, or new data landing.
+  trends), and Home (frequency + bodyweight). Draws left-to-right (an animated reveal, not a static
+  one-shot draw) whenever the underlying points list changes - including first appearance, a
+  range-selector switch, or new data landing.
+- **`CurveChart`** - a separate Canvas-based chart plotting the same reveal/gridline/label
+  treatment as `LineChart` but through a smoothed Catmull-Rom curve instead of straight segments,
+  used only by Session Detail's on-demand heart-rate chart - dense per-workout samples read better
+  smoothed, unlike `LineChart`'s sparser discrete series, where smoothing would imply values
+  between points that were never measured.
 - **`HistoryRangeSelector`** - the 4w/3m/1y/All segmented range selector, shared by the Progress
   frequency chart, the Measurement trend chart, and Biometric Trends' detail screen.
 - **`ReorderableList`** - drag-to-reorder gesture/state helpers (`DragDropState`,
@@ -728,15 +733,21 @@ store by the time a pull runs.
 
 ### Storage and the backfill job
 
-`WorkoutBiometrics` (see "Data model" above) is computed and persisted once at pull time, not
+`WorkoutBiometrics` (see "Data model" above) is computed and persisted at pull time, not
 read-through live at display time. A periodic `HealthConnectBiometricsWorker` (`CoroutineWorker`,
-mirroring `:core:sync`'s `SyncPushWorker`) finds `COMPLETE` workouts within a fixed,
-non-configurable
-30-day window that don't yet have a row, queries Health Connect for each one's
-`[startTime, endTime]`, and writes whatever's found - a single query at Finish time would usually
-find nothing, since Health Connect sync lag can run from seconds to hours (or never). A manual
-"Check now" action (Settings) runs the same sweep immediately in the foreground, working regardless
-of whether background-read permission is granted.
+mirroring `:core:sync`'s `SyncPushWorker`) re-queries Health Connect for every `COMPLETE` workout
+within a fixed, non-configurable 30-day window and overwrites whatever row exists for it -
+including workouts already pulled, since Health Connect sync can land heart rate and calories at
+different times (or fill in more of either later) and this is an on-device read with no network
+cost. A manual "Check now" action (Settings) runs the same sweep immediately in the foreground,
+working regardless of whether background-read permission is granted. A re-pull preserves the
+row's cached on-demand heart-rate chart series rather than overwriting it.
+
+Calories are read from `ActiveCaloriesBurnedRecord` when the source writes it, falling back to
+`TotalCaloriesBurnedRecord` (active + BMR, less precise per-workout) only when Active has nothing
+for the window - some sources (e.g. Fitbit) only write Total, and Health Connect treats these as
+unrelated record types with no automatic reconciliation between them. Both require their own read
+permission, requested together with heart rate as one of the three core permissions.
 
 `ReconcileHealthConnectScheduleUseCase` is the single source of truth for whether the periodic job
 should be running - re-evaluated on every prefs change and status refresh so it can never drift from

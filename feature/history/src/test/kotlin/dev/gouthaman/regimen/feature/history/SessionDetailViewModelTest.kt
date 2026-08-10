@@ -288,10 +288,12 @@ class SessionDetailViewModelTest {
     fun `showing the heart-rate chart populates points when samples are found`() = runTest {
         val workoutRepo = FakeWorkoutRepository()
         val workoutId = workoutRepo.createWorkout(startTime = 0, routineId = null)
+        // 30-minute workout - at the chart's fixed 10s-per-point resolution, 180 buckets.
+        val endTime = 30 * 60_000L
         workoutRepo.updateWorkout(
             workoutRepo.getWorkout(workoutId)!!.workout.copy(
                 workoutStatus = WorkoutStatus.COMPLETE,
-                endTime = 100,
+                endTime = endTime,
             ),
         )
         val healthConnectRepo = FakeHealthConnectRepository(
@@ -313,9 +315,8 @@ class SessionDetailViewModelTest {
         viewModel.uiState.test {
             var state = awaitItem()
             while (state.heartRateChartPoints == null) state = awaitItem()
-            // bucketAverages always emits a fixed 60-point series (see HealthConnectUseCases.kt) -
-            // a single sample forward/back-fills across every bucket, not a 1-point series.
-            assertEquals(List(60) { 100f }, state.heartRateChartPoints)
+            // A single sample forward/back-fills across every bucket, not a 1-point series.
+            assertEquals(List(180) { 100f }, state.heartRateChartPoints)
         }
     }
 
@@ -348,4 +349,60 @@ class SessionDetailViewModelTest {
             }
             assertNull(viewModel.uiState.value.heartRateChartPoints)
         }
+
+    @Test
+    fun `deleting Health Connect data clears an already-shown heart-rate chart`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val workoutId = workoutRepo.createWorkout(startTime = 0, routineId = null)
+        // 30-minute workout - at the chart's fixed 10s-per-point resolution, 180 buckets.
+        val endTime = 30 * 60_000L
+        workoutRepo.updateWorkout(
+            workoutRepo.getWorkout(workoutId)!!.workout.copy(
+                workoutStatus = WorkoutStatus.COMPLETE,
+                endTime = endTime,
+            ),
+        )
+        val biometricsRepo = FakeWorkoutBiometricsRepository()
+        biometricsRepo.upsert(
+            WorkoutBiometrics(
+                id = "",
+                workoutId = workoutId,
+                avgBpm = 120,
+                maxBpm = 150,
+                activeCaloriesKcal = 200.0,
+                sourcePackageName = "com.example",
+                fetchedAt = 1_000L,
+            ),
+        )
+        val healthConnectRepo = FakeHealthConnectRepository(
+            heartRateSeriesResult = listOf(HeartRateSample(time = 0, bpm = 100)),
+        )
+        val viewModel = viewModel(
+            workoutId,
+            workoutRepo,
+            healthConnectPrefsRepo = FakeHealthConnectPrefsRepository(
+                HealthConnectPrefs(healthConnectEnabled = true),
+            ),
+            biometricsRepo = biometricsRepo,
+            healthConnectRepo = healthConnectRepo,
+        )
+
+        viewModel.showHeartRateChart()
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.heartRateChartPoints == null) state = awaitItem()
+            assertEquals(List(180) { 100f }, state.heartRateChartPoints)
+
+            biometricsRepo.deleteAll()
+
+            // biometrics turning null and the chart clearing in reaction to it land as separate
+            // emissions, not one atomic update.
+            state = awaitItem()
+            while (state.biometrics != null || state.heartRateChartPoints != null) {
+                state = awaitItem()
+            }
+            assertNull(state.biometrics)
+            assertNull(state.heartRateChartPoints)
+        }
+    }
 }

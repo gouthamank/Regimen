@@ -1,6 +1,7 @@
 package dev.gouthaman.regimen.domain.usecase
 
 import dev.gouthaman.regimen.domain.model.HealthConnectBiometricsSample
+import dev.gouthaman.regimen.domain.model.WorkoutBiometrics
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
 import dev.gouthaman.regimen.testing.FakeClock
 import dev.gouthaman.regimen.testing.FakeHealthConnectRepository
@@ -98,6 +99,45 @@ class PullBiometricsForWorkoutUseCaseTest {
         assertNull(biometricsRepo.get(workoutId))
         assertNull(healthConnectRepo.lastQueriedRange)
     }
+
+    @Test
+    fun `re-pulling an existing row overwrites its stats but keeps the cached heart-rate series`() =
+        runTest {
+            val workoutRepo = FakeWorkoutRepository()
+            val biometricsRepo = FakeWorkoutBiometricsRepository()
+            val healthConnectRepo = FakeHealthConnectRepository(
+                sampleForRange = HealthConnectBiometricsSample(
+                    avgBpm = 130,
+                    maxBpm = 160,
+                    activeCaloriesKcal = 400.0,
+                    sourcePackageName = "com.google.android.apps.healthdata",
+                ),
+            )
+            val clock = FakeClock(9_000L)
+            val workoutId = completedWorkout(workoutRepo)
+            biometricsRepo.upsert(
+                WorkoutBiometrics(
+                    id = "",
+                    workoutId = workoutId,
+                    avgBpm = 100,
+                    fetchedAt = 1_000L,
+                    heartRateSeries = listOf(90, 95, 100),
+                ),
+            )
+            val useCase =
+                PullBiometricsForWorkoutUseCase(
+                    healthConnectRepo,
+                    workoutRepo,
+                    biometricsRepo,
+                    clock
+                )
+
+            useCase(workoutId)
+
+            val saved = biometricsRepo.get(workoutId)
+            assertEquals(130, saved?.avgBpm)
+            assertEquals(listOf(90, 95, 100), saved?.heartRateSeries)
+        }
 
     @Test
     fun `a missing workout is a no-op`() = runTest {

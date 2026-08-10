@@ -53,7 +53,7 @@ class HealthConnectSettingsViewModelTest {
             getStatusUseCase = GetHealthConnectStatusUseCase(healthConnectRepo, biometricsRepo),
             setPrefsUseCase = SetHealthConnectPrefsUseCase(prefsRepo, reconcileSchedule),
             runBackfillUseCase = RunBiometricsBackfillUseCase(
-                workoutRepo, biometricsRepo, pullUseCase, FakeClock(),
+                workoutRepo, pullUseCase, FakeClock(),
             ),
             reconcileSchedule = reconcileSchedule,
             deleteDataUseCase = DeleteHealthConnectDataUseCase(biometricsRepo),

@@ -16,7 +16,8 @@ deliberately left untested.
   needed) doesn't pay for its integration risk. Revisit if CI is ever introduced.
 - **Screenshot testing (Paparazzi) is not used.** No released version confirms compatibility with
   this repo's AGP 9.2.1. The adaptive/posture variants (`RegimenPosture.Compact/BookOrExpanded/
-  Tabletop`) and `LineChart`/`Sparkline` Canvas rendering are hand-verified on the AVD instead.
+  Tabletop`) and `LineChart`/`Sparkline`/`CurveChart` Canvas rendering are hand-verified on the AVD
+  instead.
 - **Coverage-percentage targets are not a goal.** Tests are picked for specific logic worth
   protecting (branching use cases, ViewModels with reconciliation/derived state, DAO joins, shared
   UI components), not to hit a number.
@@ -159,7 +160,8 @@ Drag-gesture tests need moves comfortably past the platform's touch-slop thresho
 `detectDragGestures` never recognizes them as a drag at all - a move needs to be near-instantly
 distinguishable from a tap.
 
-Not covered: adaptive posture variants, `LineChart`/`Sparkline` (Paparazzi deferred, see Approach).
+Not covered: adaptive posture variants, `LineChart`/`Sparkline`/`CurveChart` (Paparazzi deferred,
+see Approach).
 
 ## `:app` - `androidTest` (Hilt-driven Compose UI)
 

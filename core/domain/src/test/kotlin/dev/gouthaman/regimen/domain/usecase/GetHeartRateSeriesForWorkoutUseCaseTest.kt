@@ -35,24 +35,25 @@ class GetHeartRateSeriesForWorkoutUseCaseTest {
         val healthConnectRepo = FakeHealthConnectRepository(
             heartRateSeriesResult = listOf(
                 HeartRateSample(time = 0, bpm = 100),
-                HeartRateSample(time = 50, bpm = 120),
+                HeartRateSample(time = 20_000, bpm = 120),
             ),
         )
-        val workoutId = completedWorkout(workoutRepo, startTime = 0, endTime = 100)
+        // 30s workout at the chart's fixed 10s-per-bucket resolution: 3 buckets.
+        val workoutId = completedWorkout(workoutRepo, startTime = 0, endTime = 30_000)
         val useCase = GetHeartRateSeriesForWorkoutUseCase(
             healthConnectRepo, workoutRepo, FakeWorkoutBiometricsRepository(),
         )
 
         val points = useCase(workoutId)
 
-        assertEquals(listOf(100f, 120f), points)
-        assertEquals(0L to 100L, healthConnectRepo.lastQueriedRange)
+        assertEquals(listOf(100f, 110f, 120f), points)
+        assertEquals(0L to 30_000L, healthConnectRepo.lastQueriedRange)
     }
 
     @Test
-    fun `a cached series is returned without querying Health Connect`() = runTest {
+    fun `falls back to the cached series when Health Connect has nothing live`() = runTest {
         val workoutRepo = FakeWorkoutRepository()
-        val healthConnectRepo = FakeHealthConnectRepository()
+        val healthConnectRepo = FakeHealthConnectRepository(heartRateSeriesResult = emptyList())
         val biometricsRepo = FakeWorkoutBiometricsRepository()
         val workoutId = completedWorkout(workoutRepo)
         biometricsRepo.upsert(
@@ -69,7 +70,32 @@ class GetHeartRateSeriesForWorkoutUseCaseTest {
         val points = useCase(workoutId)
 
         assertEquals(listOf(90f, 95f), points)
-        assertNull(healthConnectRepo.lastQueriedRange)
+        assertEquals(0L to 100L, healthConnectRepo.lastQueriedRange)
+    }
+
+    @Test
+    fun `a live result takes priority over an existing cached series`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val healthConnectRepo = FakeHealthConnectRepository(
+            heartRateSeriesResult = listOf(HeartRateSample(time = 0, bpm = 130)),
+        )
+        val biometricsRepo = FakeWorkoutBiometricsRepository()
+        val workoutId = completedWorkout(workoutRepo)
+        biometricsRepo.upsert(
+            WorkoutBiometrics(
+                id = "",
+                workoutId = workoutId,
+                fetchedAt = 0,
+                heartRateSeries = listOf(90, 95),
+            ),
+        )
+        val useCase =
+            GetHeartRateSeriesForWorkoutUseCase(healthConnectRepo, workoutRepo, biometricsRepo)
+
+        val points = useCase(workoutId)
+
+        assertEquals(listOf(130f), points)
+        assertEquals(listOf(130), biometricsRepo.get(workoutId)?.heartRateSeries)
     }
 
     @Test

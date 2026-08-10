@@ -196,7 +196,7 @@ class GetHomeSummaryUseCaseTest {
 
         val summary = GetHomeSummaryUseCase(repo, biometricsRepo)().first()
 
-        assertEquals(250.0, summary.caloriesKcalThisWeek ?: 0, 0.0)
+        assertEquals(250.0, summary.caloriesKcalThisWeek ?: 0.0, 0.0)
     }
 
     @Test

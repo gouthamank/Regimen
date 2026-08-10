@@ -67,7 +67,7 @@ import dev.gouthaman.regimen.common.sessionRowTransitionKey
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
-import dev.gouthaman.regimen.designsystem.chart.LineChart
+import dev.gouthaman.regimen.designsystem.chart.CurveChart
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
 import dev.gouthaman.regimen.designsystem.dialog.SaveAsRoutineDialog
 import dev.gouthaman.regimen.domain.model.ExerciseType
@@ -493,7 +493,7 @@ private fun HeartRateCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 16.dp),
                     )
-                    LineChart(points = chartPoints, modifier = Modifier.padding(top = 8.dp))
+                    CurveChart(points = chartPoints, modifier = Modifier.padding(top = 8.dp))
                     if (chartDurationMs != null) {
                         ElapsedTimeAxis(chartDurationMs)
                     }
@@ -537,7 +537,7 @@ private fun HeartRateStat(icon: ImageVector, value: String, label: String) {
     }
 }
 
-/** Elapsed-time labels roughly every 15 minutes, evenly spaced to line up with [LineChart]'s own
+/** Elapsed-time labels roughly every 15 minutes, evenly spaced to line up with [CurveChart]'s own
  * even point spacing - exact 15-minute multiples would drift out of alignment for a workout whose
  * duration isn't a clean multiple of 15. */
 @Composable
