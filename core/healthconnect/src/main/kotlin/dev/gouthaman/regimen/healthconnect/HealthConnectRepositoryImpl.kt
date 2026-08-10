@@ -7,6 +7,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,10 +19,11 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Gates ACTIVE - both required for Regimen to be useful at all.
+// Gates ACTIVE - all required for Regimen to be useful at all.
 private val CORE_PERMISSIONS = setOf(
     HealthPermission.getReadPermission(HeartRateRecord::class),
     HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+    HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
 )
 
 @Singleton
@@ -85,23 +87,36 @@ class HealthConnectRepositoryImpl @Inject constructor(
         val heartRateRecords = client.readRecords(
             ReadRecordsRequest(recordType = HeartRateRecord::class, timeRangeFilter = range),
         ).records
-        val calorieRecords = client.readRecords(
+        val activeCalorieRecords = client.readRecords(
             ReadRecordsRequest(
                 recordType = ActiveCaloriesBurnedRecord::class,
                 timeRangeFilter = range,
             ),
         ).records
+        // Total (active + BMR) is a less precise fallback, only checked when the source doesn't
+        // write active-only records at all.
+        val totalCalorieRecords = if (activeCalorieRecords.isEmpty()) {
+            client.readRecords(
+                ReadRecordsRequest(
+                    recordType = TotalCaloriesBurnedRecord::class,
+                    timeRangeFilter = range
+                ),
+            ).records
+        } else {
+            emptyList()
+        }
 
         val allBpm = heartRateRecords.flatMap { it.samples }.map { it.beatsPerMinute }
         val avgBpm = allBpm.takeIf { it.isNotEmpty() }?.average()?.toInt()
         val maxBpm = allBpm.maxOrNull()?.toInt()
-        val activeCaloriesKcal = calorieRecords.takeIf { it.isNotEmpty() }
+        val activeCaloriesKcal = activeCalorieRecords.takeIf { it.isNotEmpty() }
             ?.sumOf { it.energy.inKilocalories }
+            ?: totalCalorieRecords.takeIf { it.isNotEmpty() }?.sumOf { it.energy.inKilocalories }
 
         if (avgBpm == null && activeCaloriesKcal == null) return null
 
         // List<Record> forced - the inferred supertype (IntervalRecord) is internal to the library.
-        val allRecords: List<Record> = heartRateRecords + calorieRecords
+        val allRecords: List<Record> = heartRateRecords + activeCalorieRecords + totalCalorieRecords
         val sourcePackageName = allRecords.maxByOrNull { it.metadata.lastModifiedTime }
             ?.metadata?.dataOrigin?.packageName
 
