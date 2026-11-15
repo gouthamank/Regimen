@@ -123,6 +123,25 @@ class FakeWorkoutRepository : WorkoutRepository {
                 w.exercises.firstOrNull { it.exercise.id == exerciseId }?.sets?.maxByOrNull { it.setNumber }
             }
 
+    override suspend fun getLatestLoggedExercises(
+        exerciseIds: List<String>,
+        routineId: String?,
+    ): Map<String, ExerciseHistorySession> =
+        workouts.value
+            .filter { it.workout.isFinished() && (routineId == null || it.workout.routineId == routineId) }
+            .sortedByDescending { it.workout.startTime }
+            .flatMap { w -> w.exercises.map { w to it } }
+            .filter { (_, we) -> we.exercise.id in exerciseIds && we.sets.any { it.isComplete } }
+            .distinctBy { (_, we) -> we.exercise.id }
+            .associate { (w, we) ->
+                we.exercise.id to ExerciseHistorySession(
+                    workoutExercise = we.workoutExercise,
+                    startTime = w.workout.startTime,
+                    sets = we.sets,
+                    cardio = we.cardio,
+                )
+            }
+
     override suspend fun isExerciseUsed(exerciseId: String): Boolean =
         workouts.value.any { w -> w.exercises.any { it.exercise.id == exerciseId } }
 

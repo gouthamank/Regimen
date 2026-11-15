@@ -11,7 +11,6 @@ import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.SetEntry
 import dev.gouthaman.regimen.domain.model.WorkoutExercise
 import dev.gouthaman.regimen.domain.model.WorkoutStatus
-import dev.gouthaman.regimen.domain.model.WorkoutWithDetails
 import dev.gouthaman.regimen.domain.usecase.StartWorkoutUseCase
 import dev.gouthaman.regimen.testing.FakeClock
 import dev.gouthaman.regimen.testing.FakeRoutineRepository
@@ -113,12 +112,10 @@ class StartWorkoutUseCaseTest {
                     ),
                 ),
             )
-            workoutRepo.seed(
-                priorSessionFor(
-                    routineId = "1",
-                    exercise = benchPress,
-                    note = "Add 2.5kg next time"
-                ),
+            workoutRepo.addPriorSession(
+                routineId = "1",
+                exercise = benchPress,
+                note = "Add 2.5kg next time",
             )
             val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
@@ -140,7 +137,7 @@ class StartWorkoutUseCaseTest {
         routineRepo.seed(
             routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
         )
-        workoutRepo.seed(priorSessionFor(routineId = "1", exercise = benchPress, note = "   "))
+        workoutRepo.addPriorSession(routineId = "1", exercise = benchPress, note = "   ")
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
         val id = useCase(routineId = "1")
@@ -156,13 +153,11 @@ class StartWorkoutUseCaseTest {
             routineRepo.seed(
                 routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
             )
-            workoutRepo.seed(
-                priorSessionFor(
-                    routineId = "1",
-                    exercise = benchPress,
-                    note = null,
-                    exerciseNote = "Elbows tucked",
-                ),
+            workoutRepo.addPriorSession(
+                routineId = "1",
+                exercise = benchPress,
+                note = null,
+                exerciseNote = "Elbows tucked",
             )
             val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
@@ -181,13 +176,11 @@ class StartWorkoutUseCaseTest {
         routineRepo.seed(
             routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
         )
-        workoutRepo.seed(
-            priorSessionFor(
-                routineId = "1",
-                exercise = benchPress,
-                note = null,
-                exerciseNote = "   "
-            ),
+        workoutRepo.addPriorSession(
+            routineId = "1",
+            exercise = benchPress,
+            note = null,
+            exerciseNote = "   ",
         )
         val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
 
@@ -220,46 +213,41 @@ class StartWorkoutUseCaseTest {
         assertEquals(1, workoutRepo.getWorkout(id)!!.exercises[0].sets.size)
     }
 
-    private suspend fun priorSessionFor(
-        routineId: String,
+    /** Adds a finished session logging [exercise] - [sets] as (weightKg, reps), all completed,
+     * as a real finished session's sets always are once unlogged ones are pruned. Empty [sets]
+     * models an exercise skipped that session. */
+    private suspend fun FakeWorkoutRepository.addPriorSession(
+        routineId: String?,
         exercise: Exercise,
-        note: String?,
+        note: String? = null,
         exerciseNote: String? = null,
-    ): WorkoutWithDetails {
-        val repo = FakeWorkoutRepository()
-        val workoutId = repo.createWorkout(startTime = 1_000, routineId = routineId)
-        repo.updateWorkout(
-            repo.getWorkout(workoutId)!!.workout.copy(
+        startTime: Long = 1_000,
+        sets: List<Pair<Double?, Int>> = listOf(100.0 to 5, 105.0 to 5),
+    ) {
+        val workoutId = createWorkout(startTime = startTime, routineId = routineId)
+        updateWorkout(
+            getWorkout(workoutId)!!.workout.copy(
                 note = note,
-                endTime = 2_000,
+                endTime = startTime + 1_000,
                 workoutStatus = WorkoutStatus.COMPLETE,
             ),
         )
-        val weId = repo.addExercise(
+        val weId = addExercise(
             WorkoutExercise(workoutId = workoutId, exerciseId = exercise.id, position = 0),
         )
-        if (exerciseNote != null) {
-            val we = repo.getWorkout(workoutId)!!.exercises
-                .first { it.workoutExercise.id == weId }.workoutExercise
-            repo.updateExercise(we.copy(notes = exerciseNote))
+        val we = getWorkout(workoutId)!!.exercises.first { it.workoutExercise.id == weId }
+        updateExercise(we.workoutExercise.copy(notes = exerciseNote, isSkipped = sets.isEmpty()))
+        sets.forEachIndexed { i, (weightKg, reps) ->
+            upsertSet(
+                SetEntry(
+                    workoutExerciseId = weId,
+                    setNumber = i + 1,
+                    weightKg = weightKg,
+                    reps = reps,
+                    isComplete = true,
+                )
+            )
         }
-        repo.upsertSet(
-            SetEntry(
-                workoutExerciseId = weId,
-                setNumber = 1,
-                weightKg = 100.0,
-                reps = 5
-            )
-        )
-        repo.upsertSet(
-            SetEntry(
-                workoutExerciseId = weId,
-                setNumber = 2,
-                weightKg = 105.0,
-                reps = 5
-            )
-        )
-        return repo.getWorkout(workoutId)!!
     }
 
     @Test
@@ -279,5 +267,91 @@ class StartWorkoutUseCaseTest {
         val details = workoutRepo.getWorkout(id)!!
         assertTrue(details.exercises[0].exercise.id == benchPress.id)
         assertTrue(details.exercises[1].exercise.id == squat.id)
+    }
+
+    @Test
+    fun `an exercise skipped last session prefills from the last session that logged it`() =
+        runTest {
+            val workoutRepo = FakeWorkoutRepository()
+            val routineRepo = FakeRoutineRepository()
+            routineRepo.seed(
+                routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
+            )
+            workoutRepo.addPriorSession(
+                routineId = "1",
+                exercise = benchPress,
+                startTime = 1_000,
+                sets = listOf(80.0 to 6, 82.5 to 6),
+                exerciseNote = "Pause at the bottom",
+            )
+            workoutRepo.addPriorSession(
+                routineId = "1",
+                exercise = benchPress,
+                note = "Short on time",
+                startTime = 5_000,
+                sets = emptyList(),
+            )
+            val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
+
+            val id = useCase(routineId = "1")
+
+            val details = workoutRepo.getWorkout(id)!!
+            val sets = details.exercises[0].sets.sortedBy { it.setNumber }
+            assertEquals(80.0, sets[0].weightKg)
+            assertEquals(6, sets[0].reps)
+            assertEquals(82.5, sets[1].weightKg)
+            assertEquals("Pause at the bottom", details.exercises[0].workoutExercise.notes)
+            // The session note still comes from the routine's most recent session.
+            assertEquals("Short on time", details.workout.note)
+        }
+
+    @Test
+    fun `an exercise never logged in this routine falls back to any workout`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val routineRepo = FakeRoutineRepository()
+        routineRepo.seed(
+            routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 2, 8, 90)),
+        )
+        workoutRepo.addPriorSession(
+            routineId = null,
+            exercise = benchPress,
+            sets = listOf(60.0 to 10, 60.0 to 9),
+        )
+        val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
+
+        val id = useCase(routineId = "1")
+
+        val sets = workoutRepo.getWorkout(id)!!.exercises[0].sets.sortedBy { it.setNumber }
+        assertEquals(60.0, sets[0].weightKg)
+        assertEquals(10, sets[0].reps)
+        assertEquals(9, sets[1].reps)
+    }
+
+    @Test
+    fun `this routine's history wins over a more recent session elsewhere`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val routineRepo = FakeRoutineRepository()
+        routineRepo.seed(
+            routineWith(benchPress to RoutineExercise("1", "1", benchPress.id, 0, 1, 8, 90)),
+        )
+        workoutRepo.addPriorSession(
+            routineId = "1",
+            exercise = benchPress,
+            startTime = 1_000,
+            sets = listOf(100.0 to 5),
+        )
+        workoutRepo.addPriorSession(
+            routineId = null,
+            exercise = benchPress,
+            startTime = 5_000,
+            sets = listOf(70.0 to 12),
+        )
+        val useCase = StartWorkoutUseCase(workoutRepo, routineRepo, clock)
+
+        val id = useCase(routineId = "1")
+
+        val set = workoutRepo.getWorkout(id)!!.exercises[0].sets.single()
+        assertEquals(100.0, set.weightKg)
+        assertEquals(5, set.reps)
     }
 }

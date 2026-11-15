@@ -28,6 +28,13 @@ interface WorkoutRepository {
 
     suspend fun getMostRecentSetForExercise(exerciseId: String): SetEntry?
 
+    /** Each exercise's most recent finished session with a completed set, keyed by exercise id -
+     * limited to [routineId]'s sessions, or any workout when null. */
+    suspend fun getLatestLoggedExercises(
+        exerciseIds: List<String>,
+        routineId: String?,
+    ): Map<String, ExerciseHistorySession>
+
     suspend fun isExerciseUsed(exerciseId: String): Boolean
 
     suspend fun createWorkout(startTime: Long, routineId: String?): String

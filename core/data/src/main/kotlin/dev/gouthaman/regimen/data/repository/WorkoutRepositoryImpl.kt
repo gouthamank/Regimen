@@ -70,6 +70,17 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun getMostRecentSetForExercise(exerciseId: String): SetEntry? =
         dao.getMostRecentSetForExercise(exerciseId)?.toDomain()
 
+    override suspend fun getLatestLoggedExercises(
+        exerciseIds: List<String>,
+        routineId: String?,
+    ): Map<String, ExerciseHistorySession> =
+        if (exerciseIds.isEmpty()) {
+            emptyMap()
+        } else {
+            dao.getLatestLoggedExercises(exerciseIds, routineId)
+                .associate { it.workoutExercise.exerciseId to it.toDomain() }
+        }
+
     override suspend fun isExerciseUsed(exerciseId: String): Boolean =
         dao.isExerciseUsedInAnyWorkout(exerciseId)
 

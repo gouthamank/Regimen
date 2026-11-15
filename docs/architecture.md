@@ -284,10 +284,14 @@ The core loop; users spend the majority of session time here.
 - **Per-set completion** - a set's checkbox only becomes checkable once its numeric fields are
   actually filled in (for a non-bodyweight exercise, both weight and reps; unchecking is always
   allowed, no validation). Once checked, the set's fields lock - uncheck to edit them again.
-- **Prefill** - each exercise's sets, the session note, and each exercise's own note are prefilled
-  from the most recent completed session of the same routine (a note is a common place to jot
-  which exercises to advance next time, at either the session or per-exercise level). For a
-  freeform workout, or a newly added exercise with no history, fields start blank.
+- **Prefill** - each exercise's sets and its own note are prefilled from the most recent finished
+  session that actually logged it (at least one completed set): this routine's sessions first,
+  since rep schemes differ between routines, else any workout. An exercise skipped last time
+  therefore carries its older numbers rather than starting blank. The session note comes from the
+  routine's most recent completed session (a note is a common place to jot which exercises to
+  advance next time, at either the session or per-exercise level). For a freeform workout, or an
+  exercise with no logged history anywhere, fields start blank (reps fall back to the routine's
+  target reps).
 - **Skip / Done** - a strength exercise can be marked skipped (bypasses all completion checks) or
   done (only once every set is checked complete), each via its own header icon toggle; the two are
   mutually exclusive - marking one hides the other's icon until it's undone. Marking done also

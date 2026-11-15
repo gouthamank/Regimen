@@ -120,6 +120,27 @@ interface WorkoutDao {
     )
     suspend fun getMostRecentSetForExercise(exerciseId: String): SetEntryEntity?
 
+    /** Per exercise in [exerciseIds], its most recent finished session with at least one
+     * completed set - limited to [routineId]'s sessions, or any workout when null. An exercise
+     * with no such session is simply absent. Relies on SQLite's documented bare-column behavior
+     * with a single MAX() aggregate (the other columns come from the max row), since window
+     * functions need API 30+. */
+    @Transaction
+    @Query(
+        "SELECT we.*, MAX(w.startTime) AS startTime FROM workout_exercises we " +
+                "JOIN workouts w ON we.workoutId = w.id " +
+                "WHERE we.exerciseId IN (:exerciseIds) " +
+                "AND w.workoutStatus IN ('COMPLETE', 'EDITING') " +
+                "AND (:routineId IS NULL OR w.routineId = :routineId) " +
+                "AND EXISTS (SELECT 1 FROM set_entries se " +
+                "WHERE se.workoutExerciseId = we.id AND se.isComplete = 1) " +
+                "GROUP BY we.exerciseId"
+    )
+    suspend fun getLatestLoggedExercises(
+        exerciseIds: List<String>,
+        routineId: String?,
+    ): List<ExerciseHistorySessionEntity>
+
     /** Every finished session that logged this exercise, most recent first - source for Exercise Detail's History section. */
     @Transaction
     @Query(

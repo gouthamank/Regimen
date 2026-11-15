@@ -29,8 +29,8 @@ android {
         applicationId = "dev.gouthaman.regimen"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 14
-        versionName = "0.2.1"
+        versionCode = 15
+        versionName = "0.2.2"
 
         testInstrumentationRunner = "dev.gouthaman.regimen.HiltTestRunner"
     }

@@ -424,6 +424,96 @@ class WorkoutDaoTest {
     }
 
     @Test
+    fun getLatestLoggedExercises_skipsSessionsWhereTheExerciseHasNoCompletedSet() = runTest {
+        val exerciseId = insertExercise()
+        val older = insertWorkout(startTime = 1_000, endTime = 1_500)
+        val olderWeId = insertWorkoutExercise(older, exerciseId)
+        insertSet(olderWeId, 1, weightKg = 80.0, reps = 6)
+        insertSet(olderWeId, 2, weightKg = 82.5, reps = 6)
+        // Skipped (no sets) in the most recent session, and only an unchecked set in the one before.
+        insertWorkoutExercise(insertWorkout(startTime = 9_000, endTime = 9_500), exerciseId)
+        val unchecked =
+            insertWorkoutExercise(insertWorkout(startTime = 5_000, endTime = 5_500), exerciseId)
+        insertSet(unchecked, 1, weightKg = 999.0, isComplete = false)
+
+        val result =
+            workoutDao.getLatestLoggedExercises(listOf(exerciseId), routineId = null).single()
+
+        assertEquals(olderWeId, result.workoutExercise.id)
+        assertEquals(1_000L, result.startTime)
+        assertEquals(listOf(80.0, 82.5), result.sets.sortedBy { it.setNumber }.map { it.weightKg })
+    }
+
+    @Test
+    fun getLatestLoggedExercises_picksTheLatestSessionPerExercise() = runTest {
+        val bench = insertExercise("Bench Press")
+        val squat = insertExercise("Squat")
+        val first = insertWorkout(startTime = 1_000, endTime = 1_500)
+        insertSet(insertWorkoutExercise(first, bench), 1, weightKg = 80.0)
+        insertSet(insertWorkoutExercise(first, squat, position = 1), 1, weightKg = 120.0)
+        val second = insertWorkout(startTime = 5_000, endTime = 5_500)
+        val latestBench = insertWorkoutExercise(second, bench)
+        insertSet(latestBench, 1, weightKg = 85.0)
+
+        val result = workoutDao.getLatestLoggedExercises(listOf(bench, squat), routineId = null)
+            .associateBy { it.workoutExercise.exerciseId }
+
+        assertEquals(latestBench, result.getValue(bench).workoutExercise.id)
+        assertEquals(120.0, result.getValue(squat).sets.single().weightKg)
+    }
+
+    @Test
+    fun getLatestLoggedExercises_scopesToTheRoutineWhenGiven() = runTest {
+        val exerciseId = insertExercise()
+        val routineId = UUID.randomUUID().toString()
+        routineDao.insertRoutine(RoutineEntity(id = routineId, name = "Push Day", position = 0))
+        val inRoutine = insertWorkoutExercise(
+            insertWorkout(startTime = 1_000, endTime = 1_500, routineId = routineId),
+            exerciseId,
+        )
+        insertSet(inRoutine, 1, weightKg = 100.0)
+        val elsewhere =
+            insertWorkoutExercise(insertWorkout(startTime = 5_000, endTime = 5_500), exerciseId)
+        insertSet(elsewhere, 1, weightKg = 70.0)
+
+        assertEquals(
+            inRoutine,
+            workoutDao.getLatestLoggedExercises(listOf(exerciseId), routineId)
+                .single().workoutExercise.id,
+        )
+        assertEquals(
+            elsewhere,
+            workoutDao.getLatestLoggedExercises(listOf(exerciseId), routineId = null)
+                .single().workoutExercise.id,
+        )
+    }
+
+    @Test
+    fun getLatestLoggedExercises_ignoresUnfinishedWorkoutsAndIncludesEditing() = runTest {
+        val exerciseId = insertExercise()
+        val editing = insertWorkoutExercise(
+            insertWorkout(
+                startTime = 1_000,
+                endTime = 1_500,
+                workoutStatus = WorkoutStatus.EDITING
+            ),
+            exerciseId,
+        )
+        insertSet(editing, 1, weightKg = 90.0)
+        insertSet(
+            insertWorkoutExercise(insertWorkout(startTime = 5_000), exerciseId),
+            1,
+            weightKg = 95.0
+        )
+
+        assertEquals(
+            editing,
+            workoutDao.getLatestLoggedExercises(listOf(exerciseId), routineId = null)
+                .single().workoutExercise.id,
+        )
+    }
+
+    @Test
     fun observeCompletedWithDetails_onlyIncludesFinishedWorkoutsOrderedNewestFirst() = runTest {
         val exerciseId = insertExercise()
         val older = insertWorkout(startTime = 1_000, endTime = 1_500)

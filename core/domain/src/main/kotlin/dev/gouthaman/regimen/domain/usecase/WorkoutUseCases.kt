@@ -22,8 +22,10 @@ import javax.inject.Inject
 
 /**
  * Starts a new workout. If [routineId] is given, copies the routine's exercises in and
- * prefills each set - and the session note - from the most recent completed session of that
- * same routine. Returns the new workout id.
+ * prefills each exercise's sets and note from the last session that actually logged it - this
+ * routine's sessions first, else any workout - so an exercise skipped last time still carries its
+ * older numbers. The session note comes from the routine's most recent completed session.
+ * Returns the new workout id.
  */
 class StartWorkoutUseCase @Inject constructor(
     private val workoutRepo: WorkoutRepository,
@@ -36,16 +38,21 @@ class StartWorkoutUseCase @Inject constructor(
 
         val routine = routineRepo.getRoutine(routineId)
             ?: return workoutRepo.createWorkout(now, routineId)
-        val prior = workoutRepo.getMostRecentForRoutine(routineId)
-        val priorSetsByExercise: Map<String, List<SetEntry>> = prior?.let { p ->
-            p.exercises.associate { it.exercise.id to it.sets.sortedBy { s -> s.setNumber } }
-        } ?: emptyMap()
-        val priorNotesByExercise: Map<String, String?> = prior?.exercises
-            ?.associate { it.exercise.id to it.workoutExercise.notes }.orEmpty()
+        val exerciseIds = routine.exercises.map { it.exercise.id }.distinct()
+        // Same routine first, since rep schemes differ between routines; any workout covers an
+        // exercise this routine has never logged (e.g. newly added to it).
+        val fromRoutine = workoutRepo.getLatestLoggedExercises(exerciseIds, routineId)
+        val missing = exerciseIds.filterNot { it in fromRoutine }
+        val priorByExercise: Map<String, ExerciseHistorySession> = fromRoutine +
+                workoutRepo.getLatestLoggedExercises(missing, routineId = null)
+        val priorSetsByExercise: Map<String, List<SetEntry>> = priorByExercise.mapValues { (_, s) ->
+            s.sets.filter { it.isComplete }.sortedBy { it.setNumber }
+        }
 
         // Carries forward a personal note (e.g. "advance bench next time") from the same
         // routine's last session, same idea as the per-set prefill below.
-        val note = prior?.workout?.note?.takeIf { it.isNotBlank() }
+        val note = workoutRepo.getMostRecentForRoutine(routineId)
+            ?.workout?.note?.takeIf { it.isNotBlank() }
 
         // Built up-front, then written in a single transaction (startWorkout) - the previous
         // version awaited one DB round trip per exercise/set here, which was the dominant source
@@ -65,7 +72,8 @@ class StartWorkoutUseCase @Inject constructor(
                             reps = ps?.reps ?: item.routineExercise.targetReps,
                         )
                     },
-                    notes = priorNotesByExercise[item.exercise.id]?.takeIf { it.isNotBlank() },
+                    notes = priorByExercise[item.exercise.id]?.workoutExercise?.notes
+                        ?.takeIf { it.isNotBlank() },
                 )
             }
         return workoutRepo.startWorkout(now, routineId, note, exercises)

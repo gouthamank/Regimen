@@ -34,8 +34,8 @@ deliberately left untested.
       `:core:domain`'s repository interfaces, each with a `seed(...)` helper.
       `FakeWorkoutRepository`'s
       "finished workout" queries (`observeCompleted`, `getMostRecentForRoutine`,
-      `getMostRecentSetForExercise`, `observePersonalRecords`, `observeBestReps`,
-      `observeBestWeight`,
+      `getMostRecentSetForExercise`, `getLatestLoggedExercises`, `observePersonalRecords`,
+      `observeBestReps`, `observeBestWeight`,
       `observeExerciseHistory`) key off `workoutStatus IN (COMPLETE, EDITING)`, mirroring the real
       Room DAO's `WHERE workoutStatus IN ('COMPLETE', 'EDITING')` - not `endTime IS NOT NULL`,
       since an `EDITING`-status workout still has `endTime` set but a workout is only "finished"
@@ -87,7 +87,8 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
 
 - `WorkoutDaoTest` - the raw-SQL JOIN queries (`observeBestWeight`, `observePersonalRecords`,
   `observeBestReps`, `getMostRecentSetForExercise`, `observeExerciseHistory`,
-  `getMostRecentCompletedForRoutine`) plus the other `@Transaction`/`@Relation` queries
+  `getMostRecentCompletedForRoutine`, `getLatestLoggedExercises`) plus the other `@Transaction`/
+  `@Relation` queries
   (`observeCompletedWithDetails`, `observeWorkout`, `getWorkoutWithDetails`,
   `getInProgressWorkout`) and the sync push job's dirty-row JOIN queries
   (`getDirtySetEntries`/`getDirtyWorkoutExercises`/`getDirtyCardioEntries` - scoping through their
