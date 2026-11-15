@@ -841,18 +841,18 @@ for iterative development.
 
 ### Current pinned versions
 
-Compose BOM `2026.02.01` · AGP `9.2.1` · Kotlin `2.2.10` · KSP `2.2.10-2.0.2` · Hilt `2.60.1` ·
-Room `2.8.4` · Navigation Compose `2.9.8` · Coroutines `1.11.0` · `androidx.window` `1.5.1` ·
-`androidx.compose.material3.adaptive` `1.2.0` ·
+Compose BOM `2026.09.00` · AGP `9.2.1` · Kotlin `2.4.21` · KSP `2.3.14` · Hilt `2.60.1` ·
+Room `2.8.5` · Navigation Compose `2.10.2` · Coroutines `1.11.0` · `androidx.window` `1.5.1` ·
+`androidx.compose.material3.adaptive` `1.3.0` ·
 `androidx.compose.material3:material3-adaptive-navigation-suite` `1.5.0-alpha23` ·
 `androidx.health.connect:connect-client` `1.1.0`.
 
 ### Material 3 Expressive
 
 Stable `material3` (`1.4.0`) does not include the Expressive APIs. The Compose BOM's `material3`
-version is overridden to `1.5.0-alpha23` (the `material3Expressive` version entry in
+version is overridden to `1.5.0-rc01` (the `material3Expressive` version entry in
 `libs.versions.toml`), with `@ExperimentalMaterial3ExpressiveApi` opted into where required. This
-is a deliberate, accepted alpha-API-churn risk.
+is a deliberate, accepted pre-release-API-churn risk.
 
 Adopted:
 

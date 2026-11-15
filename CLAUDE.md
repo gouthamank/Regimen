@@ -42,10 +42,10 @@ project memory; see also `build.gradle.kts` / `gradle.properties`.
 
 ## ⚠️ Material 3 Expressive caveat
 
-Expressive APIs are **not fully stable** as of July 2026. Stable `material3` (`1.4.0`) lacks
-them; they're graduating in `1.5.0-alpha23`. Using Expressive requires pulling the
-`material3:1.5.0-alpha` dependency explicitly and opting into
-`@ExperimentalMaterial3ExpressiveApi` - accept alpha churn. Verify current versions before
+Expressive APIs are **not fully stable** as of November 2026. Stable `material3` (`1.4.0`) lacks
+them; they're graduating in `1.5.0` (currently at `1.5.0-rc01`). Using Expressive requires pulling
+the `material3:1.5.0-rc01` dependency explicitly and opting into
+`@ExperimentalMaterial3ExpressiveApi` - accept pre-release churn. Verify current versions before
 pinning.
 
 ## Conventions
