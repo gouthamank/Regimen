@@ -107,8 +107,8 @@ interface RoutineDao {
 
     /** "Claim primary"'s force-full-upload side - see [dev.gouthaman.regimen.data.local.dao.ExerciseDao.markAllCustomDirty]. */
     @Query("UPDATE routines SET isDirty = 1")
-    suspend fun markAllRoutinesDirty()
+    suspend fun markAllRoutinesDirty(): Int
 
     @Query("UPDATE routine_exercises SET isDirty = 1")
-    suspend fun markAllRoutineExercisesDirty()
+    suspend fun markAllRoutineExercisesDirty(): Int
 }

@@ -16,9 +16,25 @@
   device.</string>
     <string name="account_delete_cloud_data_button">Delete cloud data</string>
     <string name="account_delete_cloud_data_dialog_title">Delete cloud data?</string>
-    <string name="account_delete_cloud_data_dialog_text">This permanently deletes your backup from the cloud and signs you out of Regimen. It does not
-  sign you out of Google or affect any data on this device.</string>
+    <string name="account_delete_cloud_data_dialog_text">This permanently deletes your backup from the cloud and signs you out of Regimen. It does not sign you out of Google or affect any data on this device. You\'ll be asked to confirm your Google account first.</string>
     <string name="account_cancel_button">Cancel</string>
+    <string name="account_counting_workouts">Counting workouts…</string>
+
+    <string name="account_operation_title_pull_cloud_data">Pulling cloud data</string>
+    <string name="account_operation_title_claim_primary">Switching to this device</string>
+    <string name="account_operation_title_delete_cloud_data">Deleting cloud data</string>
+    <string name="account_operation_step_starting">Starting…</string>
+    <string name="account_operation_step_finding_cloud_data">Finding cloud data</string>
+    <string name="account_operation_step_deleting_cloud_data">Removing cloud backup</string>
+    <string name="account_operation_step_downloading">Downloading</string>
+    <string name="account_operation_step_saving">Saving to this device</string>
+    <string name="account_operation_step_uploading">Uploading</string>
+    <string name="account_operation_step_deleting_account">Removing your account</string>
+    <string name="account_operation_count_of_total">%1$s / %2$s</string>
+    <plurals name="account_operation_count_items">
+        <item quantity="one">%1$s item</item>
+        <item quantity="other">%1$s items</item>
+    </plurals>
 
     <string name="account_secondary_device_title">Another device is primary</string>
     <string name="account_secondary_device_description">This device can\'t sync automatically while another device is set up as the primary sync device for this account.</string>

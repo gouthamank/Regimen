@@ -13,5 +13,6 @@ fun AuthErrorReason.text(): String = when (this) {
     AuthErrorReason.NETWORK -> stringResource(R.string.auth_error_network)
     AuthErrorReason.REAUTH_REQUIRED -> stringResource(R.string.auth_error_reauth_required)
     AuthErrorReason.SESSION_REVOKED -> stringResource(R.string.auth_error_session_revoked)
+    AuthErrorReason.WRONG_ACCOUNT -> stringResource(R.string.auth_error_wrong_account)
     AuthErrorReason.UNKNOWN -> stringResource(R.string.auth_error_unknown)
 }

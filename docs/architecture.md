@@ -207,15 +207,26 @@ Per-exercise progress (history and PRs) lives on Exercise Detail, not on a separ
   the account's name/email; a sync status row ("Synced at ...", "Backing up...", "Sync failed," or
   "Not yet synced," per `SyncStatus`) with a "Sync now" button and a "Next sync scheduled at ..."
   line (both hidden on a secondary device, since it can't push); and, only once there's an actual
-  competing primary device or this device's own local state can't be trusted (see "Remote sync"
-  below), a disclaimer plus two full-replace actions, **Pull cloud data** and **Use this device
-  instead** - each behind a count-based confirmation dialog (3-second-delayed confirm button, same
-  mechanism `ActiveWorkoutSheet` uses for ending a workout with incomplete exercises). Two
-  destructive actions round out the screen, each behind their own confirmation dialog: **Sign out**
-  (stops nothing else - local data and any cloud backup are kept) and **Delete cloud data** (wipes
-  every Firestore document under the account and the Firebase Auth user record; does not sign out
-  of Google or touch local data). There is no separate "delete account" concept. Signing in is
+  competing primary device or this device's own local
+  state can't be trusted (see "Remote sync" below), a disclaimer plus two full-replace actions,
+  **Pull cloud data** and **Use this device instead** - each behind a count-based confirmation
+  dialog that opens immediately and fills in its count ("Counting workouts..." until then), with a
+  3-second-delayed confirm button (same mechanism `ActiveWorkoutSheet` uses for ending a workout
+  with incomplete exercises) that also stays disabled until the count arrives. Two destructive
+  actions round out the screen, each behind their own confirmation dialog: **Sign out** (stops
+  nothing else - local data and any cloud backup are kept) and **Delete cloud data** (wipes every
+  Firestore document under the account and the Firebase Auth user record; does not sign out of
+  Google or touch local data). There is no separate "delete account" concept. Signing in is
   optional - every other screen works fully signed-out.
+
+  While Pull, Use this device instead, or Delete runs, a progress dialog that can't be dismissed
+  covers the screen (leaving would cancel it - they run in the ViewModel and take seconds): the
+  operation, the current step ("Finding cloud data", "Removing cloud backup", "Uploading", ...), a
+  counter ("340 / 1,204" once the step knows its total, "1,240 items" while it's still counting
+  up), and a wavy progress bar, determinate once there's a total. A failure of any of the three
+  shows its reason under the sync status row. If one is interrupted anyway (the process is
+  killed), the fix is to run the same action again - see "Remote sync" for what each leaves
+  behind.
 - **Exercise Library** - every exercise (built-in and custom), filterable by type
   (strength/cardio), muscle group, and equipment, with free-text search. Ships with a curated set
   of built-in strength and cardio movements. No favorites. Also serves as the exercise-picker
@@ -636,9 +647,10 @@ never leaves the device).
 Every synced Room entity carries `isDirty: Boolean` and `lastModifiedAt: Long` (see "Data model"
 above); every write sets `isDirty = true`. The push job reads dirty rows oldest-`lastModifiedAt`-
 first (so a backlog drains in order rather than newer edits perpetually cutting the line ahead of
-an old one), writes them via Firestore, and clears each row's flag only once its own write is
-confirmed - not batched-and-cleared-at-the-end, so a failure partway through a run leaves exactly
-the unconfirmed rows dirty for next time, never the whole batch. Deletes work the same way but
+an old one), writes them in Firestore `WriteBatch`es of up to 499 rows (Firestore's 500-write limit
+minus one slot for the lock refresh below), and clears a batch's flags only once that batch's
+commit is confirmed - a batch is atomic, so a failure partway through a run leaves exactly the
+unconfirmed rows dirty for next time. Deletes work the same way but
 through `SyncTombstone` rows (see "Data model" above) instead of an `isDirty` flag, since a
 deleted row no longer exists locally to carry one.
 
@@ -649,12 +661,15 @@ Runs two ways, same underlying code path (`:core:sync`'s `push/SyncPushRunner.kt
 failure - scheduled idempotently on every sign-in, cancelled on sign-out) and manual "Sync now" on
 the Account screen. Each run is capped (1,000 rows per entity type, deletes get their own separate
 1,000 cap) - a run that hits the cap completes successfully but leaves the remainder dirty for the
-next run, which the UI surfaces as "Backing up..." rather than "Synced." An upfront
+next run, which the UI surfaces as "Backing up..." rather than "Synced." (Use this device
+instead's forced push is the exception: it keeps running passes until nothing is left.) An upfront
 `ConnectivityManager` check fails fast instead of hanging when offline (only needed by manual
 "Sync now," since the periodic job's own `NetworkType.CONNECTED` constraint already prevents it
-from starting offline at all), backed by a 5-minute timeout as a backstop against any other kind
-of hang. `SyncStatus` (four states: synced / still backing up / failed / never synced) persists
-across app restarts in its own DataStore, so the Account screen doesn't reset to "Not yet synced"
+from starting offline at all). Every Firestore call has its own 60-second timeout (offline, a
+write's `await()` otherwise waits for a server ack forever), with a 5-minute timeout on the whole
+run as a backstop against any other kind of hang. `SyncStatus` (four states: synced / still
+backing up / failed / never synced) persists across app restarts in its own DataStore, so the
+Account screen doesn't reset to "Not yet synced"
 every time the app restarts.
 
 ### Primary/secondary devices
@@ -675,27 +690,71 @@ problems like an Auto Backup restore bringing back an outdated value):
   push).
 - **`lockedAt`** - a soft lease held for the duration of a push or a primary-device claim (a
   timestamp, not a boolean, so a crashed/killed run doesn't lock the account out forever - treated
-  as stale past a fixed age). Both the push job and "Use this device instead" below check and hold
+  as stale after 10 minutes). Both the push job and "Use this device instead" below check and hold
   it, closing the race between an in-flight push and a concurrent claim from a different device in
-  both directions.
+  both directions; Delete cloud data checks it too. Every batch the holder commits also refreshes
+  it, riding along in the same request, so a long but healthy run never goes stale. A fresh lock
+  makes a push no-op and a claim or delete refuse ("a sync is already in progress on another
+  device") - including the lock a killed claim leaves behind, so re-running one right after a
+  crash can mean waiting out those 10 minutes.
 
 A device that's primary but whose freshness watermark doesn't match the cloud, or that's simply
 not primary at all, shows the same secondary-device UI on the Account screen (a disclaimer,
 reason-specific copy for which of the two cases applies) with two actions:
 
 - **Pull cloud data** - wipes this device's local sync-scoped state and replaces it with whatever
-  is currently in Firestore. Refuses while a workout is in progress (checked twice: once before
-  the network read, once again as the transaction's own authoritative check, since a workout can
-  start in the gap between the two) - that row lives in the same `Workout` table but was never in
-  sync scope, and a wipe would destroy a live, foreground-service-backed session. Also resets the
-  local freshness watermark to match.
-- **Use this device instead** - wipes the account's entire Firestore tree (recursively, including
-  every nested subcollection - Firestore has no cascade delete) and force-pushes everything local
-  (marking every synced row dirty regardless of its prior state, not just whatever already
-  happened to be flagged), then claims primary. Both actions require the same count-based
-  confirmation ("this will replace/overwrite N workouts...") - always shown, never conditional,
-  since a fresh reformatted device with zero local data would otherwise make "Use this device
-  instead" ("this is obviously my device") the natural but catastrophically wrong first move.
+  is currently in Firestore. All-or-nothing: every cloud read (always from the server, never the
+  offline cache) finishes before a single local row changes, and the local replace is one Room
+  transaction. The cloud's `lastPushedAt` is read before the data, so a push landing mid-download
+  leaves this device's watermark older than the cloud's (a safe mismatch) rather than matching data
+  it never downloaded. Refuses while a workout is in progress (checked twice: once before the
+  network
+  read, once again as the transaction's own authoritative check, since a workout can start in the
+  gap between the two) - that row lives in the same `Workout` table but was never in sync scope,
+  and a wipe would destroy a live, foreground-service-backed session. Any other local edit made
+  while a pull is running is overwritten by it. Also resets the local freshness watermark to match.
+- **Use this device instead** - claims primary and takes the lock in one transaction, then wipes
+  the account's entire Firestore tree (every nested subcollection too - Firestore has no cascade
+  delete) and force-pushes everything local (marking every synced row dirty regardless of its prior
+  state, not just whatever already happened to be flagged), running push passes until nothing is
+  left dirty. Both actions require the same count-based confirmation ("this will replace/overwrite
+  N workouts...") - always shown, never conditional, since a fresh reformatted device with zero
+  local data would otherwise make "Use this device instead" ("this is obviously my device") the
+  natural but catastrophically wrong first move. If interrupted after claiming, this device is left
+  primary but with a watermark that no longer matches the cloud, so it shows the stale-local-state
+  UI and the claim can simply be run again; it redoes the whole thing.
+
+The wipe (also used by Delete cloud data) first lists every document - subcollections one parent
+at a time but up to 16 in parallel, not via `collectionGroup` queries, which would need their own
+security rules and don't naturally scope to one user - then deletes them in batches, children
+before their parents at every level. If it's interrupted partway, that leaves a harmless "parent
+with fewer children" state a later listing still finds, where parent-first would orphan children
+nothing could ever find again.
+
+### Delete cloud data
+
+Re-authenticates first (Credential Manager, auto-select off, offering every Google account on the
+device - the signed-in one may have been removed from the device while its session lived on;
+picking a different account than the signed-in one is rejected, and a malformed or expired
+credential is a plain
+error, not a revoked session that signs the user out) - Firebase only deletes an account within a
+few minutes of a sign-in, so asking up front means the last step normally succeeds rather than
+failing after everything else is already gone. Then, in order:
+
+1. Deletes `syncConfig`, in one transaction with the lock check (refusing while a push or claim
+   holds a fresh lock). With no `syncConfig` no device is primary, so this device's periodic push
+   stops for good - even if the rest is interrupted, nothing uploads into a half-deleted tree.
+2. Lists and deletes every synced document (the wipe above), then the user document.
+3. Deletes the Firebase Auth account last - Firestore's security rules need it to still exist for
+   the deletes above it, and it's the only step that needs a recent sign-in.
+
+Running it again after an interruption finishes whatever is left. If the sign-in window has
+passed by step 3, the cloud is already empty and the error says to tap Delete cloud data again,
+which re-authenticates and then gets through steps 1-2 almost instantly.
+
+All three operations (Pull, Use this device instead, Delete) run in the Account ViewModel behind
+the blocking progress dialog, fail fast with a network error when offline, and give every
+Firestore call its own 60-second timeout.
 
 ### Auth failure handling
 

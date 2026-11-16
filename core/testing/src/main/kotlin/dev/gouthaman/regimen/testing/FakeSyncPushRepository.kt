@@ -26,7 +26,7 @@ class FakeSyncPushRepository(
         return result
     }
 
-    override suspend fun forcePush(): SyncStatus {
+    override suspend fun forcePush(onCommitted: suspend (Int) -> Unit): SyncStatus {
         forcePushCalled = true
         return result
     }

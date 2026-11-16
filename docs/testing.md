@@ -133,16 +133,18 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
   object through its `toDto()` extension (`firestore/*Mapping.kt`) - pure data transforms, no
   Firestore SDK involved.
 - `PushDirtyBatchTest` - `push/SyncPushRunner.kt`'s `pushDirtyBatch`, extracted as a top-level
-  `internal` function taking plain fake lambdas specifically so this logic (partial-batch failure
-  leaves only unconfirmed rows dirty, budget decrement, the "full page might mean more work"
+  `internal` function taking plain fake lambdas specifically so this logic (commits in chunks and
+  clears each chunk only after its commit, a failed commit leaves that chunk and everything after
+  it dirty, per-chunk progress reporting, budget decrement, the "full page might mean more work"
   signal, a zero budget skipping the read) is unit-testable without any real Firestore/Room
   dependency at all.
 - Skipped: everything else in `:core:sync` that actually touches the Firestore/Firebase Auth/
   WorkManager SDKs directly (`AuthRepositoryImpl`, `SyncDeviceRepositoryImpl`,
   `SyncReplaceRepositoryImpl`, `DeviceIdentityStore`, `FreshnessWatermarkStore`,
-  `FirestoreSyncPaths`, `FirestoreSyncReader`, `SyncPushRunner.push()`'s own orchestration around
-  `pushDirtyBatch` including its mid-run `ensureStillPrimary()` re-checks, `SyncPushWorker`,
-  `SyncSchedulerImpl`) - business/branching logic gets real unit test coverage with fakes (see
+  `FirestoreSyncPaths`, `FirestoreSyncReader`, `SyncPushRunner.push()`/`forcePush()`'s own
+  orchestration around `pushDirtyBatch` including its mid-run `ensureStillPrimary()` re-checks,
+  `SyncPushWorker`, `SyncSchedulerImpl`) - business/branching logic gets real unit test coverage
+  with fakes (see
   `docs/architecture.md`'s "Remote sync" section), but actual Firestore round-trips are verified
   manually against the real project on a physical device/AVD via a written action script, not
   stood up against a Firebase Local Emulator Suite, mocked SDK calls, or WorkManager's
@@ -194,14 +196,17 @@ countdown/auto-complete/clamping - uses `StandardTestDispatcher` shared between 
 and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope`),
 `WorkoutSummaryViewModel` (volume summation + PR comparison), `SessionDetailViewModel`
 (save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation),
-`AccountViewModel` (sign-in success/failure, sign-out and delete-cloud-data dispatch, using a
-`FakeAuthRepository`; sign-in scheduling and sign-out cancelling the periodic sync job via
-`FakeSyncScheduleRepository`; `syncNow()` dispatching to and storing the result of
-`FakeSyncPushRepository`; the persisted `SyncStatus` being loaded into state on init, also via
-`FakeSyncPushRepository`; Pull/Claim confirmation-count population and dispatch via
-`FakeSyncReplaceRepository`; `secondaryDeviceReason`/`nextScheduledSyncAt` loading on init and via
-`refreshOnResume()`, and Claim primary clearing/rescheduling on success, via
-`FakeSyncDeviceRepository`/`FakeSyncScheduleRepository`).
+`AccountViewModel` (sign-in success/failure, sign-out dispatch, using a `FakeAuthRepository`;
+sign-in scheduling and sign-out cancelling the periodic sync job via `FakeSyncScheduleRepository`;
+`syncNow()` dispatching to and storing the result of `FakeSyncPushRepository`; the persisted
+`SyncStatus` being loaded into state on init, also via `FakeSyncPushRepository`;
+`secondaryDeviceReason`/`nextScheduledSyncAt` loading on init and via `refreshOnResume()`, via
+`FakeSyncDeviceRepository`/`FakeSyncScheduleRepository`; Delete re-authenticating before
+deleting, with wrong-account and dismissed-sheet paths deleting nothing and an account-removal
+`REAUTH_REQUIRED` surfacing; Pull/Claim confirmations opening immediately and filling in their
+counts, a failed cloud count, dismiss/confirm, failures surfacing, and Claim clearing
+secondary-device status and rescheduling the periodic job only on success, via
+`FakeSyncReplaceRepository`).
 
 Skipped entirely: `:feature:settings` (pure preference/account-status
 pass-through - `SettingsViewModel` just exposes two independent `StateFlow`s side by side, no

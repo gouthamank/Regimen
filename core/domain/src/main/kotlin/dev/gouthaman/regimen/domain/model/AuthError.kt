@@ -25,6 +25,11 @@ enum class AuthErrorReason {
      * signed-out the moment this is detected, so the UI falls back to the signed-out state. */
     SESSION_REVOKED,
 
+    /** Re-authentication picked a different Google account from the one signed in to Regimen -
+     * Credential Manager can't be restricted to one specific account, so this can't be prevented
+     * up front, only rejected. */
+    WRONG_ACCOUNT,
+
     /** Anything else - deliberately vague rather than surfacing a raw exception message. */
     UNKNOWN,
 }

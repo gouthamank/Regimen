@@ -82,8 +82,8 @@ interface MeasurementDao {
 
     /** "Claim primary"'s force-full-upload side - see [dev.gouthaman.regimen.data.local.dao.ExerciseDao.markAllCustomDirty]. */
     @Query("UPDATE measurement_types SET isDirty = 1 WHERE isBuiltIn = 0")
-    suspend fun markAllCustomTypesDirty()
+    suspend fun markAllCustomTypesDirty(): Int
 
     @Query("UPDATE body_metrics SET isDirty = 1")
-    suspend fun markAllMetricsDirty()
+    suspend fun markAllMetricsDirty(): Int
 }

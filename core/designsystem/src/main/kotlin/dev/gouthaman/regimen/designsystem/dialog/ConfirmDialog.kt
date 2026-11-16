@@ -21,6 +21,8 @@ import kotlinx.coroutines.delay
  * acknowledgment-only dialog. [destructive]/[positive] color the confirm button (error/tertiary)
  * for discard-data vs. unambiguously-good actions; leave both false for neutral. [confirmEnableDelayMillis]
  * disables confirm for a beat, for confirmations that deserve a pause before committing.
+ * [confirmEnabled] holds confirm disabled on top of that, e.g. while the dialog's own text is still
+ * loading.
  */
 @Composable
 fun ConfirmDialog(
@@ -33,9 +35,10 @@ fun ConfirmDialog(
     destructive: Boolean = false,
     positive: Boolean = false,
     confirmEnableDelayMillis: Long = 0,
+    confirmEnabled: Boolean = true,
 ) {
     val haptics = LocalHapticFeedback.current
-    var confirmEnabled by remember(confirmEnableDelayMillis) {
+    var delayElapsed by remember(confirmEnableDelayMillis) {
         mutableStateOf(
             confirmEnableDelayMillis <= 0
         )
@@ -43,9 +46,14 @@ fun ConfirmDialog(
     LaunchedEffect(confirmEnableDelayMillis) {
         if (confirmEnableDelayMillis > 0) {
             delay(confirmEnableDelayMillis)
-            confirmEnabled = true
-            // Marks the moment the button becomes tappable, so a still-waiting thumb feels it
-            // flip, not just sees it.
+            delayElapsed = true
+        }
+    }
+    val isConfirmEnabled = delayElapsed && confirmEnabled
+    LaunchedEffect(isConfirmEnabled) {
+        // Marks the moment a delayed button becomes tappable - whichever of the delay or
+        // [confirmEnabled] comes last - so a still-waiting thumb feels it flip, not just sees it.
+        if (isConfirmEnabled && confirmEnableDelayMillis > 0) {
             haptics.performHapticFeedback(HapticFeedbackType.Confirm)
         }
     }
@@ -59,7 +67,7 @@ fun ConfirmDialog(
                     if (destructive) haptics.performHapticFeedback(HapticFeedbackType.Reject)
                     onConfirm()
                 },
-                enabled = confirmEnabled,
+                enabled = isConfirmEnabled,
                 colors = when {
                     destructive -> ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     positive -> ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary)

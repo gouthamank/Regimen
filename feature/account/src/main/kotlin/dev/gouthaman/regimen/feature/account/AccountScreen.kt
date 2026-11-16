@@ -18,12 +18,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
@@ -43,6 +45,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -56,7 +59,10 @@ import dev.gouthaman.regimen.designsystem.adaptive.LocalRegimenWindowInfo
 import dev.gouthaman.regimen.designsystem.adaptive.RegimenPosture
 import dev.gouthaman.regimen.designsystem.dialog.ConfirmDialog
 import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
+import dev.gouthaman.regimen.domain.model.SyncOperationProgress
+import dev.gouthaman.regimen.domain.model.SyncOperationStep
 import dev.gouthaman.regimen.domain.model.SyncStatus
+import java.text.NumberFormat
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -173,7 +179,7 @@ private fun AccountScreen(
                     Spacer(Modifier.height(16.dp))
                     Button(
                         onClick = onSignIn,
-                        enabled = uiState.isSignInAvailable && uiState.busyAction == null,
+                        enabled = uiState.isSignInAvailable && uiState.isIdle,
                     ) {
                         if (uiState.busyAction == AccountAction.SIGN_IN) {
                             ButtonProgressIndicator()
@@ -191,6 +197,12 @@ private fun AccountScreen(
                     }
 
                     uiState.errorReason?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it.text(), color = MaterialTheme.colorScheme.error)
+                    }
+                    // A Pull/Claim/Delete that finds the session revoked signs out as it fails,
+                    // so its error has to show here, not in the signed-in branch it started from.
+                    uiState.replaceErrorReason?.let {
                         Spacer(Modifier.height(8.dp))
                         Text(it.text(), color = MaterialTheme.colorScheme.error)
                     }
@@ -224,7 +236,7 @@ private fun AccountScreen(
                         if (uiState.secondaryDeviceReason == null) {
                             TextButton(
                                 onClick = onSyncNow,
-                                enabled = uiState.busyAction == null,
+                                enabled = uiState.isIdle,
                             ) {
                                 if (uiState.busyAction == AccountAction.SYNC_NOW) {
                                     ButtonProgressIndicator()
@@ -245,6 +257,13 @@ private fun AccountScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                    }
+
+                    // Pull/Claim/Delete failures all land here - Delete's included, since its
+                    // own button sits further down.
+                    uiState.replaceErrorReason?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it.text(), color = MaterialTheme.colorScheme.error)
                     }
 
                     uiState.secondaryDeviceReason?.let { reason ->
@@ -286,13 +305,9 @@ private fun AccountScreen(
                             }
                             TextButton(
                                 onClick = onRequestPullCloudData,
-                                enabled = uiState.busyAction == null,
+                                enabled = uiState.isIdle,
                             ) {
-                                if (uiState.busyAction == AccountAction.PULL_CLOUD_DATA) {
-                                    ButtonProgressIndicator()
-                                } else {
-                                    Text(stringResource(R.string.account_pull_cloud_data_button))
-                                }
+                                Text(stringResource(R.string.account_pull_cloud_data_button))
                             }
                         }
 
@@ -312,19 +327,10 @@ private fun AccountScreen(
                             }
                             TextButton(
                                 onClick = onRequestClaimPrimary,
-                                enabled = uiState.busyAction == null,
+                                enabled = uiState.isIdle,
                             ) {
-                                if (uiState.busyAction == AccountAction.CLAIM_PRIMARY) {
-                                    ButtonProgressIndicator()
-                                } else {
-                                    Text(stringResource(R.string.account_claim_primary_button))
-                                }
+                                Text(stringResource(R.string.account_claim_primary_button))
                             }
-                        }
-
-                        uiState.replaceErrorReason?.let {
-                            Spacer(Modifier.height(8.dp))
-                            Text(it.text(), color = MaterialTheme.colorScheme.error)
                         }
                     }
 
@@ -353,7 +359,7 @@ private fun AccountScreen(
                         }
                         TextButton(
                             onClick = { showSignOutDialog = true },
-                            enabled = uiState.busyAction == null,
+                            enabled = uiState.isIdle,
                         ) {
                             if (uiState.busyAction == AccountAction.SIGN_OUT) {
                                 ButtonProgressIndicator()
@@ -379,7 +385,7 @@ private fun AccountScreen(
                         }
                         TextButton(
                             onClick = { showDeleteDialog = true },
-                            enabled = uiState.busyAction == null,
+                            enabled = uiState.isIdle,
                         ) {
                             if (uiState.busyAction == AccountAction.DELETE_CLOUD_DATA) {
                                 ButtonProgressIndicator()
@@ -397,6 +403,7 @@ private fun AccountScreen(
         }
     }
 
+    uiState.runningOperation?.let { SyncOperationProgressDialog(it) }
     if (showSignOutDialog) {
         ConfirmDialog(
             title = stringResource(R.string.account_sign_out_dialog_title),
@@ -422,11 +429,9 @@ private fun AccountScreen(
     uiState.pullConfirmation?.let { confirmation ->
         ConfirmDialog(
             title = stringResource(R.string.account_pull_cloud_data_dialog_title),
-            text = pluralStringResource(
-                R.plurals.account_pull_cloud_data_dialog_text,
-                confirmation.cloudWorkoutCount,
-                confirmation.cloudWorkoutCount,
-            ),
+            text = confirmation.workoutCount?.let {
+                pluralStringResource(R.plurals.account_pull_cloud_data_dialog_text, it, it)
+            } ?: stringResource(R.string.account_counting_workouts),
             confirmLabel = stringResource(R.string.account_pull_cloud_data_button),
             onConfirm = onConfirmPullCloudData,
             dismissLabel = stringResource(R.string.account_cancel_button),
@@ -436,22 +441,22 @@ private fun AccountScreen(
             // and value ActiveWorkoutSheet already uses for ending a workout with incomplete
             // exercises pending - since both are irreversible full replaces in either direction.
             confirmEnableDelayMillis = 3000L,
+            confirmEnabled = confirmation.workoutCount != null,
         )
     }
     uiState.claimConfirmation?.let { confirmation ->
         ConfirmDialog(
             title = stringResource(R.string.account_claim_primary_dialog_title),
-            text = pluralStringResource(
-                R.plurals.account_claim_primary_dialog_text,
-                confirmation.localWorkoutCount,
-                confirmation.localWorkoutCount,
-            ),
+            text = confirmation.workoutCount?.let {
+                pluralStringResource(R.plurals.account_claim_primary_dialog_text, it, it)
+            } ?: stringResource(R.string.account_counting_workouts),
             confirmLabel = stringResource(R.string.account_claim_primary_button),
             onConfirm = onConfirmClaimPrimary,
             dismissLabel = stringResource(R.string.account_cancel_button),
             onDismiss = onDismissClaimConfirmation,
             destructive = true,
             confirmEnableDelayMillis = 3000L,
+            confirmEnabled = confirmation.workoutCount != null,
         )
     }
 }
@@ -466,3 +471,80 @@ private fun ButtonProgressIndicator(modifier: Modifier = Modifier) {
         color = LocalContentColor.current,
     )
 }
+
+/** Blocks the screen while a Pull/Claim/Delete runs - it can't be dismissed, since leaving
+ * mid-run would cancel it. Determinate once the step knows its total, indeterminate (with a
+ * running count where there is one) before that. */
+@Composable
+private fun SyncOperationProgressDialog(running: RunningOperation) {
+    val progress = running.progress
+    AlertDialog(
+        onDismissRequest = {},
+        confirmButton = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+        title = { Text(stringResource(running.operation.titleRes())) },
+        text = {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(stringResource(progress.step.labelRes()))
+                    progress.countText()?.let {
+                        Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                val total = progress.total
+                if (total != null && total > 0) {
+                    LinearWavyProgressIndicator(
+                        progress = { (progress.done.toFloat() / total).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+    )
+}
+
+private fun SyncOperation.titleRes(): Int = when (this) {
+    SyncOperation.PULL_CLOUD_DATA -> R.string.account_operation_title_pull_cloud_data
+    SyncOperation.CLAIM_PRIMARY -> R.string.account_operation_title_claim_primary
+    SyncOperation.DELETE_CLOUD_DATA -> R.string.account_operation_title_delete_cloud_data
+}
+
+private fun SyncOperationStep.labelRes(): Int = when (this) {
+    SyncOperationStep.STARTING -> R.string.account_operation_step_starting
+    SyncOperationStep.FINDING_CLOUD_DATA -> R.string.account_operation_step_finding_cloud_data
+    SyncOperationStep.DELETING_CLOUD_DATA -> R.string.account_operation_step_deleting_cloud_data
+    SyncOperationStep.DOWNLOADING -> R.string.account_operation_step_downloading
+    SyncOperationStep.SAVING -> R.string.account_operation_step_saving
+    SyncOperationStep.UPLOADING -> R.string.account_operation_step_uploading
+    SyncOperationStep.DELETING_ACCOUNT -> R.string.account_operation_step_deleting_account
+}
+
+/** "340 / 1,204" once a total is known, "1,240 items" while still counting up, null before
+ * anything has been counted. */
+@Composable
+private fun SyncOperationProgress.countText(): String? {
+    val knownTotal = total
+    return when {
+        knownTotal != null -> stringResource(
+            R.string.account_operation_count_of_total,
+            formatCount(done.coerceAtMost(knownTotal)),
+            formatCount(knownTotal),
+        )
+
+        done > 0 -> pluralStringResource(
+            R.plurals.account_operation_count_items,
+            done,
+            formatCount(done),
+        )
+
+        else -> null
+    }
+}
+
+private fun formatCount(count: Int): String = NumberFormat.getIntegerInstance().format(count)

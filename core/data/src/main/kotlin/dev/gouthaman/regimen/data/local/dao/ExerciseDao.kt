@@ -59,5 +59,5 @@ interface ExerciseDao {
      * dirty, regardless of whether it already was, so the very next push re-uploads everything
      * rather than only whatever happened to be flagged dirty from this device's past history. */
     @Query("UPDATE exercises SET isDirty = 1 WHERE isCustom = 1")
-    suspend fun markAllCustomDirty()
+    suspend fun markAllCustomDirty(): Int
 }

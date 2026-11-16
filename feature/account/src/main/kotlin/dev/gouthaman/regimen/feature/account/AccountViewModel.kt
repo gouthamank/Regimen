@@ -7,6 +7,8 @@ import dev.gouthaman.regimen.domain.model.AuthAccount
 import dev.gouthaman.regimen.domain.model.AuthErrorReason
 import dev.gouthaman.regimen.domain.model.AuthException
 import dev.gouthaman.regimen.domain.model.SecondaryDeviceReason
+import dev.gouthaman.regimen.domain.model.SyncOperationProgress
+import dev.gouthaman.regimen.domain.model.SyncOperationStep
 import dev.gouthaman.regimen.domain.model.SyncReplaceErrorReason
 import dev.gouthaman.regimen.domain.model.SyncReplaceException
 import dev.gouthaman.regimen.domain.model.SyncStatus
@@ -21,23 +23,33 @@ import dev.gouthaman.regimen.domain.usecase.GetSecondaryDeviceReasonUseCase
 import dev.gouthaman.regimen.domain.usecase.LocalWorkoutCountUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.PullCloudDataUseCase
+import dev.gouthaman.regimen.domain.usecase.ReauthenticateUseCase
 import dev.gouthaman.regimen.domain.usecase.SchedulePeriodicSyncUseCase
 import dev.gouthaman.regimen.domain.usecase.SignInUseCase
 import dev.gouthaman.regimen.domain.usecase.SignOutUseCase
 import dev.gouthaman.regimen.domain.usecase.SyncNowUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Which action, if any, currently has a request in flight - lets the UI show a spinner on
- * specifically the button that triggered it while disabling every other button. Requesting
- * Pull/Claim (fetching the confirmation counts) and actually running them share the same action
- * value - from the UI's perspective both phases are "this button is busy." */
-enum class AccountAction { SIGN_IN, SIGN_OUT, DELETE_CLOUD_DATA, SYNC_NOW, PULL_CLOUD_DATA, CLAIM_PRIMARY }
+/** Which quick action, if any, currently has a request in flight - lets the UI show a spinner on
+ * specifically the button that triggered it while disabling every other button. The three long
+ * operations are tracked through [AccountUiState.runningOperation] instead; [DELETE_CLOUD_DATA]
+ * only covers Delete's re-authentication step before the operation itself starts. */
+enum class AccountAction { SIGN_IN, SIGN_OUT, DELETE_CLOUD_DATA, SYNC_NOW }
+
+/** The three operations that replace or remove a whole data set, shown in a blocking progress
+ * dialog while they run. */
+enum class SyncOperation { PULL_CLOUD_DATA, CLAIM_PRIMARY, DELETE_CLOUD_DATA }
+
+data class RunningOperation(val operation: SyncOperation, val progress: SyncOperationProgress)
 
 /** The not-primary no-op shape [dev.gouthaman.regimen.domain.repository.SyncPushRepository.push]
  * returns - a no-op, not a real outcome, so it should never overwrite a genuinely persisted
@@ -48,8 +60,10 @@ private val NOT_PRIMARY_STATUS =
 
 /** Populates a Pull/Claim confirmation dialog's count-based copy - always shown, never
  * conditional, so a fresh/empty device shows up as "0 workouts" and makes the wrong-order mistake
- * (Claim before Pull, on a reformatted device) visible before it happens. */
-data class ReplaceConfirmation(val localWorkoutCount: Int, val cloudWorkoutCount: Int)
+ * (Claim before Pull, on a reformatted device) visible before it happens. Pull counts the cloud's
+ * workouts, Claim this device's. [workoutCount] is null while still counting - the dialog opens
+ * immediately and fills in. */
+data class ReplaceConfirmation(val workoutCount: Int?)
 
 data class AccountUiState(
     val account: AuthAccount? = null,
@@ -62,13 +76,18 @@ data class AccountUiState(
     val pullConfirmation: ReplaceConfirmation? = null,
     val claimConfirmation: ReplaceConfirmation? = null,
     val nextScheduledSyncAt: Long? = null,
-)
+    val runningOperation: RunningOperation? = null,
+) {
+    /** Every action button is disabled while anything at all is in flight. */
+    val isIdle: Boolean get() = busyAction == null && runningOperation == null
+}
 
 @HiltViewModel
 class AccountViewModel @Inject constructor(
     observeAccountStatus: ObserveAccountStatusUseCase,
     private val signInUseCase: SignInUseCase,
     private val signOutUseCase: SignOutUseCase,
+    private val reauthenticateUseCase: ReauthenticateUseCase,
     private val deleteCloudDataUseCase: DeleteCloudDataUseCase,
     private val ensurePrimaryClaimedUseCase: EnsurePrimaryClaimedUseCase,
     private val schedulePeriodicSyncUseCase: SchedulePeriodicSyncUseCase,
@@ -91,6 +110,8 @@ class AccountViewModel @Inject constructor(
     private val pullConfirmation = MutableStateFlow<ReplaceConfirmation?>(null)
     private val claimConfirmation = MutableStateFlow<ReplaceConfirmation?>(null)
     private val nextScheduledSyncAt = MutableStateFlow<Long?>(null)
+    private val runningOperation = MutableStateFlow<RunningOperation?>(null)
+    private var countJob: Job? = null
 
     init {
         // Restores the last run's outcome across app restarts - without this, syncStatus starts
@@ -124,35 +145,31 @@ class AccountViewModel @Inject constructor(
         pullConfirmation,
         claimConfirmation,
         nextScheduledSyncAt,
+        runningOperation,
     ) { values ->
-        val account = values[0] as AuthAccount?
-        val busy = values[1] as AccountAction?
-        val errorReason = values[2] as AuthErrorReason?
-        val status = values[3] as SyncStatus?
-        val secondary = values[4] as SecondaryDeviceReason?
-        val replaceErrorReason = values[5] as SyncReplaceErrorReason?
-        val pullConfirm = values[6] as ReplaceConfirmation?
-        val claimConfirm = values[7] as ReplaceConfirmation?
-        val nextSync = values[8] as Long?
         AccountUiState(
-            account = account,
+            account = values[0] as AuthAccount?,
             isSignInAvailable = signInUseCase.isAvailable,
-            busyAction = busy,
-            errorReason = errorReason,
-            syncStatus = status,
-            secondaryDeviceReason = secondary,
-            replaceErrorReason = replaceErrorReason,
-            pullConfirmation = pullConfirm,
-            claimConfirmation = claimConfirm,
-            nextScheduledSyncAt = nextSync,
+            busyAction = values[1] as AccountAction?,
+            errorReason = values[2] as AuthErrorReason?,
+            syncStatus = values[3] as SyncStatus?,
+            secondaryDeviceReason = values[4] as SecondaryDeviceReason?,
+            replaceErrorReason = values[5] as SyncReplaceErrorReason?,
+            pullConfirmation = values[6] as ReplaceConfirmation?,
+            claimConfirmation = values[7] as ReplaceConfirmation?,
+            nextScheduledSyncAt = values[8] as Long?,
+            runningOperation = values[9] as RunningOperation?,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccountUiState())
 
+    private fun isIdle() = busyAction.value == null && runningOperation.value == null
+
     fun signIn() {
-        if (busyAction.value != null) return
+        if (!isIdle()) return
         viewModelScope.launch {
             busyAction.value = AccountAction.SIGN_IN
             error.value = null
+            replaceError.value = null
             signInUseCase()
                 .onSuccess {
                     claimPrimaryIfUnset()
@@ -174,7 +191,7 @@ class AccountViewModel @Inject constructor(
     }
 
     fun signOut() {
-        if (busyAction.value != null) return
+        if (!isIdle()) return
         viewModelScope.launch {
             busyAction.value = AccountAction.SIGN_OUT
             error.value = null
@@ -190,13 +207,25 @@ class AccountViewModel @Inject constructor(
         }
     }
 
+    /** Re-authenticates first - Firebase only deletes an account within a few minutes of a
+     * sign-in, so asking up front means the last step normally succeeds rather than failing after
+     * everything else is already gone. Nothing is deleted if this step fails or is dismissed. */
     fun deleteCloudData() {
-        if (busyAction.value != null) return
+        if (!isIdle()) return
         viewModelScope.launch {
             busyAction.value = AccountAction.DELETE_CLOUD_DATA
             error.value = null
-            deleteCloudDataUseCase().onFailure { error.value = it.toReason() }
+            replaceError.value = null
+            val reauthFailure = reauthenticateUseCase().exceptionOrNull()
             busyAction.value = null
+            if (reauthFailure != null) {
+                // Dismissing the sheet is the user's own choice, not an error.
+                error.value = reauthFailure.toReason().takeIf { it != AuthErrorReason.CANCELLED }
+                return@launch
+            }
+            runOperation(SyncOperation.DELETE_CLOUD_DATA) { onProgress ->
+                deleteCloudDataUseCase(onProgress)
+            }
         }
     }
 
@@ -206,7 +235,7 @@ class AccountViewModel @Inject constructor(
      * hidden for secondary devices (see AccountScreen.kt), so the [NOT_PRIMARY_STATUS] guard
      * below is defense-in-depth, not the primary mechanism. */
     fun syncNow() {
-        if (busyAction.value != null) return
+        if (!isIdle()) return
         viewModelScope.launch {
             busyAction.value = AccountAction.SYNC_NOW
             val result = syncNowUseCase()
@@ -215,85 +244,112 @@ class AccountViewModel @Inject constructor(
         }
     }
 
-    /** Fetches the counts a Pull confirmation dialog needs before showing it - a Firestore
-     * `count()` round trip, so this is its own busy phase rather than happening synchronously. */
+    /** Opens the confirmation straight away and fills in the cloud count when the server
+     * answers - a failed count closes the dialog again with the error. */
     fun requestPullCloudData() {
-        if (busyAction.value != null) return
-        viewModelScope.launch {
-            busyAction.value = AccountAction.PULL_CLOUD_DATA
-            replaceError.value = null
-            pullConfirmation.value = ReplaceConfirmation(
-                localWorkoutCount = localWorkoutCountUseCase(),
-                cloudWorkoutCount = cloudWorkoutCountUseCase(),
-            )
-            busyAction.value = null
+        if (!isIdle()) return
+        replaceError.value = null
+        pullConfirmation.value = ReplaceConfirmation(workoutCount = null)
+        countJob = viewModelScope.launch {
+            try {
+                val count = cloudWorkoutCountUseCase()
+                pullConfirmation.update { it?.copy(workoutCount = count) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                pullConfirmation.value = null
+                replaceError.value = e.toReplaceReason()
+            }
         }
     }
 
     fun dismissPullConfirmation() {
+        countJob?.cancel()
         pullConfirmation.value = null
     }
 
     /** A pull resets the local freshness watermark to match the cloud - which can resolve
      * [SecondaryDeviceReason.STALE_LOCAL_STATE] for a device that was already primary but had
-     * stale local state, so [refreshOnResume] re-checks afterward the same way
-     * [confirmClaimPrimary] does. Doesn't affect primary status itself either way, unlike Claim. */
+     * stale local state, so [refreshOnResume] re-checks afterward. */
     fun confirmPullCloudData() {
         pullConfirmation.value = null
-        if (busyAction.value != null) return
+        if (!isIdle()) return
         viewModelScope.launch {
-            busyAction.value = AccountAction.PULL_CLOUD_DATA
-            replaceError.value = null
-            pullCloudDataUseCase()
-                .onSuccess { refreshOnResume() }
-                .onFailure { replaceError.value = it.toReplaceReason() }
-            busyAction.value = null
+            runOperation(SyncOperation.PULL_CLOUD_DATA) { onProgress ->
+                pullCloudDataUseCase(onProgress)
+            }
         }
     }
 
-    /** See [requestPullCloudData] - same two-phase shape. */
+    /** See [requestPullCloudData] - same shape, but the count is local, so it lands almost
+     * instantly. */
     fun requestClaimPrimary() {
-        if (busyAction.value != null) return
-        viewModelScope.launch {
-            busyAction.value = AccountAction.CLAIM_PRIMARY
-            replaceError.value = null
-            claimConfirmation.value = ReplaceConfirmation(
-                localWorkoutCount = localWorkoutCountUseCase(),
-                cloudWorkoutCount = cloudWorkoutCountUseCase(),
-            )
-            busyAction.value = null
+        if (!isIdle()) return
+        replaceError.value = null
+        claimConfirmation.value = ReplaceConfirmation(workoutCount = null)
+        countJob = viewModelScope.launch {
+            val count = localWorkoutCountUseCase()
+            claimConfirmation.update { it?.copy(workoutCount = count) }
         }
     }
 
     fun dismissClaimConfirmation() {
+        countJob?.cancel()
         claimConfirmation.value = null
     }
 
     fun confirmClaimPrimary() {
         claimConfirmation.value = null
-        if (busyAction.value != null) return
+        if (!isIdle()) return
         viewModelScope.launch {
-            busyAction.value = AccountAction.CLAIM_PRIMARY
-            replaceError.value = null
-            claimPrimaryUseCase()
-                .onSuccess {
-                    secondaryDeviceReason.value = null
-                    // A device that was secondary already had its own periodic job self-cancel
-                    // (it noticed it wasn't primary and stopped itself) - nothing else
-                    // re-schedules one once it becomes primary again, so this is what actually
-                    // restarts it. Idempotent (KEEP), safe to call regardless of whether one
-                    // somehow already exists.
-                    schedulePeriodicSyncUseCase()
-                    refreshOnResume()
-                }
-                .onFailure { replaceError.value = it.toReplaceReason() }
-            busyAction.value = null
+            val succeeded = runOperation(SyncOperation.CLAIM_PRIMARY) { onProgress ->
+                claimPrimaryUseCase(onProgress)
+            }
+            if (succeeded) {
+                secondaryDeviceReason.value = null
+                // A device that was secondary already had its own periodic job self-cancel (it
+                // noticed it wasn't primary and stopped itself) - nothing else re-schedules one
+                // once it becomes primary again, so this is what actually restarts it. Idempotent
+                // (KEEP), safe to call regardless of whether one somehow already exists.
+                schedulePeriodicSyncUseCase()
+            }
         }
+    }
+
+    /** Runs one of the three long operations behind the blocking progress dialog, feeding its
+     * progress into [runningOperation]. Returns whether it succeeded; a failure lands in
+     * [replaceError]. */
+    private suspend fun runOperation(
+        operation: SyncOperation,
+        block: suspend (onProgress: suspend (SyncOperationProgress) -> Unit) -> Result<Unit>,
+    ): Boolean {
+        replaceError.value = null
+        runningOperation.value =
+            RunningOperation(operation, SyncOperationProgress(SyncOperationStep.STARTING))
+        val result = try {
+            block { progress -> runningOperation.value = RunningOperation(operation, progress) }
+        } finally {
+            runningOperation.value = null
+        }
+        result.onFailure { replaceError.value = it.toReplaceReason() }
+        refreshOnResume()
+        return result.isSuccess
     }
 
     private fun Throwable.toReason(): AuthErrorReason =
         (this as? AuthException)?.reason ?: AuthErrorReason.UNKNOWN
 
-    private fun Throwable.toReplaceReason(): SyncReplaceErrorReason =
-        (this as? SyncReplaceException)?.reason ?: SyncReplaceErrorReason.UNKNOWN
+    /** Delete fails with [AuthException]s as well as [SyncReplaceException]s - both are shown in
+     * the same place. */
+    private fun Throwable.toReplaceReason(): SyncReplaceErrorReason = when (this) {
+        is SyncReplaceException -> reason
+        is AuthException -> when (reason) {
+            AuthErrorReason.NETWORK -> SyncReplaceErrorReason.NETWORK
+            AuthErrorReason.REAUTH_REQUIRED -> SyncReplaceErrorReason.REAUTH_REQUIRED
+            AuthErrorReason.SESSION_REVOKED -> SyncReplaceErrorReason.SESSION_REVOKED
+            else -> SyncReplaceErrorReason.UNKNOWN
+        }
+
+        else -> SyncReplaceErrorReason.UNKNOWN
+    }
 }

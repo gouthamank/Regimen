@@ -309,25 +309,25 @@ interface WorkoutDao {
      * et al. - a `workout_exercises`/`set_entries`/`cardio_entries` row under a non-`COMPLETE`
      * workout was never in sync scope to begin with. */
     @Query("UPDATE workouts SET isDirty = 1 WHERE workoutStatus = 'COMPLETE'")
-    suspend fun markAllCompleteWorkoutsDirty()
+    suspend fun markAllCompleteWorkoutsDirty(): Int
 
     @Query(
         "UPDATE workout_exercises SET isDirty = 1 WHERE workoutId IN " +
                 "(SELECT id FROM workouts WHERE workoutStatus = 'COMPLETE')"
     )
-    suspend fun markAllWorkoutExercisesDirty()
+    suspend fun markAllWorkoutExercisesDirty(): Int
 
     @Query(
         "UPDATE set_entries SET isDirty = 1 WHERE workoutExerciseId IN " +
                 "(SELECT we.id FROM workout_exercises we JOIN workouts w ON we.workoutId = w.id " +
                 "WHERE w.workoutStatus = 'COMPLETE')"
     )
-    suspend fun markAllSetEntriesDirty()
+    suspend fun markAllSetEntriesDirty(): Int
 
     @Query(
         "UPDATE cardio_entries SET isDirty = 1 WHERE workoutExerciseId IN " +
                 "(SELECT we.id FROM workout_exercises we JOIN workouts w ON we.workoutId = w.id " +
                 "WHERE w.workoutStatus = 'COMPLETE')"
     )
-    suspend fun markAllCardioEntriesDirty()
+    suspend fun markAllCardioEntriesDirty(): Int
 }

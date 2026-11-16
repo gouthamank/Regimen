@@ -1,6 +1,7 @@
 package dev.gouthaman.regimen.domain.usecase
 
 import dev.gouthaman.regimen.domain.model.AuthAccount
+import dev.gouthaman.regimen.domain.model.SyncOperationProgress
 import dev.gouthaman.regimen.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -25,8 +26,16 @@ class SignOutUseCase @Inject constructor(
     suspend operator fun invoke(): Result<Unit> = repo.signOut()
 }
 
+class ReauthenticateUseCase @Inject constructor(
+    private val repo: AuthRepository,
+) {
+    suspend operator fun invoke(): Result<Unit> = repo.reauthenticate()
+}
+
 class DeleteCloudDataUseCase @Inject constructor(
     private val repo: AuthRepository,
 ) {
-    suspend operator fun invoke(): Result<Unit> = repo.deleteCloudData()
+    suspend operator fun invoke(
+        onProgress: suspend (SyncOperationProgress) -> Unit = {},
+    ): Result<Unit> = repo.deleteCloudData(onProgress)
 }

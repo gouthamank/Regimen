@@ -1,6 +1,7 @@
 package dev.gouthaman.regimen.testing
 
 import dev.gouthaman.regimen.domain.model.AuthAccount
+import dev.gouthaman.regimen.domain.model.SyncOperationProgress
 import dev.gouthaman.regimen.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +12,7 @@ class FakeAuthRepository(
         AuthAccount(uid = "uid-1", email = "test@example.com", displayName = "Test User")
     ),
     private val signOutResult: Result<Unit> = Result.success(Unit),
+    private val reauthenticateResult: Result<Unit> = Result.success(Unit),
     private val deleteCloudDataResult: Result<Unit> = Result.success(Unit),
 ) : AuthRepository {
 
@@ -18,6 +20,8 @@ class FakeAuthRepository(
     override val account: StateFlow<AuthAccount?> = _account
 
     var signOutCalled = false
+        private set
+    var reauthenticateCalled = false
         private set
     var deleteCloudDataCalled = false
         private set
@@ -33,7 +37,14 @@ class FakeAuthRepository(
         return signOutResult
     }
 
-    override suspend fun deleteCloudData(): Result<Unit> {
+    override suspend fun reauthenticate(): Result<Unit> {
+        reauthenticateCalled = true
+        return reauthenticateResult
+    }
+
+    override suspend fun deleteCloudData(
+        onProgress: suspend (SyncOperationProgress) -> Unit,
+    ): Result<Unit> {
         deleteCloudDataCalled = true
         return deleteCloudDataResult
     }

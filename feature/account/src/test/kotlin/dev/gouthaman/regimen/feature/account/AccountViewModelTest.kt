@@ -19,6 +19,7 @@ import dev.gouthaman.regimen.domain.usecase.GetSecondaryDeviceReasonUseCase
 import dev.gouthaman.regimen.domain.usecase.LocalWorkoutCountUseCase
 import dev.gouthaman.regimen.domain.usecase.ObserveAccountStatusUseCase
 import dev.gouthaman.regimen.domain.usecase.PullCloudDataUseCase
+import dev.gouthaman.regimen.domain.usecase.ReauthenticateUseCase
 import dev.gouthaman.regimen.domain.usecase.SchedulePeriodicSyncUseCase
 import dev.gouthaman.regimen.domain.usecase.SignInUseCase
 import dev.gouthaman.regimen.domain.usecase.SignOutUseCase
@@ -52,6 +53,7 @@ class AccountViewModelTest {
         observeAccountStatus = ObserveAccountStatusUseCase(repo),
         signInUseCase = SignInUseCase(repo),
         signOutUseCase = SignOutUseCase(repo),
+        reauthenticateUseCase = ReauthenticateUseCase(repo),
         deleteCloudDataUseCase = DeleteCloudDataUseCase(repo),
         ensurePrimaryClaimedUseCase = EnsurePrimaryClaimedUseCase(syncDeviceRepo),
         schedulePeriodicSyncUseCase = SchedulePeriodicSyncUseCase(syncScheduleRepo),
@@ -186,28 +188,62 @@ class AccountViewModelTest {
     }
 
     @Test
-    fun `delete cloud data invokes the repo`() = runTest {
+    fun `delete cloud data re-authenticates, then deletes`() = runTest {
         val repo = FakeAuthRepository()
         val viewModel = viewModel(repo)
 
         viewModel.deleteCloudData()
 
-        assert(repo.deleteCloudDataCalled)
+        assertTrue(repo.reauthenticateCalled)
+        assertTrue(repo.deleteCloudDataCalled)
     }
 
     @Test
-    fun `delete cloud data failure with a stale session surfaces REAUTH_REQUIRED`() = runTest {
+    fun `delete cloud data with the wrong account surfaces it and deletes nothing`() = runTest {
         val repo = FakeAuthRepository(
-            deleteCloudDataResult = Result.failure(AuthException(AuthErrorReason.REAUTH_REQUIRED))
+            reauthenticateResult = Result.failure(AuthException(AuthErrorReason.WRONG_ACCOUNT))
         )
         val viewModel = viewModel(repo)
 
         viewModel.deleteCloudData()
 
+        assertFalse(repo.deleteCloudDataCalled)
         viewModel.uiState.test {
-            assertEquals(AuthErrorReason.REAUTH_REQUIRED, awaitItem().errorReason)
+            assertEquals(AuthErrorReason.WRONG_ACCOUNT, awaitItem().errorReason)
         }
     }
+
+    @Test
+    fun `dismissing the re-authentication sheet deletes nothing and shows no error`() = runTest {
+        val repo = FakeAuthRepository(
+            reauthenticateResult = Result.failure(AuthException(AuthErrorReason.CANCELLED))
+        )
+        val viewModel = viewModel(repo)
+
+        viewModel.deleteCloudData()
+
+        assertFalse(repo.deleteCloudDataCalled)
+        viewModel.uiState.test {
+            assertNull(awaitItem().errorReason)
+        }
+    }
+
+    @Test
+    fun `a delete whose account removal needs a newer sign-in surfaces REAUTH_REQUIRED`() =
+        runTest {
+            val repo = FakeAuthRepository(
+                deleteCloudDataResult = Result.failure(AuthException(AuthErrorReason.REAUTH_REQUIRED))
+            )
+            val viewModel = viewModel(repo)
+
+            viewModel.deleteCloudData()
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertEquals(SyncReplaceErrorReason.REAUTH_REQUIRED, state.replaceErrorReason)
+                assertNull(state.runningOperation)
+            }
+        }
 
     @Test
     fun `loads the persisted sync status on init`() = runTest {
@@ -297,18 +333,36 @@ class AccountViewModelTest {
     }
 
     @Test
-    fun `requesting pull cloud data populates the confirmation with both counts`() = runTest {
+    fun `requesting pull cloud data opens the confirmation and fills in the cloud count`() =
+        runTest {
+            val repo = FakeAuthRepository()
+            val syncReplaceRepo =
+                FakeSyncReplaceRepository(cloudWorkoutCountResult = Result.success(7))
+            val viewModel = viewModel(repo, syncReplaceRepo = syncReplaceRepo)
+
+            viewModel.requestPullCloudData()
+
+            viewModel.uiState.test {
+                assertEquals(ReplaceConfirmation(workoutCount = 7), awaitItem().pullConfirmation)
+            }
+        }
+
+    @Test
+    fun `a failed cloud count closes the pull confirmation with its reason`() = runTest {
         val repo = FakeAuthRepository()
-        val syncReplaceRepo =
-            FakeSyncReplaceRepository(localWorkoutCountResult = 3, cloudWorkoutCountResult = 7)
+        val syncReplaceRepo = FakeSyncReplaceRepository(
+            cloudWorkoutCountResult = Result.failure(
+                SyncReplaceException(SyncReplaceErrorReason.NETWORK)
+            )
+        )
         val viewModel = viewModel(repo, syncReplaceRepo = syncReplaceRepo)
 
         viewModel.requestPullCloudData()
 
         viewModel.uiState.test {
-            val confirmation = awaitItem().pullConfirmation
-            assertEquals(3, confirmation?.localWorkoutCount)
-            assertEquals(7, confirmation?.cloudWorkoutCount)
+            val state = awaitItem()
+            assertNull(state.pullConfirmation)
+            assertEquals(SyncReplaceErrorReason.NETWORK, state.replaceErrorReason)
         }
     }
 
@@ -328,7 +382,7 @@ class AccountViewModelTest {
     }
 
     @Test
-    fun `confirming pull cloud data invokes the use case and clears the confirmation`() = runTest {
+    fun `confirming pull cloud data runs the pull and clears the confirmation`() = runTest {
         val repo = FakeAuthRepository()
         val syncReplaceRepo = FakeSyncReplaceRepository()
         val viewModel = viewModel(repo, syncReplaceRepo = syncReplaceRepo)
@@ -338,7 +392,9 @@ class AccountViewModelTest {
 
         assertTrue(syncReplaceRepo.pullCalled)
         viewModel.uiState.test {
-            assertNull(awaitItem().pullConfirmation)
+            val state = awaitItem()
+            assertNull(state.pullConfirmation)
+            assertNull(state.runningOperation)
         }
     }
 
@@ -358,45 +414,40 @@ class AccountViewModelTest {
     }
 
     @Test
-    fun `requesting claim primary populates the confirmation with both counts`() = runTest {
+    fun `requesting claim primary fills in the local workout count`() = runTest {
         val repo = FakeAuthRepository()
-        val syncReplaceRepo =
-            FakeSyncReplaceRepository(localWorkoutCountResult = 5, cloudWorkoutCountResult = 0)
+        val syncReplaceRepo = FakeSyncReplaceRepository(localWorkoutCountResult = 5)
         val viewModel = viewModel(repo, syncReplaceRepo = syncReplaceRepo)
 
         viewModel.requestClaimPrimary()
 
         viewModel.uiState.test {
-            val confirmation = awaitItem().claimConfirmation
-            assertEquals(5, confirmation?.localWorkoutCount)
-            assertEquals(0, confirmation?.cloudWorkoutCount)
+            assertEquals(ReplaceConfirmation(workoutCount = 5), awaitItem().claimConfirmation)
         }
     }
 
     @Test
-    fun `confirming claim primary invokes the use case and clears secondary-device status`() =
-        runTest {
-            val repo = FakeAuthRepository()
-            val syncDeviceRepo =
-                FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
-            val syncReplaceRepo = FakeSyncReplaceRepository()
-            val viewModel = viewModel(repo, syncDeviceRepo, syncReplaceRepo = syncReplaceRepo)
-            syncDeviceRepo.secondaryDeviceReasonResult = null
-            viewModel.confirmClaimPrimary()
+    fun `confirming claim primary runs the claim and clears secondary-device status`() = runTest {
+        val repo = FakeAuthRepository()
+        val syncDeviceRepo =
+            FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
+        val syncReplaceRepo = FakeSyncReplaceRepository()
+        val viewModel = viewModel(repo, syncDeviceRepo, syncReplaceRepo = syncReplaceRepo)
+        syncDeviceRepo.secondaryDeviceReasonResult = null
 
-            assertTrue(syncReplaceRepo.claimCalled)
-            viewModel.uiState.test {
-                assertNull(awaitItem().secondaryDeviceReason)
-            }
+        viewModel.confirmClaimPrimary()
+
+        assertTrue(syncReplaceRepo.claimCalled)
+        viewModel.uiState.test {
+            assertNull(awaitItem().secondaryDeviceReason)
         }
+    }
 
     @Test
     fun `confirming claim primary reschedules the periodic sync job`() = runTest {
         val repo = FakeAuthRepository()
-        val syncReplaceRepo = FakeSyncReplaceRepository()
         val syncScheduleRepo = FakeSyncScheduleRepository()
-        val viewModel =
-            viewModel(repo, syncReplaceRepo = syncReplaceRepo, syncScheduleRepo = syncScheduleRepo)
+        val viewModel = viewModel(repo, syncScheduleRepo = syncScheduleRepo)
 
         viewModel.confirmClaimPrimary()
 
@@ -406,22 +457,28 @@ class AccountViewModelTest {
     }
 
     @Test
-    fun `claim primary failure surfaces its reason and does not clear secondary-device status`() =
-        runTest {
-            val repo = FakeAuthRepository()
-            val syncDeviceRepo =
-                FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
-            val syncReplaceRepo = FakeSyncReplaceRepository(
-                claimResult = Result.failure(SyncReplaceException(SyncReplaceErrorReason.PUSH_IN_PROGRESS))
-            )
-            val viewModel = viewModel(repo, syncDeviceRepo, syncReplaceRepo = syncReplaceRepo)
+    fun `claim primary failure surfaces its reason and does not reschedule`() = runTest {
+        val repo = FakeAuthRepository()
+        val syncDeviceRepo =
+            FakeSyncDeviceRepository(secondaryDeviceReasonResult = SecondaryDeviceReason.COMPETING_PRIMARY)
+        val syncScheduleRepo = FakeSyncScheduleRepository()
+        val syncReplaceRepo = FakeSyncReplaceRepository(
+            claimResult = Result.failure(SyncReplaceException(SyncReplaceErrorReason.PUSH_IN_PROGRESS))
+        )
+        val viewModel = viewModel(
+            repo,
+            syncDeviceRepo,
+            syncScheduleRepo = syncScheduleRepo,
+            syncReplaceRepo = syncReplaceRepo
+        )
 
-            viewModel.confirmClaimPrimary()
+        viewModel.confirmClaimPrimary()
 
-            viewModel.uiState.test {
-                val state = awaitItem()
-                assertEquals(SyncReplaceErrorReason.PUSH_IN_PROGRESS, state.replaceErrorReason)
-                assertEquals(SecondaryDeviceReason.COMPETING_PRIMARY, state.secondaryDeviceReason)
-            }
+        assertFalse(syncScheduleRepo.scheduleCalled)
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(SyncReplaceErrorReason.PUSH_IN_PROGRESS, state.replaceErrorReason)
+            assertEquals(SecondaryDeviceReason.COMPETING_PRIMARY, state.secondaryDeviceReason)
         }
+    }
 }

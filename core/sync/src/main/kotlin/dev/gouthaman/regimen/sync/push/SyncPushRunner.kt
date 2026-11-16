@@ -1,12 +1,11 @@
 package dev.gouthaman.regimen.sync.push
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.WriteBatch
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.gouthaman.regimen.data.local.dao.ExerciseDao
 import dev.gouthaman.regimen.data.local.dao.MeasurementDao
@@ -31,11 +30,17 @@ import dev.gouthaman.regimen.sync.auth.isSessionRevoked
 import dev.gouthaman.regimen.sync.device.FreshnessWatermarkStore
 import dev.gouthaman.regimen.sync.device.LOCK_STALE_AFTER_MS
 import dev.gouthaman.regimen.sync.device.SyncConfigDto
+import dev.gouthaman.regimen.sync.device.refreshLock
+import dev.gouthaman.regimen.sync.device.releaseLock
 import dev.gouthaman.regimen.sync.firestore.FirestoreSyncPaths
+import dev.gouthaman.regimen.sync.firestore.WRITE_BATCH_LIMIT
 import dev.gouthaman.regimen.sync.firestore.toDto
+import dev.gouthaman.regimen.sync.network.awaitOrTimeout
+import dev.gouthaman.regimen.sync.network.isNetworkAvailable
+import dev.gouthaman.regimen.sync.network.isNetworkFailure
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -44,40 +49,52 @@ import javax.inject.Singleton
 private const val PUSH_BATCH_CAP = 1000
 private const val DELETE_BATCH_CAP = 1000
 
-/** Generous on purpose - a real first-time backfill can be hundreds of sequential Firestore round
- * trips (per-row confirmation, see [pushDirtyBatch]'s doc), which can legitimately take minutes
- * under normal network conditions. This is a backstop against a hang, not a tight SLA. */
+/** A backstop against a hang, not a tight SLA - each batch commit already has its own timeout
+ * (see [awaitOrTimeout]), so this only catches something stuck outside of those. */
 private const val PUSH_TIMEOUT_MS = 5 * 60_000L
 
 internal data class DirtyBatchResult(val remainingBudget: Int, val hasMore: Boolean)
 
-/** Shared read-write-clear loop for every list-shaped synced entity type, kept dependency-free so
- * it's unit-testable with fake lambdas. Clears each row's dirty flag right after its own write
- * succeeds (not batched at the end), so a mid-run exception leaves only unconfirmed rows dirty.
- * [DirtyBatchResult.hasMore] just signals a full page was read, not a precise count. */
+/** Shared read-commit-clear loop for every list-shaped synced entity type, kept dependency-free so
+ * it's unit-testable with fake lambdas. Commits the dirty rows in [chunkSize] batches and clears
+ * each batch's dirty flags only once that batch's commit succeeds (a Firestore batch is atomic), so
+ * a mid-run exception leaves exactly the unconfirmed rows dirty. [onCommitted] hears each
+ * confirmed batch's size. [DirtyBatchResult.hasMore] just signals a full page was read, not a
+ * precise count. */
 internal suspend fun <T> pushDirtyBatch(
     budget: Int,
     getDirty: suspend (Int) -> List<T>,
-    write: suspend (T) -> Unit,
+    commit: suspend (List<T>) -> Unit,
     idOf: (T) -> String,
     clearDirty: suspend (List<String>) -> Unit,
+    chunkSize: Int = WRITE_BATCH_LIMIT,
+    onCommitted: suspend (Int) -> Unit = {},
 ): DirtyBatchResult {
     if (budget <= 0) return DirtyBatchResult(remainingBudget = 0, hasMore = false)
     val dirty = getDirty(budget)
-    for (item in dirty) {
-        write(item)
-        clearDirty(listOf(idOf(item)))
+    for (chunk in dirty.chunked(chunkSize)) {
+        commit(chunk)
+        clearDirty(chunk.map(idOf))
+        onCommitted(chunk.size)
     }
     return DirtyBatchResult(remainingBudget = budget - dirty.size, hasMore = dirty.size == budget)
 }
 
+/** One push run's fixed context, handed to every per-entity step. */
+private class PushRun(
+    val paths: FirestoreSyncPaths,
+    val syncConfigRef: DocumentReference,
+    val onCommitted: suspend (Int) -> Unit,
+)
+
 /**
  * The primary device's incremental sync push - reads every dirty row/tombstone, writes/deletes
- * them via Firestore, and clears each one only once its own write is confirmed (so a mid-run
- * failure leaves only the unconfirmed rows dirty). Re-checks primary status between every
- * entity-type step and holds a soft `syncConfig.lockedAt` lease for the run's duration, guarding
- * against a different device claiming primary mid-run. Shared by [SyncPushWorker] and
- * `AccountViewModel`'s manual "Sync now".
+ * them via batched Firestore commits, and clears each batch only once its own commit is confirmed
+ * (so a mid-run failure leaves only the unconfirmed rows dirty). Re-checks primary status between
+ * every entity-type step and holds a soft `syncConfig.lockedAt` lease for the run's duration
+ * (refreshed in every batch), guarding against a different device claiming primary mid-run.
+ * Shared by [SyncPushWorker], `AccountViewModel`'s manual "Sync now", and "Claim primary"'s forced
+ * re-upload.
  */
 @Singleton
 class SyncPushRunner @Inject constructor(
@@ -105,26 +122,33 @@ class SyncPushRunner @Inject constructor(
      * that would overwrite a genuinely-synced status with "Not yet synced" just because this
      * device lost primary status, even though it really did sync before. */
     override suspend fun push(): SyncStatus {
-        val status = runPush(bypassLock = false)
+        val status = runPush(bypassLock = false, onCommitted = {})
         if (status != notPrimaryStatus()) syncStatusStore.save(status)
         return status
     }
 
     /** See the interface doc on [dev.gouthaman.regimen.domain.repository.SyncPushRepository.forcePush]
-     * for why this exists and skips both the lock and watermark checks. Also persists its result,
-     * same as [push]. */
-    override suspend fun forcePush(): SyncStatus {
-        val status = runPush(bypassLock = true)
+     * for why this exists and skips both the lock and watermark checks. Runs pass after pass until
+     * a pass leaves nothing behind, fails, or finds this device isn't primary anymore. Persists
+     * its final result, same as [push]. */
+    override suspend fun forcePush(onCommitted: suspend (Int) -> Unit): SyncStatus {
+        var status: SyncStatus
+        do {
+            status = runPush(bypassLock = true, onCommitted = onCommitted)
+        } while (status.lastError == null && status.lastSyncedAt != null && !status.isFullyUpToDate)
         if (status != notPrimaryStatus()) syncStatusStore.save(status)
         return status
     }
 
-    private suspend fun runPush(bypassLock: Boolean): SyncStatus {
+    private suspend fun runPush(
+        bypassLock: Boolean,
+        onCommitted: suspend (Int) -> Unit,
+    ): SyncStatus {
         // Fails fast without touching Firestore - offline, a bare `.await()` doesn't reliably
         // fail quickly, which left "Sync now" spinning forever in airplane mode. The periodic job
         // never hits this (WorkManager's own NetworkType.CONNECTED constraint covers it); only the
         // manual path needs its own check.
-        if (!isNetworkAvailable()) {
+        if (!context.isNetworkAvailable()) {
             return SyncStatus(
                 lastSyncedAt = null,
                 isFullyUpToDate = false,
@@ -133,7 +157,7 @@ class SyncPushRunner @Inject constructor(
         }
 
         return try {
-            withTimeout(PUSH_TIMEOUT_MS) { doPush(bypassLock) }
+            withTimeout(PUSH_TIMEOUT_MS) { doPush(bypassLock, onCommitted) }
         } catch (e: TimeoutCancellationException) {
             SyncStatus(
                 lastSyncedAt = null,
@@ -143,15 +167,12 @@ class SyncPushRunner @Inject constructor(
         }
     }
 
-    private fun isNetworkAvailable(): Boolean {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as
-                ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-    }
-
-    private suspend fun doPush(bypassLock: Boolean): SyncStatus {
+    /** [bypassLock] means the caller ("Claim primary") already holds the lock - this run then
+     * neither checks, takes, nor releases it, only refreshes it per batch. */
+    private suspend fun doPush(
+        bypassLock: Boolean,
+        onCommitted: suspend (Int) -> Unit
+    ): SyncStatus {
         val uid = firebaseAuth.currentUser?.uid
             ?: return notPrimaryStatus()
         // Not an error - a device that isn't primary anymore has nothing to report beyond "not my
@@ -159,22 +180,20 @@ class SyncPushRunner @Inject constructor(
         // periodic schedule, per the Primary-status check item in the doc.
         if (!syncDeviceRepository.isPrimary()) return notPrimaryStatus()
 
-        val paths = FirestoreSyncPaths(firestore, uid)
         val syncConfigRef = firestore.collection("users").document(uid)
             .collection("syncConfig").document("current")
-
-        // One read serves both checks below - not a transaction, so a claim or watermark restore
-        // landing in the narrow gap after this read is an accepted, low-probability risk.
-        val config = syncConfigRef.get().await().toObject(SyncConfigDto::class.java)
+        val run = PushRun(FirestoreSyncPaths(firestore, uid), syncConfigRef, onCommitted)
 
         if (!bypassLock) {
+            // One read serves both checks below - not a transaction, so a claim or watermark
+            // restore landing in the narrow gap after this read is an accepted, low-probability
+            // risk.
+            val config = syncConfigRef.get().awaitOrTimeout().toObject(SyncConfigDto::class.java)
+
             // Refuses to start while "Claim primary" is actively wiping/rebuilding this account
             // (holding the same lock for its own, longer-than-a-push duration) - otherwise this
             // run could write fresh data into a destination that's concurrently being deleted out
-            // from under it. Skipped when [bypassLock] is set - that means the lock we'd read here
-            // is this same call chain's own (from "Claim primary"), not a foreign one, so treating
-            // it as a blocking lock would make the claim's own forced push refuse itself every
-            // time.
+            // from under it.
             val existingLock = config?.lockedAt
             if (existingLock != null &&
                 System.currentTimeMillis() - existingLock < LOCK_STALE_AFTER_MS
@@ -185,9 +204,7 @@ class SyncPushRunner @Inject constructor(
             // Freshness watermark: device-ID match alone isn't enough - Auto Backup can restore a
             // snapshot older than the last successful push, carrying a stale isDirty=true that
             // would overwrite the cloud's newer state. A mismatch here means refuse rather than
-            // trust it; a successful pull resets the watermark to match what it read. Skipped when
-            // [bypassLock] is set, since a forced re-upload is meant to happen regardless of
-            // watermark state.
+            // trust it; a successful pull resets the watermark to match what it read.
             if (watermarkStore.get() != config?.lastPushedAt) {
                 return notPrimaryStatus()
             }
@@ -198,25 +215,29 @@ class SyncPushRunner @Inject constructor(
 
         // A soft lease for the duration of this run, shared with "Claim primary" (which also
         // checks and holds it, for its own longer wipe-and-force-push duration) - see
-        // SyncConfigDto.lockedAt's own doc for the full picture.
-        syncConfigRef.set(mapOf("lockedAt" to System.currentTimeMillis()), SetOptions.merge())
-            .await()
+        // SyncConfigDto's own doc for the full picture.
+        if (!bypassLock) {
+            syncConfigRef.set(mapOf("lockedAt" to System.currentTimeMillis()), SetOptions.merge())
+                .awaitOrTimeout()
+        }
         try {
-            budget = pushExercises(paths, budget); ensureStillPrimary()
-            budget = pushMeasurementTypes(paths, budget); ensureStillPrimary()
-            budget = pushBodyMetrics(paths, budget); ensureStillPrimary()
-            budget = pushRoutines(paths, budget); ensureStillPrimary()
-            budget = pushRoutineExercises(paths, budget); ensureStillPrimary()
-            budget = pushWorkouts(paths, budget); ensureStillPrimary()
-            budget = pushWorkoutExercises(paths, budget); ensureStillPrimary()
-            budget = pushSetEntries(paths, budget); ensureStillPrimary()
-            budget = pushCardioEntries(paths, budget); ensureStillPrimary()
-            pushPreferences(paths); ensureStillPrimary()
+            budget = pushExercises(run, budget); ensureStillPrimary()
+            budget = pushMeasurementTypes(run, budget); ensureStillPrimary()
+            budget = pushBodyMetrics(run, budget); ensureStillPrimary()
+            budget = pushRoutines(run, budget); ensureStillPrimary()
+            budget = pushRoutineExercises(run, budget); ensureStillPrimary()
+            budget = pushWorkouts(run, budget); ensureStillPrimary()
+            budget = pushWorkoutExercises(run, budget); ensureStillPrimary()
+            budget = pushSetEntries(run, budget); ensureStillPrimary()
+            budget = pushCardioEntries(run, budget); ensureStillPrimary()
+            pushPreferences(run); ensureStillPrimary()
             // Firestore deletes have their own daily quota, separate from writes - its own cap
             // rather than sharing the write-side budget.
-            processTombstones(paths, DELETE_BATCH_CAP)
+            processTombstones(run, DELETE_BATCH_CAP)
         } catch (e: NotPrimaryAnymoreException) {
             return notPrimaryStatus()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             return SyncStatus(
                 lastSyncedAt = null,
@@ -227,13 +248,11 @@ class SyncPushRunner @Inject constructor(
             // NonCancellable: this must still complete even when `push()`'s withTimeout is what
             // triggered this finally block - otherwise a timeout would abandon the lease
             // mid-cleanup instead of actually releasing it.
-            withContext(NonCancellable) {
-                syncConfigRef.set(mapOf("lockedAt" to null), SetOptions.merge()).await()
-            }
+            if (!bypassLock) withContext(NonCancellable) { releaseLock(syncConfigRef) }
         }
 
         val now = System.currentTimeMillis()
-        syncConfigRef.set(mapOf("lastPushedAt" to now), SetOptions.merge()).await()
+        syncConfigRef.set(mapOf("lastPushedAt" to now), SetOptions.merge()).awaitOrTimeout()
         // The freshness watermark's write side - keeps this device's local record in lockstep
         // with what it just told the cloud, so the next run's comparison above matches.
         watermarkStore.set(now)
@@ -254,122 +273,146 @@ class SyncPushRunner @Inject constructor(
 
     private class NotPrimaryAnymoreException : Exception()
 
+    /** Commits [items] as one atomic batch, with a lease refresh riding along. */
+    private suspend fun <T> commitBatch(
+        run: PushRun,
+        items: List<T>,
+        add: suspend WriteBatch.(T) -> Unit,
+    ) {
+        val batch = firestore.batch()
+        for (item in items) batch.add(item)
+        batch.refreshLock(run.syncConfigRef)
+        batch.commit().awaitOrTimeout()
+    }
+
     private suspend fun <T> pushDirty(
+        run: PushRun,
         budget: Int,
         getDirty: suspend (Int) -> List<T>,
-        write: suspend (T) -> Unit,
+        write: suspend WriteBatch.(T) -> Unit,
         idOf: (T) -> String,
         clearDirty: suspend (List<String>) -> Unit,
     ): Int {
-        val result = pushDirtyBatch(budget, getDirty, write, idOf, clearDirty)
+        val result = pushDirtyBatch(
+            budget = budget,
+            getDirty = getDirty,
+            commit = { items -> commitBatch(run, items, write) },
+            idOf = idOf,
+            clearDirty = clearDirty,
+            onCommitted = run.onCommitted,
+        )
         if (result.hasMore) hasMoreWork = true
         return result.remainingBudget
     }
 
-    private suspend fun pushExercises(paths: FirestoreSyncPaths, budget: Int): Int = pushDirty(
+    private suspend fun pushExercises(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
         budget = budget,
         getDirty = exerciseDao::getDirty,
-        write = { e: ExerciseEntity -> paths.exercise(e.id).set(e.toDto()).await() },
+        write = { e: ExerciseEntity -> set(run.paths.exercise(e.id), e.toDto()) },
         idOf = ExerciseEntity::id,
         clearDirty = exerciseDao::clearDirty,
     )
 
-    private suspend fun pushMeasurementTypes(paths: FirestoreSyncPaths, budget: Int): Int =
-        pushDirty(
-            budget = budget,
-            getDirty = measurementDao::getDirtyTypes,
-            write = { t: MeasurementTypeEntity ->
-                paths.measurementType(t.id).set(t.toDto()).await()
-            },
-            idOf = MeasurementTypeEntity::id,
-            clearDirty = measurementDao::clearDirtyTypes,
-        )
+    private suspend fun pushMeasurementTypes(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
+        budget = budget,
+        getDirty = measurementDao::getDirtyTypes,
+        write = { t: MeasurementTypeEntity -> set(run.paths.measurementType(t.id), t.toDto()) },
+        idOf = MeasurementTypeEntity::id,
+        clearDirty = measurementDao::clearDirtyTypes,
+    )
 
-    private suspend fun pushBodyMetrics(paths: FirestoreSyncPaths, budget: Int): Int = pushDirty(
+    private suspend fun pushBodyMetrics(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
         budget = budget,
         getDirty = measurementDao::getDirtyMetrics,
-        write = { m: BodyMetricEntity -> paths.bodyMetric(m.id).set(m.toDto()).await() },
+        write = { m: BodyMetricEntity -> set(run.paths.bodyMetric(m.id), m.toDto()) },
         idOf = BodyMetricEntity::id,
         clearDirty = measurementDao::clearDirtyMetrics,
     )
 
-    private suspend fun pushRoutines(paths: FirestoreSyncPaths, budget: Int): Int = pushDirty(
+    private suspend fun pushRoutines(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
         budget = budget,
         getDirty = routineDao::getDirtyRoutines,
-        write = { r: RoutineEntity -> paths.routine(r.id).set(r.toDto()).await() },
+        write = { r: RoutineEntity -> set(run.paths.routine(r.id), r.toDto()) },
         idOf = RoutineEntity::id,
         clearDirty = routineDao::clearDirtyRoutines,
     )
 
-    private suspend fun pushRoutineExercises(paths: FirestoreSyncPaths, budget: Int): Int =
-        pushDirty(
-            budget = budget,
-            getDirty = routineDao::getDirtyRoutineExercises,
-            write = { re: RoutineExerciseEntity ->
-                paths.routineExercise(re.routineId, re.id).set(re.toDto()).await()
-            },
-            idOf = RoutineExerciseEntity::id,
-            clearDirty = routineDao::clearDirtyRoutineExercises,
-        )
+    private suspend fun pushRoutineExercises(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
+        budget = budget,
+        getDirty = routineDao::getDirtyRoutineExercises,
+        write = { re: RoutineExerciseEntity ->
+            set(run.paths.routineExercise(re.routineId, re.id), re.toDto())
+        },
+        idOf = RoutineExerciseEntity::id,
+        clearDirty = routineDao::clearDirtyRoutineExercises,
+    )
 
-    private suspend fun pushWorkouts(paths: FirestoreSyncPaths, budget: Int): Int = pushDirty(
+    private suspend fun pushWorkouts(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
         budget = budget,
         getDirty = workoutDao::getDirtyWorkouts,
-        write = { w: WorkoutEntity -> paths.workout(w.id).set(w.toDto()).await() },
+        write = { w: WorkoutEntity -> set(run.paths.workout(w.id), w.toDto()) },
         idOf = WorkoutEntity::id,
         clearDirty = workoutDao::clearDirtyWorkouts,
     )
 
-    private suspend fun pushWorkoutExercises(paths: FirestoreSyncPaths, budget: Int): Int =
-        pushDirty(
-            budget = budget,
-            getDirty = workoutDao::getDirtyWorkoutExercises,
-            write = { we: WorkoutExerciseEntity ->
-                paths.workoutExercise(we.workoutId, we.id).set(we.toDto()).await()
-            },
-            idOf = WorkoutExerciseEntity::id,
-            clearDirty = workoutDao::clearDirtyWorkoutExercises,
-        )
+    private suspend fun pushWorkoutExercises(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
+        budget = budget,
+        getDirty = workoutDao::getDirtyWorkoutExercises,
+        write = { we: WorkoutExerciseEntity ->
+            set(run.paths.workoutExercise(we.workoutId, we.id), we.toDto())
+        },
+        idOf = WorkoutExerciseEntity::id,
+        clearDirty = workoutDao::clearDirtyWorkoutExercises,
+    )
 
     /** [SetEntryEntity] only stores its direct parent (`workoutExerciseId`), not the workout id
      * its Firestore path also needs - one extra local lookup per row, same as the tombstone write
      * path already needed for the same reason. */
-    private suspend fun pushSetEntries(paths: FirestoreSyncPaths, budget: Int): Int = pushDirty(
+    private suspend fun pushSetEntries(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
         budget = budget,
         getDirty = workoutDao::getDirtySetEntries,
         write = { s: SetEntryEntity ->
             val workoutId = requireNotNull(workoutDao.workoutIdOf(s.workoutExerciseId))
-            paths.setEntry(workoutId, s.workoutExerciseId, s.id).set(s.toDto()).await()
+            set(run.paths.setEntry(workoutId, s.workoutExerciseId, s.id), s.toDto())
         },
         idOf = SetEntryEntity::id,
         clearDirty = workoutDao::clearDirtySetEntries,
     )
 
     /** See [pushSetEntries] - same shape, for the cardio side. */
-    private suspend fun pushCardioEntries(paths: FirestoreSyncPaths, budget: Int): Int = pushDirty(
+    private suspend fun pushCardioEntries(run: PushRun, budget: Int): Int = pushDirty(
+        run = run,
         budget = budget,
         getDirty = workoutDao::getDirtyCardioEntries,
         write = { c: CardioEntryEntity ->
             val workoutId = requireNotNull(workoutDao.workoutIdOf(c.workoutExerciseId))
-            paths.cardioEntry(workoutId, c.workoutExerciseId, c.id).set(c.toDto()).await()
+            set(run.paths.cardioEntry(workoutId, c.workoutExerciseId, c.id), c.toDto())
         },
         idOf = CardioEntryEntity::id,
         clearDirty = workoutDao::clearDirtyCardioEntries,
     )
 
     /** The single preferences document - not list-shaped, so it doesn't go through [pushDirty]. */
-    private suspend fun pushPreferences(paths: FirestoreSyncPaths) {
+    private suspend fun pushPreferences(run: PushRun) {
         val dirty = preferencesRepository.getDirtyPreferences() ?: return
-        paths.preferences().set(dirty.preferences.toDto(dirty.lastModifiedAt)).await()
+        run.paths.preferences().set(dirty.preferences.toDto(dirty.lastModifiedAt)).awaitOrTimeout()
         preferencesRepository.clearPreferencesDirty()
     }
 
-    private suspend fun processTombstones(paths: FirestoreSyncPaths, limit: Int) {
+    private suspend fun processTombstones(run: PushRun, limit: Int) {
         val tombstones = tombstoneDao.getOldest(limit)
         if (tombstones.size == limit) hasMoreWork = true
-        for (tombstone in tombstones) {
-            paths.forTombstone(tombstone).delete().await()
-            tombstoneDao.clear(tombstone.entityType, tombstone.entityId)
+        for (chunk in tombstones.chunked(WRITE_BATCH_LIMIT)) {
+            commitBatch(run, chunk) { tombstone -> delete(run.paths.forTombstone(tombstone)) }
+            chunk.forEach { tombstoneDao.clear(it.entityType, it.entityId) }
         }
     }
 
@@ -382,7 +425,7 @@ class SyncPushRunner @Inject constructor(
             AuthErrorReason.SESSION_REVOKED
         }
 
-        this is FirebaseNetworkException -> AuthErrorReason.NETWORK
+        isNetworkFailure() -> AuthErrorReason.NETWORK
         else -> AuthErrorReason.UNKNOWN
     }
 }

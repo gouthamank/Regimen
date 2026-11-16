@@ -11,45 +11,54 @@ private data class Row(val id: String)
 class PushDirtyBatchTest {
 
     @Test
-    fun `writes and clears every dirty row, decrementing the budget`() = runTest {
-        val rows = listOf(Row("a"), Row("b"), Row("c"))
-        val written = mutableListOf<String>()
+    fun `commits and clears every dirty row in chunks, decrementing the budget`() = runTest {
+        val rows = (1..5).map { Row(it.toString()) }
+        val committed = mutableListOf<List<String>>()
         val cleared = mutableListOf<List<String>>()
+        val reported = mutableListOf<Int>()
 
         val result = pushDirtyBatch(
             budget = 10,
             getDirty = { limit -> rows.take(limit) },
-            write = { row -> written += row.id },
+            commit = { chunk -> committed += chunk.map(Row::id) },
             idOf = Row::id,
             clearDirty = { ids -> cleared += ids },
+            chunkSize = 2,
+            onCommitted = { count -> reported += count },
         )
 
-        assertEquals(listOf("a", "b", "c"), written)
-        assertEquals(listOf(listOf("a"), listOf("b"), listOf("c")), cleared)
-        assertEquals(7, result.remainingBudget)
+        val expectedChunks = listOf(listOf("1", "2"), listOf("3", "4"), listOf("5"))
+        assertEquals(expectedChunks, committed)
+        assertEquals(expectedChunks, cleared)
+        assertEquals(listOf(2, 2, 1), reported)
+        assertEquals(5, result.remainingBudget)
         assertFalse(result.hasMore)
     }
 
     @Test
-    fun `a write failure partway through leaves earlier rows cleared and propagates the exception`() =
+    fun `a commit failure partway through leaves earlier chunks cleared and propagates the exception`() =
         runTest {
-            val rows = listOf(Row("a"), Row("b"), Row("c"))
+            val rows = (1..5).map { Row(it.toString()) }
             val cleared = mutableListOf<String>()
 
             try {
                 pushDirtyBatch(
                     budget = 10,
                     getDirty = { limit -> rows.take(limit) },
-                    write = { row -> if (row.id == "b") throw RuntimeException("network drop") },
+                    commit = { chunk ->
+                        if ("3" in chunk.map(Row::id)) throw RuntimeException("network drop")
+                    },
                     idOf = Row::id,
                     clearDirty = { ids -> cleared += ids },
+                    chunkSize = 2,
                 )
                 error("expected an exception")
             } catch (e: RuntimeException) {
                 assertEquals("network drop", e.message)
             }
 
-            assertEquals(listOf("a"), cleared)
+            // The failed chunk ("3", "4") and everything after it stay dirty.
+            assertEquals(listOf("1", "2"), cleared)
         }
 
     @Test
@@ -59,7 +68,7 @@ class PushDirtyBatchTest {
         val result = pushDirtyBatch(
             budget = 5,
             getDirty = { limit -> rows.take(limit) },
-            write = { },
+            commit = { },
             idOf = Row::id,
             clearDirty = { },
         )
@@ -74,7 +83,7 @@ class PushDirtyBatchTest {
         val result = pushDirtyBatch(
             budget = 5,
             getDirty = { limit -> rows.take(limit) },
-            write = { },
+            commit = { },
             idOf = Row::id,
             clearDirty = { },
         )
@@ -88,8 +97,8 @@ class PushDirtyBatchTest {
 
         val result = pushDirtyBatch(
             budget = 0,
-            getDirty = { getDirtyCalled = true; emptyList() },
-            write = { },
+            getDirty = { getDirtyCalled = true; emptyList<Row>() },
+            commit = { },
             idOf = Row::id,
             clearDirty = { },
         )

@@ -1,17 +1,28 @@
 package dev.gouthaman.regimen.domain.model
 
-/** Coarse, UI-displayable classification for why a secondary device's full-replace action
- * (Pull cloud data / Claim primary) refused to run - deliberately doesn't carry the underlying
- * platform exception's message, same reasoning as [AuthErrorReason]. */
+/** Coarse, UI-displayable classification for why Pull cloud data, Claim primary, or Delete cloud
+ * data failed - deliberately doesn't carry the underlying platform
+ * exception's message, same reasoning as [AuthErrorReason]. */
 enum class SyncReplaceErrorReason {
     /** Pull only - refuses to wipe local sync-scoped state out from under a live,
      * foreground-service-backed workout session. */
     WORKOUT_IN_PROGRESS,
 
-    /** Claim only - `syncConfig.lockedAt` is fresh, meaning a push *or another claim* is
-     * genuinely in flight right now on this account (the lock is shared between both, not
-     * push-exclusive). */
+    /** Claim/Delete - `syncConfig.lockedAt` is fresh, meaning a push *or a claim* is genuinely in
+     * flight right now on this account (the lock is shared, not push-exclusive). */
     PUSH_IN_PROGRESS,
+
+    /** Claim only - another device claimed primary while this one was still uploading. */
+    TAKEN_OVER,
+
+    /** Delete only - the cloud data is gone but deleting the Firebase Auth account needs a newer
+     * sign-in than the one taken just before it started. Running Delete again (which
+     * re-authenticates first) finishes it. */
+    REAUTH_REQUIRED,
+
+    /** The Google grant behind the local session no longer exists - see
+     * [AuthErrorReason.SESSION_REVOKED]. */
+    SESSION_REVOKED,
 
     /** A network-shaped failure (offline, timeout) talking to Firestore. */
     NETWORK,
