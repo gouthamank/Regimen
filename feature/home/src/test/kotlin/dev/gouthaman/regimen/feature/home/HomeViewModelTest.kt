@@ -101,6 +101,20 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `routines follow manual position, not recency`() = runTest {
+        routineRepo.seed(routine("a", position = 1), routine("b", position = 0))
+        completedWorkoutFor(routineId = "a", startTime = System.currentTimeMillis())
+        val viewModel = newViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.routines.size < 2 || !state.isEstablished) state = awaitItem()
+            assertEquals(listOf("b", "a"), state.routines.map { it.routineId })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `hasWorkoutInProgress reflects an unfinished workout`() = runTest {
         val viewModel = newViewModel()
 

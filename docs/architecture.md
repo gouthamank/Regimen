@@ -141,11 +141,10 @@ A pushed detail screen (e.g. Session Detail) keeps its parent tab highlighted in
 - **Home** - greeting (time-of-day, or a generic fallback before any workout has been logged),
   personalized with the signed-in account's first name when signed in (e.g. "Good morning,
   Jane!"), falling back to the unnamed greeting when signed out or the account has no display
-  name, primary **Start Workout** CTA, **quick-start routine chips** (ordered most-recently-used
-  first;
-  tapping one begins a session immediately), a **this-week** summary (workouts / volume / time)
-  with a weekly **streak** indicator, a **this-month** summary, a workout-frequency chart (last 4
-  weeks), and a bodyweight trend chart (last 4 weeks, with a "Log bodyweight" CTA into Body
+  name, primary **Start Workout** CTA, **quick-start routine chips** (in the Routines tab's manual
+  order; tapping one begins a session immediately), a **this-week** summary (workouts / volume /
+  time) with a weekly **streak** indicator, a **this-month** summary, a workout-frequency chart
+  (last 4 weeks), and a bodyweight trend chart (last 4 weeks, with a "Log bodyweight" CTA into Body
   Measurements when no entries exist yet). Each summary also gets a **Calories** tile once Health
   Connect is enabled (see "Health Connect" below) - hidden entirely otherwise. A period with
   workouts but no calorie data pulled yet shows a muted "–" placeholder rather than a fake `0`,

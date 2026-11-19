@@ -188,8 +188,8 @@ the reusable pieces; a test seeds whatever data it needs directly through the in
 ## `:feature:*` - ViewModel JVM unit tests
 
 Tested: `RoutineEditorViewModel` (`setExercises()` reconciliation), `RoutinesListViewModel`
-(optimistic drag-reorder overlay), `HomeViewModel` (quick-start ordering + aggregation,
-signed-in-account first-name derivation for the greeting),
+(optimistic drag-reorder overlay), `HomeViewModel` (quick-start routines in manual order +
+aggregation, signed-in-account first-name derivation for the greeting),
 `ProgressViewModel` (PR value resolution, muscle-group ordering), `ExerciseDetailViewModel` (PR
 branching), `ExerciseLibraryViewModel` (filter-toggle chain), `ActiveWorkoutViewModel` (rest-timer
 countdown/auto-complete/clamping - uses `StandardTestDispatcher` shared between `MainDispatcherRule`

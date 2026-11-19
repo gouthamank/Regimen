@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.gouthaman.regimen.common.MeasurementFormat
 import dev.gouthaman.regimen.domain.model.HistoryRange
-import dev.gouthaman.regimen.domain.model.RoutineWithExercises
 import dev.gouthaman.regimen.domain.model.WeekCount
 import dev.gouthaman.regimen.domain.model.cutoffMillis
 import dev.gouthaman.regimen.domain.usecase.GetHomeSummaryUseCase
@@ -80,7 +79,7 @@ data class HomeUiState(
     /** Null renders the tile's "no data yet" placeholder - see [dev.gouthaman.regimen.domain.model.HomeSummary]. */
     val caloriesThisWeek: Int? = null,
     val caloriesThisMonth: Int? = null,
-    /** All routines (recency-ordered) for the "Start a workout" chooser. */
+    /** All routines (in the Routines tab's manual order) for the "Start a workout" chooser. */
     val routines: List<QuickStartRoutine> = emptyList(),
     /** Workouts per week, oldest first - fixed to the last 4 weeks. */
     val workoutFrequency: List<Int> = emptyList(),
@@ -178,17 +177,9 @@ class HomeViewModel @Inject constructor(
     ) { summary, routines, history, prefs, (frequency, weightTrend, activeWorkoutId, displayName, healthConnectEnabled) ->
         val system = prefs.weightUnit
 
-        // Order quick-start chips by most-recently-used routine, then by manual position.
-        val lastUsed: Map<String, Long> = history
-            .mapNotNull { w -> w.workout.routineId?.let { it to w.workout.startTime } }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, times) -> times.max() }
+        // Same manual order as the Routines tab.
         val orderedRoutines = routines
-            .sortedWith(
-                compareByDescending<RoutineWithExercises> {
-                    lastUsed[it.routine.id] ?: Long.MIN_VALUE
-                }.thenBy { it.routine.position }
-            )
+            .sortedBy { it.routine.position }
             .map { QuickStartRoutine(it.routine.id, it.routine.name) }
 
         HomeUiState(
