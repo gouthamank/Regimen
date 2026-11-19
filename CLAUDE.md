@@ -40,14 +40,6 @@ project memory; see also `build.gradle.kts` / `gradle.properties`.
 - **Active Workout** runs behind a **foreground service** with a persistent
   pause/end notification; the in-progress session must survive process death.
 
-## ⚠️ Material 3 Expressive caveat
-
-Expressive APIs are **not fully stable** as of November 2026. Stable `material3` (`1.4.0`) lacks
-them; they're graduating in `1.5.0` (currently at `1.5.0-rc01`). Using Expressive requires pulling
-the `material3:1.5.0-rc01` dependency explicitly and opting into
-`@ExperimentalMaterial3ExpressiveApi` - accept pre-release churn. Verify current versions before
-pinning.
-
 ## Conventions
 
 - **`docs/architecture.md` and `docs/testing.md` are living current-state snapshots, not

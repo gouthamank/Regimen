@@ -907,22 +907,17 @@ for iterative development.
 Compose BOM `2026.09.00` · AGP `9.2.1` · Kotlin `2.4.21` · KSP `2.3.14` · Hilt `2.60.1` ·
 Room `2.8.5` · Navigation Compose `2.10.2` · Coroutines `1.11.0` · `androidx.window` `1.5.1` ·
 `androidx.compose.material3.adaptive` `1.3.0` ·
-`androidx.compose.material3:material3-adaptive-navigation-suite` `1.5.0-alpha23` ·
+`androidx.compose.material3:material3` and `material3-adaptive-navigation-suite` `1.5.0` (pinned
+over the BOM's version) ·
 `androidx.health.connect:connect-client` `1.1.0`.
 
 ### Material 3 Expressive
 
-Stable `material3` (`1.4.0`) does not include the Expressive APIs. The Compose BOM's `material3`
-version is overridden to `1.5.0-rc01` (the `material3Expressive` version entry in
-`libs.versions.toml`), with `@ExperimentalMaterial3ExpressiveApi` opted into where required. This
-is a deliberate, accepted pre-release-API-churn risk.
-
-Adopted:
-
 - **Theme** - `RegimenTheme` uses `MaterialExpressiveTheme` with `MotionScheme.expressive()`
   instead of plain `MaterialTheme`.
 - **Expressive shapes** - the Home streak tile uses `MaterialShapes.Cookie9Sided.toShape()` as a
-  decorative icon-badge shape.
+  decorative icon-badge shape. The shape APIs are still `@ExperimentalMaterial3ExpressiveApi`, so
+  their call sites opt in.
 - **Fixed color roles** - see Theming, above.
 - **Navigation transitions** - `RegimenNavHost` applies two different transition schemes,
   distinguished by whether both the departing and arriving destinations are one of the five

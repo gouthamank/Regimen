@@ -3,7 +3,6 @@ package dev.gouthaman.regimen.designsystem.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
@@ -55,7 +54,6 @@ private val LightColorScheme = lightColorScheme(
     onTertiaryFixedVariant = Pink30,
 )
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RegimenTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
