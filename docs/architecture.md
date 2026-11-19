@@ -294,6 +294,9 @@ The core loop; users spend the majority of session time here.
 - **Per-set completion** - a set's checkbox only becomes checkable once its numeric fields are
   actually filled in (for a non-bodyweight exercise, both weight and reps; unchecking is always
   allowed, no validation). Once checked, the set's fields lock - uncheck to edit them again.
+  Long-pressing a set's checkbox applies that set's new state to every set in the exercise
+  (check all / uncheck all); checking all leaves any set still missing weight/reps unchecked and
+  says so in a snackbar. Live session only - Edit Workout's cards don't offer it.
 - **Prefill** - each exercise's sets and its own note are prefilled from the most recent finished
   session that actually logged it (at least one completed set): this routine's sessions first,
   since rep schemes differ between routines, else any workout. An exercise skipped last time
@@ -306,10 +309,12 @@ The core loop; users spend the majority of session time here.
   done (only once every set is checked complete), each via its own header icon toggle; the two are
   mutually exclusive - marking one hides the other's icon until it's undone. Marking done also
   fires automatically the moment an exercise's last set becomes complete, whether via its checkbox
-  or via a rest countdown ending/being skipped, so the common case needs no extra tap. Both skip
-  and done collapse the card to a one-line summary (skipped: a plain "Skipped" label; done: each
-  set's logged weight/reps) with a tap target (Include / Edit) to reopen it; done additionally
-  tints the card with the theme's `tertiaryFixedDim`/`onTertiaryFixed` color pair (see Material 3
+  (tap or long-press check-all) or via a rest countdown ending/being skipped, so the common case
+  needs no extra tap. Both skip and done collapse the card to a short summary (skipped: a plain
+  "Skipped" label; done: one pill per run of consecutive sets at the same weight, e.g.
+  "60 kg · 10, 10, 8", "60 kg · 4 × 10", or "12, 10, 8 reps" for bodyweight - "×" only ever means
+  sets × reps there) with a tap target (Include / Edit) to reopen it; done additionally tints the
+  card with the theme's `tertiaryFixedDim`/`onTertiaryFixed` color pair (see Material 3
   Expressive's Fixed color roles, below), distinct from skip's neutral surfaceVariant tint. A
   left-skipped exercise is recorded in history as skipped (an adherence signal), not removed.
 - **Cardio** - a cardio activity can be added to the session, recording duration and distance.
@@ -417,8 +422,9 @@ The core loop; users spend the majority of session time here.
   feedback pipeline, so it already respects the system's haptics/vibration setting - nothing here
   can or needs to override that). Used at: drag-to-reorder (a tick on drag-lift, another per swap -
   shared `DragDropState`/`dragHandle`), Active Workout's set-complete checkbox (on check only, not
-  uncheck), its exercise skip/done toggles, its toolbar Pause/Resume tap, Routine Editor's
-  sets/reps/rest steppers, `ConfirmDialog`'s destructive confirms, and the moment a delayed confirm
+  uncheck; long-press check/uncheck-all gets `combinedClickable`'s built-in long-press haptic),
+  its exercise skip/done toggles, its toolbar Pause/Resume tap, Routine Editor's sets/reps/rest
+  steppers, `ConfirmDialog`'s destructive confirms, and the moment a delayed confirm
   button (see Reusable components) becomes tappable.
 - **Data export:** not implemented.
 

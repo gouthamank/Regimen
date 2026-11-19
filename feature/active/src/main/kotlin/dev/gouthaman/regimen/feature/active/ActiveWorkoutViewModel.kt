@@ -134,6 +134,10 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
     private val restSetInvalidEvent = Channel<Unit>(Channel.BUFFERED)
     val restSetInvalidEvents: Flow<Unit> = restSetInvalidEvent.receiveAsFlow()
 
+    // Same idea for a long-press "complete all": sets missing weight/reps are left unchecked.
+    private val completeAllPartialEvent = Channel<Unit>(Channel.BUFFERED)
+    val completeAllPartialEvents: Flow<Unit> = completeAllPartialEvent.receiveAsFlow()
+
     /** All exercises, for the add-exercise picker (all types, including cardio). */
     val allExercises: StateFlow<List<Exercise>> =
         observeExercises().stateIn(
@@ -203,7 +207,24 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
 
     fun updateSet(set: SetEntry) = viewModelScope.launch {
         upsertSet(set)
-        if (set.isComplete) autoMarkDoneIfAllComplete(set)
+        if (set.isComplete) autoMarkDoneIfAllComplete(listOf(set))
+    }
+
+    /** Long-press on a set's checkbox: applies [complete] to every set in the exercise. Ticking
+     * skips sets missing weight/reps (same rule as the checkbox) and reports them via
+     * [completeAllPartialEvents]. */
+    fun setAllComplete(workoutExerciseId: String, complete: Boolean) = viewModelScope.launch {
+        val exercise = uiState.value.exercises
+            .firstOrNull { it.workoutExerciseId == workoutExerciseId } ?: return@launch
+        val isBodyweight = exercise.equipment == Equipment.BODYWEIGHT
+        val targets = exercise.sets.filter { it.isComplete != complete }
+        val (writable, invalid) =
+            if (complete) targets.partition { it.isLoggable(isBodyweight) }
+            else targets to emptyList()
+        val updated = writable.map { it.copy(isComplete = complete) }
+        updated.forEach { upsertSet(it) }
+        if (invalid.isNotEmpty()) completeAllPartialEvent.send(Unit)
+        if (complete && updated.isNotEmpty()) autoMarkDoneIfAllComplete(updated)
     }
 
     fun addSet(workoutExerciseId: String, lastSet: SetEntry?) =
@@ -301,26 +322,29 @@ class ActiveWorkoutViewModel @AssistedInject constructor(
         val exercise = uiState.value.exercises
             .firstOrNull { it.workoutExerciseId == workoutExerciseId } ?: return
         val target = exercise.sets.firstOrNull { !it.isComplete } ?: return
-        val isBodyweight = exercise.equipment == Equipment.BODYWEIGHT
-        val fieldsValid = (isBodyweight || target.weightKg != null) && target.reps != null
-        if (!fieldsValid) {
+        if (!target.isLoggable(exercise.equipment == Equipment.BODYWEIGHT)) {
             restSetInvalidEvent.send(Unit)
             return
         }
         val updated = target.copy(isComplete = true)
         upsertSet(updated)
-        autoMarkDoneIfAllComplete(updated)
+        autoMarkDoneIfAllComplete(listOf(updated))
     }
 
-    /** Unified auto-done trigger: fires whether the last set was completed via the checkbox or
-     * via a rest countdown ending/being skipped. Uses [justCompleted] directly rather than
-     * re-reading [uiState] for that one row, since the Room round-trip for the write just made
-     * may not have landed in [uiState] yet. */
-    private suspend fun autoMarkDoneIfAllComplete(justCompleted: SetEntry) {
+    private fun SetEntry.isLoggable(isBodyweight: Boolean) =
+        (isBodyweight || weightKg != null) && reps != null
+
+    /** Unified auto-done trigger: fires whether the last set was completed via the checkbox, a
+     * long-press "complete all", or a rest countdown ending/being skipped. Uses [justCompleted]
+     * directly rather than re-reading [uiState] for those rows, since the Room round-trip for the
+     * writes just made may not have landed in [uiState] yet. All entries share one exercise. */
+    private suspend fun autoMarkDoneIfAllComplete(justCompleted: List<SetEntry>) {
+        val workoutExerciseId = justCompleted.firstOrNull()?.workoutExerciseId ?: return
         val exercise = uiState.value.exercises
-            .firstOrNull { it.workoutExerciseId == justCompleted.workoutExerciseId } ?: return
+            .firstOrNull { it.workoutExerciseId == workoutExerciseId } ?: return
         if (exercise.isDone) return
-        val sets = exercise.sets.map { if (it.id == justCompleted.id) justCompleted else it }
+        val byId = justCompleted.associateBy { it.id }
+        val sets = exercise.sets.map { byId[it.id] ?: it }
         if (sets.isNotEmpty() && sets.all { it.isComplete }) {
             toggleDoneUseCase(exercise.workoutExercise)
         }

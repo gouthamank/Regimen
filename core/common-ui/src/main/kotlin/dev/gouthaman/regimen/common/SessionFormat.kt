@@ -71,13 +71,7 @@ object SessionFormat {
     /** One logged strength set, e.g. "60 kg × 8", "8 reps" (bodyweight), or "60 kg" (no reps). */
     @Composable
     fun setLabel(set: SetEntry, weightUnit: UnitSystem): String {
-        val weight = set.weightKg?.let {
-            stringResource(
-                R.string.session_format_weight_value,
-                UnitConverter.formatValue(UnitConverter.kgToDisplay(it, weightUnit)),
-                UnitConverter.weightLabel(weightUnit).text(),
-            )
-        }
+        val weight = set.weightKg?.let { weightValue(it, weightUnit) }
         val repsValue = set.reps
         val reps =
             repsValue?.let { pluralStringResource(R.plurals.session_format_reps_count, it, it) }
@@ -90,6 +84,46 @@ object SessionFormat {
             else -> stringResource(R.string.session_format_placeholder_dash)
         }
     }
+
+    /** A [SetGroup], e.g. "60 kg · 10, 10, 8", "60 kg · 4 × 10", or "12, 10, 8 reps"
+     * (bodyweight). "×" only ever means sets × reps here, never weight × reps. */
+    @Composable
+    fun setGroupLabel(group: SetGroup, weightUnit: UnitSystem): String {
+        val weight = group.weightKg?.let { weightValue(it, weightUnit) }
+        val firstReps = group.reps.first()
+        if (group.isUniform && firstReps != null) {
+            return if (weight != null) {
+                stringResource(
+                    R.string.session_format_sets_uniform_weight,
+                    weight,
+                    group.reps.size,
+                    firstReps,
+                )
+            } else {
+                stringResource(
+                    R.string.session_format_sets_uniform,
+                    group.reps.size,
+                    pluralStringResource(R.plurals.session_format_reps_count, firstReps, firstReps),
+                )
+            }
+        }
+        val dash = stringResource(R.string.session_format_placeholder_dash)
+        val repsList = group.reps.joinToString(", ") { it?.toString() ?: dash }
+        return when {
+            weight != null -> stringResource(R.string.session_format_weight_reps_list, weight, repsList)
+            group.reps.size == 1 && firstReps != null ->
+                pluralStringResource(R.plurals.session_format_reps_count, firstReps, firstReps)
+
+            else -> stringResource(R.string.session_format_reps_list, repsList)
+        }
+    }
+
+    @Composable
+    private fun weightValue(kg: Double, weightUnit: UnitSystem): String = stringResource(
+        R.string.session_format_weight_value,
+        UnitConverter.formatValue(UnitConverter.kgToDisplay(kg, weightUnit)),
+        UnitConverter.weightLabel(weightUnit).text(),
+    )
 
     /** A cardio bout, e.g. "12:30" or "12:30 · 3.2 km". */
     @Composable

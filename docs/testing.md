@@ -83,6 +83,12 @@ Skipped: one-line repository pass-throughs (the rest of `RoutineUseCases`, `Meas
 `PreferenceUseCases`, and the simple observe/delete one-liners in `WorkoutUseCases`/
 `ExerciseUseCases`) - reserve unit tests for use cases with actual logic.
 
+## `:core:common-ui` - JVM unit tests
+
+Tested: `groupSetsByWeight` / `SetGroup.isUniform` (`SetGroupsTest`) - the grouping behind the
+done exercise card's pills. The `SessionFormat` string formatters themselves aren't tested (they
+need Android resources).
+
 ## `:core:data` - `androidTest` (Room DAO + migrations)
 
 - `WorkoutDaoTest` - the raw-SQL JOIN queries (`observeBestWeight`, `observePersonalRecords`,
@@ -192,8 +198,9 @@ Tested: `RoutineEditorViewModel` (`setExercises()` reconciliation), `RoutinesLis
 aggregation, signed-in-account first-name derivation for the greeting),
 `ProgressViewModel` (PR value resolution, muscle-group ordering), `ExerciseDetailViewModel` (PR
 branching), `ExerciseLibraryViewModel` (filter-toggle chain), `ActiveWorkoutViewModel` (rest-timer
-countdown/auto-complete/clamping - uses `StandardTestDispatcher` shared between `MainDispatcherRule`
-and `runTest` so `runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope`),
+countdown/auto-complete/clamping, long-press check/uncheck-all incl. skipping invalid sets - uses
+`StandardTestDispatcher` shared between `MainDispatcherRule` and `runTest` so
+`runCurrent()`/`advanceTimeBy()` actually drive `viewModelScope`),
 `WorkoutSummaryViewModel` (volume summation + PR comparison), `SessionDetailViewModel`
 (save-as-routine eligibility), `MeasurementsViewModel` (type-driven aggregation),
 `AccountViewModel` (sign-in success/failure, sign-out dispatch, using a `FakeAuthRepository`;

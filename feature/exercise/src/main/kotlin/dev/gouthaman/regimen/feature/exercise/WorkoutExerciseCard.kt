@@ -14,13 +14,17 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -39,8 +43,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,12 +58,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.gouthaman.regimen.common.SessionFormat
+import dev.gouthaman.regimen.common.groupSetsByWeight
 import dev.gouthaman.regimen.common.text
 import dev.gouthaman.regimen.domain.model.CardioEntry
 import dev.gouthaman.regimen.domain.model.Equipment
@@ -114,6 +127,8 @@ fun ExerciseCard(
     showRestTimer: Boolean = true,
     enabled: Boolean = true,
     animateSets: Boolean = true,
+    /** Long-press on a set checkbox applies its new state to every set; null disables it. */
+    onSetAllComplete: ((String, Boolean) -> Unit)? = null,
 ) {
     val bodyState = when {
         exercise.isSkipped -> ExerciseCardBody.SKIPPED
@@ -256,13 +271,15 @@ fun ExerciseCard(
                         modifier = Modifier.padding(top = 8.dp),
                     )
 
-                    ExerciseCardBody.DONE -> Text(
-                        exercise.sets.map { SessionFormat.setLabel(it, weightUnit) }
-                            .joinToString(" · "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = contentColor,
+                    ExerciseCardBody.DONE -> FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(top = 8.dp),
-                    )
+                    ) {
+                        groupSetsByWeight(exercise.sets).forEach { group ->
+                            SetGroupPill(SessionFormat.setGroupLabel(group, weightUnit), contentColor)
+                        }
+                    }
 
                     ExerciseCardBody.NORMAL -> if (exercise.isStrength) {
                         Column {
@@ -278,6 +295,9 @@ fun ExerciseCard(
                                         onDelete = { onDeleteSet(set) },
                                         onAutofillWeight = { kg -> onAutofillWeight(set.id, kg) },
                                         onAutofillReps = { reps -> onAutofillReps(set.id, reps) },
+                                        onSetAllComplete = onSetAllComplete?.let { cb ->
+                                            { complete -> cb(exercise.workoutExerciseId, complete) }
+                                        },
                                     )
                                 }
                             }
@@ -374,6 +394,19 @@ fun ExerciseCard(
     }
 }
 
+/** One weight group in a done card's summary. A plain pill rather than a Material chip, since it
+ * isn't tappable; tinted off [color] so it reads on the card's done tint in light and dark. */
+@Composable
+private fun SetGroupPill(label: String, color: Color) {
+    Surface(shape = CircleShape, color = color.copy(alpha = 0.12f), contentColor = color) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
+}
+
 /**
  * Wraps [SetRow] with an enter animation for new sets and a delayed exit for deletion - the real
  * [onDelete] fires only after the shrink/fade finishes, since [AnimatedVisibility] needs the
@@ -395,6 +428,7 @@ private fun AnimatedSetRow(
     onDelete: () -> Unit,
     onAutofillWeight: (Double) -> Unit,
     onAutofillReps: (Int) -> Unit,
+    onSetAllComplete: ((Boolean) -> Unit)?,
     animated: Boolean = true,
 ) {
     var visible by remember { mutableStateOf(!animated) }
@@ -426,6 +460,7 @@ private fun AnimatedSetRow(
             onDelete = { removing = true },
             onAutofillWeight = onAutofillWeight,
             onAutofillReps = onAutofillReps,
+            onSetAllComplete = onSetAllComplete,
         )
     }
 }
@@ -442,6 +477,7 @@ private fun SetRow(
     onDelete: () -> Unit,
     onAutofillWeight: (Double) -> Unit,
     onAutofillReps: (Int) -> Unit,
+    onSetAllComplete: ((Boolean) -> Unit)?,
 ) {
     // Fields are local (seeded once per set id) rather than reading `set` directly, so a
     // same-row round-trip through Room mid-edit can't clobber what's being typed; every write
@@ -554,17 +590,38 @@ private fun SetRow(
                     repsWasFocused = focusState.isFocused
                 },
         )
-        Checkbox(
-            checked = complete,
-            onCheckedChange = {
-                complete = it
-                push()
-                // Only on check, not uncheck - a tick both ways would read as a buzzer during a
-                // quick fix-a-mistake toggle.
-                if (it) haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
-            },
-            enabled = enabled && (complete || fieldsValid),
-        )
+        // Checkbox has no long-press hook, so its click handling moves to this wrapper (same
+        // touch target and unbounded ripple as Checkbox's own toggleable).
+        val checkEnabled = enabled && (complete || fieldsValid)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .minimumInteractiveComponentSize()
+                .semantics { toggleableState = ToggleableState(complete) }
+                .combinedClickable(
+                    interactionSource = null,
+                    indication = ripple(bounded = false, radius = 20.dp),
+                    enabled = checkEnabled,
+                    role = Role.Checkbox,
+                    onLongClickLabel = onSetAllComplete?.let {
+                        stringResource(
+                            if (complete) R.string.workout_uncomplete_all_sets_action
+                            else R.string.workout_complete_all_sets_action
+                        )
+                    },
+                    // combinedClickable fires its own long-press haptic.
+                    onLongClick = onSetAllComplete?.let { setAll -> { setAll(!complete) } },
+                    onClick = {
+                        complete = !complete
+                        push()
+                        // Only on check, not uncheck - a tick both ways would read as a buzzer
+                        // during a quick fix-a-mistake toggle.
+                        if (complete) haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                    },
+                ),
+        ) {
+            Checkbox(checked = complete, onCheckedChange = null, enabled = checkEnabled)
+        }
         IconButton(onClick = onDelete, enabled = enabled) {
             Icon(
                 Icons.Filled.Delete,

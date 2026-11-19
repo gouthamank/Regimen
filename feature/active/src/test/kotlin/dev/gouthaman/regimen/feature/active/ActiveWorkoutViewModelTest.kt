@@ -382,6 +382,87 @@ class ActiveWorkoutViewModelTest {
         }
 
     @Test
+    fun `completing all sets ticks every set and marks the exercise done`() =
+        runTest(dispatcher) {
+            val workoutRepo = FakeWorkoutRepository()
+            workoutRepo.exerciseLookup = { benchPress }
+            val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+            val we = workoutRepo.addExercise(
+                WorkoutExercise(workoutId = workoutId, exerciseId = benchPress.id, position = 0)
+            )
+            (1..3).forEach {
+                workoutRepo.upsertSet(
+                    SetEntry(workoutExerciseId = we, setNumber = it, weightKg = 50.0, reps = 10)
+                )
+            }
+            val viewModel = viewModel(workoutId, workoutRepo, appScope = this)
+            runCurrent()
+
+            viewModel.setAllComplete(we, complete = true)
+            runCurrent()
+
+            val exercise = workoutRepo.getWorkout(workoutId)!!.exercises.single()
+            assertTrue(exercise.sets.all { it.isComplete })
+            assertTrue(exercise.workoutExercise.isDone)
+        }
+
+    @Test
+    fun `completing all sets skips sets missing weight or reps and surfaces a one-shot event`() =
+        runTest(dispatcher) {
+            val workoutRepo = FakeWorkoutRepository()
+            workoutRepo.exerciseLookup = { benchPress }
+            val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+            val we = workoutRepo.addExercise(
+                WorkoutExercise(workoutId = workoutId, exerciseId = benchPress.id, position = 0)
+            )
+            val validId = workoutRepo.upsertSet(
+                SetEntry(workoutExerciseId = we, setNumber = 1, weightKg = 50.0, reps = 10)
+            )
+            val invalidId = workoutRepo.upsertSet(
+                SetEntry(workoutExerciseId = we, setNumber = 2, weightKg = 50.0, reps = null)
+            )
+            val viewModel = viewModel(workoutId, workoutRepo, appScope = this)
+            runCurrent()
+
+            viewModel.setAllComplete(we, complete = true)
+            runCurrent()
+
+            val exercise = workoutRepo.getWorkout(workoutId)!!.exercises.single()
+            assertTrue(exercise.sets.single { it.id == validId }.isComplete)
+            assertFalse(exercise.sets.single { it.id == invalidId }.isComplete)
+            assertFalse(exercise.workoutExercise.isDone)
+            viewModel.completeAllPartialEvents.test {
+                assertEquals(Unit, awaitItem())
+            }
+        }
+
+    @Test
+    fun `uncompleting all sets clears every set`() = runTest(dispatcher) {
+        val workoutRepo = FakeWorkoutRepository()
+        workoutRepo.exerciseLookup = { benchPress }
+        val workoutId = workoutRepo.createWorkout(startTime = 1_000, routineId = null)
+        val we = workoutRepo.addExercise(
+            WorkoutExercise(workoutId = workoutId, exerciseId = benchPress.id, position = 0)
+        )
+        workoutRepo.upsertSet(
+            SetEntry(
+                workoutExerciseId = we, setNumber = 1, weightKg = 50.0, reps = 10, isComplete = true
+            )
+        )
+        workoutRepo.upsertSet(
+            SetEntry(workoutExerciseId = we, setNumber = 2, weightKg = null, reps = null)
+        )
+        val viewModel = viewModel(workoutId, workoutRepo, appScope = this)
+        runCurrent()
+
+        viewModel.setAllComplete(we, complete = false)
+        runCurrent()
+
+        val exercise = workoutRepo.getWorkout(workoutId)!!.exercises.single()
+        assertTrue(exercise.sets.none { it.isComplete })
+    }
+
+    @Test
     fun `toggling exercise notes flips notesToggledOpen for just that exercise`() =
         runTest(dispatcher) {
             val workoutRepo = FakeWorkoutRepository()

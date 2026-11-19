@@ -67,6 +67,8 @@
     <string name="workout_rest_label">Rest</string>
     <string name="workout_reps_label">Reps</string>
     <string name="workout_delete_set_description">Delete set</string>
+    <string name="workout_complete_all_sets_action">Mark all sets done</string>
+    <string name="workout_uncomplete_all_sets_action">Mark all sets not done</string>
     <string name="workout_minutes_label">Minutes</string>
     <string name="workout_distance_label">Distance (%1$s)</string>
 </resources>

@@ -405,6 +405,12 @@ private fun LiveWorkoutContent(
             snackbarHostState.showSnackbar(restSetInvalidMessage)
         }
     }
+    val completeAllPartialMessage = stringResource(R.string.workout_complete_all_partial_snackbar)
+    LaunchedEffect(Unit) {
+        viewModel.completeAllPartialEvents.collect {
+            snackbarHostState.showSnackbar(completeAllPartialMessage)
+        }
+    }
 
     var showDiscard by remember { mutableStateOf(false) }
     var showFinishConfirm by remember { mutableStateOf(false) }
@@ -591,6 +597,7 @@ private fun LiveWorkoutContent(
                             onUpdateNotes = viewModel::updateExerciseNote,
                             enabled = !uiState.isPaused,
                             animateSets = animateSets,
+                            onSetAllComplete = viewModel::setAllComplete,
                         )
                     }
 
